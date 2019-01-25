@@ -18,9 +18,9 @@ The plugin needs the connector ID code and the private key, you will find them i
 </p>
 
 <p><b>Requirements for synchronization</b>
-    -cUrl extension installed; In order to call and obtain the information from Sales Layer.<br>
-    -Define the fields relationship in the Sales Layer WooCommerce connector: <br>
-        -One size for image fields.<br>
+    -cUrl extension installed; In order to call and obtain the information from Sales Layer.
+    -Define the fields relationship in the Sales Layer WooCommerce connector:
+        -One size for image fields.
         -Most WooCommerce fields are already defined in each section, extra fields for products or product formats will be Admin-> Product attributes and they must have been created in WooCommerce in order to synchronize.
         -When synchronizing a product that has formats, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and product formats will be combined and assigned to the product. Variations must have only one value for each attribute.
 </p>
