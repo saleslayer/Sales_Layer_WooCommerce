@@ -4,7 +4,7 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
 <h2>How To Start</h2>
 
 <p>
-    <h3>1. Install the package in WooCommerce</h3><br>
+    <h3>1. Install the package in WooCommerce</h3>
     <ul>
         <li>Go to Plugins -> Add new -> Upload plugin</li>
         <li>Select and upload our plugin zip file.</li>
@@ -12,14 +12,14 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
 </p>
 
 <p>
-    <h3>2. Create a Sales Layer WooCommerce connector and map the fields</h3><br>
+    <h3>2. Create a Sales Layer WooCommerce connector and map the fields</h3>
     <ul>
         <li>The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.</li>
     </ul>
 </p>
     
 <p>
-    <h3>3. Add the connector credencials in WooCommerce</h3><br>
+    <h3>3. Add the connector credencials in WooCommerce</h3>
     <ul>
         <li>Go to Admin -> Sales Layer WooCommerce -> Add connector and add the connector id and secret key.</li>
         <li>Finally, In Admin -> Sales Layer Woo -> Connectors, push Synchronize to import categories, products and product formats automatically.</li>
@@ -27,7 +27,7 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
 </p>
 
 <p>
-    <h2>Requirements for synchronization</h2><br>
+    <h2>Requirements for synchronization</h2>
     <ul>
         <li>cUrl extension installed; In order to call and obtain the information from Sales Layer.</li>
         <li>Define the fields relationship in the Sales Layer WooCommerce connector:
