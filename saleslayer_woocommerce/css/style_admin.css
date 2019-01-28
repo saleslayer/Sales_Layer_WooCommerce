@@ -1,0 +1,90 @@
+
+#slyr_catalogue_admin {position: relative; display: block; overflow: hidden; margin: 20px 20px 20px 0}
+
+#slyr_catalogue_admin, #slyr_catalogue_admin p, #slyr_catalogue_admin table {font-size: 15px; line-height: 20px}
+
+#slyr_catalogue_admin #logo     {}
+#slyr_catalogue_admin #logo img { height: 50px; }
+
+#slyr_catalogue_admin .container  {
+    
+    background-color: #fff;
+    border-left: 4px solid #1abc9c;
+    box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);
+    display: inline-block;
+    font-size: 14px;
+    line-height: 19px;
+    margin: 0 20px 0 2px;
+    padding: 11px 15px 30px;
+    text-align: left;
+
+}
+
+#slyr_catalogue_admin .dialog {
+
+	margin-bottom: 25px; padding: 15px; background: #eff7f3; color: #34495e; text-align: center; font-size: 115%; line-height: 125%;
+}
+
+#slyr_catalogue_admin .dialog-warning {
+	background: #FFE0E0; color: #FF1010;
+}
+
+#slyr_catalogue_admin h1 {font-size: 200%; line-height: 215%; margin: 0 0 20px 0}
+#slyr_catalogue_admin h2 {font-size: 175%; line-height: 185%; margin: 0 0 20px 0}
+#slyr_catalogue_admin h3 {font-size: 150%; line-height: 160%; margin: 0 0 20px 0}
+#slyr_catalogue_admin h4 {font-size: 130%; line-height: 145%; margin: 0 0 10px 0}
+#slyr_catalogue_admin h5 {font-size: 120%; line-height: 130%; margin: 0 0 10px 0}
+#slyr_catalogue_admin h6 {font-size: 115%; line-height: 115%; margin: 0 0 10px 0; color: rgba(1,1,1,0.5)}
+#slyr_catalogue_admin h7 {font-size: 105%; line-height: 110%; margin: 0 0 10px 0; color: rgba(1,1,1,0.5)}
+
+#slyr_catalogue_admin  .button_block {width: 100%}
+
+#slyr_catalogue_admin .form-table { width: 100% }
+#slyr_catalogue_admin .form-table td { padding: 0 0 15px 0 }
+#slyr_catalogue_admin .form-table input[type=text] {width: 100%}
+
+#slyr_catalogue_admin .filters table.table-bordered    { border-collapse: collapse; border-spacing: 0; margin: 15px 0; }
+
+#slyr_catalogue_admin .filters table.table-bordered th,
+#slyr_catalogue_admin .filters table.table-bordered td        { border: 1px solid #eee; padding: 5px 10px }
+#slyr_catalogue_admin .filters table.table-bordered td.center { text-align: center }
+#slyr_catalogue_admin #filter_ul,
+#slyr_catalogue_admin #filtertext,
+#slyr_catalogue_admin #filterchecks,
+#slyr_catalogue_admin #site-canvas-product {display: none}
+
+
+#slyr_catalogue_admin .filterbox {
+    color: #fff; width: 350px;  height: 150px;
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+#slyr_catalogue_admin .filterbox input[type="text"] { color: #000; }
+#slyr_catalogue_admin .filterbox ul    { margin: 0; padding: 0; }
+#slyr_catalogue_admin #filterchecks li { color: #FFF; text-transform:capitalize; }
+#slyr_catalogue_admin input#searchbox  { width: 90%; margin: 10px; }
+
+#slyr_catalogue_admin input#searchbox.success-results { background-color: #1ABC9C; color: #FFF; }
+#slyr_catalogue_admin input#searchbox.no-results      { background-color: #FC8282; color: #FFF; }
+#slyr_catalogue_admin .highlight                      { background-color: #FFFF88; color: #000; }
+
+#slyr_catalogue_admin .button-sync {
+    float: left;
+    /*margin-left: 10px;*/
+    width: 30%;
+}
+#slyr_catalogue_admin .button-forget {
+    color: rgb(255, 255, 255);
+    background-color: rgb(217,83,79);
+    border-color: rgb(212, 63, 58);
+    /*float: left;*/
+    margin-left: 10px;
+    width: 30%;
+}
+
+#slyr_catalogue_admin .button-forget:hover {
+    background: #000;
+    color: #fff;
+    background-color: rgb(212, 63, 58);
+}
