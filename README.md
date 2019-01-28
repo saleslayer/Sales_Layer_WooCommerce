@@ -39,3 +39,4 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
         </li>
     </ul>
 </p>
+
