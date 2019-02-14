@@ -170,7 +170,7 @@ function find_saleslayer_term($taxonomy, $saleslayerid = null, $saleslayercompid
 
    	$terms = get_terms(
    		array(
-			'hide_empty' => false,
+   			'hide_empty' => false,
 			'taxonomy' => $taxonomy,
 			'meta_query' => $meta_query
 		)
@@ -181,8 +181,30 @@ function find_saleslayer_term($taxonomy, $saleslayerid = null, $saleslayercompid
    	    sl_debbug('## Error. find_saleslayer_term: '.$terms->get_error_message());
  
    	}else if (!empty($terms)){
+
+   		$term = json_decode(json_encode($terms[0]), true);
+
+   		$term_meta = get_term_meta( $term['term_id'], '', true );
+
+   		if (!empty($term_meta)){
+
+   			foreach ($term_meta as $term_meta_field => $term_meta_value) {
+   				
+   				if (is_array($term_meta_value) && count($term_meta_value) == 1){
+			
+					$term[$term_meta_field] = $term_meta_value[0];
+			
+				}else{
+			
+					$term[$term_meta_field] = $term_meta_value;
+			
+				}
+
+   			}
+
+   		}
 	    	
-	    return json_decode(json_encode($terms[0]), true);
+	    return $term;
 
    	}
 
@@ -468,7 +490,7 @@ function sl_validate_boolean($value){
 		}
 
 	}
-	
+
 	if ( is_bool( $value ) ) {
     
     	if ($value == true){

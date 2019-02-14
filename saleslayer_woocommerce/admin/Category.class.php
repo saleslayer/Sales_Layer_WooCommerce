@@ -7,6 +7,7 @@ class Category {
 	protected $category_field_description = 'section_description';
 	protected $category_field_description_short = 'section_description_short';
 	protected $category_field_image = 'section_image';
+	protected $category_field_order = 'section_order';
 	protected $category_images_sizes = array();
 
 	protected $delayedCategories     = array();
@@ -112,6 +113,13 @@ class Category {
 	    }
 	    $category_data_to_store['category_fields']['category_field_description'] = $this->category_field_description;
 
+	    if ($schema['fields'][$this->category_field_order]['has_multilingual']) {
+
+	    	$this->category_field_order .= '_'.$connector->conn_data['languages'];
+
+	    }
+	    $category_data_to_store['category_fields']['category_field_order'] = $this->category_field_order;
+
 	    if ($schema['fields'][$this->category_field_image]['has_multilingual']) {
 
 	    	$this->category_field_image       .= '_'.$connector->conn_data['languages'];
@@ -199,6 +207,7 @@ class Category {
 		}
 
 		$wp_category = find_saleslayer_term('product_cat' , $sl_category_id, $this->comp_id);
+
 		if (!$wp_category){
 			
 			$wp_category = $this->find_category_by_name($category_data[$this->category_field_name], $sl_category_id, $this->comp_id);
@@ -224,6 +233,7 @@ class Category {
 
 		if (SLYR_WC_DEBBUG > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
 
+
 		$category_modified = false;
 		$category_data_modified = array();
 
@@ -248,6 +258,13 @@ class Category {
 			$category_modified = true;
 		
 		}
+
+		if (isset($wp_category['order']) && $wp_category['order'] != $category_data[$this->category_field_order]){
+		
+			sl_update_woocommerce_term_meta($wp_category['term_id'], 'order', $category_data[$this->category_field_order]);
+			
+		};
+
 		sl_debbug('## time_category_core_data: '.(microtime(1) - $time_ini_category_core_data).' seconds.', 'timer');
 
 		$time_ini_category_images = microtime(1);

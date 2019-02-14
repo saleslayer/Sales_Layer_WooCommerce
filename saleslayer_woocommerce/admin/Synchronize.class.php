@@ -118,7 +118,7 @@ class Synchronize {
 
 	    if (!$this->initialized_vars){
 	        
-	        $this->category_fields = array('category_field_name', 'category_field_description', 'category_field_description_short', 'category_field_image', 'category_images_sizes');
+	        $this->category_fields = array('category_field_name', 'category_field_description', 'category_field_description_short', 'category_field_image', 'category_images_sizes', 'category_field_order');
             $this->product_fields = array('product_field_name', 'product_field_description', 'product_field_description_short', 'product_field_image', 'product_field_sku', 'product_field_stock', 'product_field_manage_stock', 'product_field_stock_status', 'product_field_menu_order', 'product_field_weight', 'product_field_length', 'product_field_width', 'product_field_height', 'product_field_purchase_note', 'product_field_regular_price', 'product_field_sale_price', 'product_field_tags', 'product_field_downloadable', 'product_field_virtual', 'product_images_sizes', 'product_additional_fields', 'image_extensions');
             $this->product_format_fields = array('format_field_sku', 'format_field_description', 'format_field_regular_price', 'format_field_sale_price', 'format_field_stock', 'format_manage_stock', 'format_stock_status', 'format_field_weight', 'format_field_length', 'format_field_width', 'format_field_height', 'format_field_enabled', 'format_field_downloadable', 'format_field_virtual', 'format_field_image', 'format_images_sizes', 'format_additional_fields', 'parent_product_attributes', 'image_extensions');
 	        $this->initialized_vars = true;
