@@ -212,9 +212,7 @@ class Format {
 			}
 		
 		}
-		$this->format_additional_fields['atributo_test'] = 'atributo_test';
-		$product_format_data_to_store['format_additional_fields']['atributo_test'] = 'atributo_test';
-        
+		
 		if (SLYR_WC_DEBBUG > 1 and count($product_format_data_to_store['format_additional_fields']) > 0) {
             
             sl_debbug("Format additional fields: ".print_r($product_format_data_to_store['format_additional_fields'], 1));
