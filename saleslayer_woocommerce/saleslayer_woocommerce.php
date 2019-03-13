@@ -143,7 +143,7 @@ function slyr_wc_enqueue_stylesheets(){
 
         wp_enqueue_style('mystyle');
 
-        wp_enqueue_style('bootstrap', plugin_dir_url( __FILE__ ).'/css/bootstrap.min.css');
+        wp_enqueue_style('bootstrap', plugin_dir_url( __FILE__ ).'css/bootstrap.min.css');
 
         wp_enqueue_style('bootstrap');
 
@@ -153,15 +153,23 @@ function slyr_wc_enqueue_stylesheets(){
 
 function slyr_wc_enqueue_scripts(){
 
-    $scripts = array('jquery-1.8.3.min');
+    if (is_admin()){
 
-//  Activates jquery if is not activated yet
-    wp_enqueue_script('jquery');
+        $scripts = array('jquery-3.3.1.min');
+        
+        if (!empty($scripts)){   
+        
+            wp_enqueue_script('jquery');
 
-    foreach($scripts as $script ){
-        wp_register_script('slyr_plugin_script_'.$script, plugin_dir_url( __FILE__ ).'js/'.$script.'.js',array('jquery'), null, true);
-        wp_enqueue_script ('slyr_plugin_script_'.$script);
+            foreach($scripts as $script ){
+                wp_register_script('slyr_plugin_script_'.$script, plugin_dir_url( __FILE__ ).'js/'.$script.'.js',array('jquery'), null, true);
+                wp_enqueue_script ('slyr_plugin_script_'.$script);
+            }
+
+        }
+
     }
+
 }
 
 
@@ -205,7 +213,7 @@ function slyr_wc_add_connector(){
 
             if ($result_check_plugins_requirements['error'] === 0){
                 
-                include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn.php');
+                if (!class_exists('SalesLayer_Conn')) include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn.php');
                 
                 $connector_id = $_POST['connector_id'];
                 $secret_key = $_POST['secret_key'];

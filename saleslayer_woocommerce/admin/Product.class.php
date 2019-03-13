@@ -309,7 +309,28 @@ class Product {
 
 	    if (!empty($products)){
 
-	        $product_data_to_store['product_data'] = $products;
+	        foreach ($products as $keyProd => $product) {
+
+                if (empty($product['catalogue_id'])){
+
+                	if (!isset($product_data_to_store['not_synced_products'])){ 
+
+                		$product_data_to_store['not_synced_products'] = array();
+
+                	}
+
+                	$product_data_to_store['not_synced_products'][$product['id']] = 'Product '.$product['data'][$this->product_field_name].' with SL ID '.$product['id'].' has no categories.';
+                    unset($products[$keyProd]);
+
+                }
+
+            }
+
+            if (!empty($products)){
+
+                $product_data_to_store['product_data'] = $products;
+
+            }
 
 	    }
 	    

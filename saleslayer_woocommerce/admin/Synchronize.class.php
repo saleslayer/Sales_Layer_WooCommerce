@@ -1,6 +1,6 @@
 <?php 
 
-include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn.php');
+if (!class_exists('SalesLayer_Conn')) include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Connector.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Category.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Product.class.php');
@@ -824,8 +824,7 @@ class Synchronize {
 		$last_update = $slconn->get_response_time();
 
 		if (!is_null($last_update)){ $conn_data['last_update'] = $last_update; }
-        if (!is_null($auto_sync) && $auto_sync != ''){ $conn_data['auto_sync'] = $auto_sync; }
-		$connector->update_connector($connector_id, $conn_data);
+        $connector->update_connector($connector_id, $conn_data);
 
 		$sync_params['conn_params']['comp_id'] = $conn_data['comp_id'];
 		$sync_params['conn_params']['connector_id'] = $connector_id;
@@ -940,7 +939,6 @@ class Synchronize {
 	                	$item_type = 'category';
 	                    
 	                    $arrayReturn['categories_to_sync'] = count($modified_data);
-	                    sl_debbug('Total count of sync categories to store: '.count($modified_data));
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
 	                    
 
@@ -964,18 +962,26 @@ class Synchronize {
 	                        
 	                    }
 
+	                    sl_debbug('Total count of sync categories to store: '.$arrayReturn['categories_to_sync']);
+
 	                    break;
 	                case 'products':
 
 	                	$item_type = 'product';
 	                    
 	                    $arrayReturn['products_to_sync'] = count($modified_data);
-	                    sl_debbug('Total count of sync products to store: '.count($modified_data));
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
 
 	                    $product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data);
+
+	                    if (isset($product_data_to_store['not_synced_products']) && !empty($product_data_to_store['not_synced_products'])){
+	                    	$arrayReturn['products_not_synced'] = $product_data_to_store['not_synced_products'];
+	                    	unset($product_data_to_store['not_synced_products']);
+	                    }
+
 	                    if (isset($product_data_to_store['product_data']) && !empty($product_data_to_store['product_data'])){
 
+	                        $arrayReturn['products_to_sync'] = count($product_data_to_store['product_data']);
 	                        $products_to_sync = $product_data_to_store['product_data'];
 	                        unset($product_data_to_store['product_data']);
 	                        $product_params = array_merge($product_data_to_store, $sync_params);
@@ -990,22 +996,63 @@ class Synchronize {
 	                            
 	                        }
 	                        
+	                    }else{
+
+	                    	$arrayReturn['products_to_sync'] = 0;
+
 	                    }
+
+	                    sl_debbug('Total count of sync products to store: '.$arrayReturn['products_to_sync']);
 
 	                    break;
 	                case 'product_formats':
 	                    
 	                	$item_type = 'product_format';
 
+	                	if (!empty($arrayReturn) && isset($arrayReturn['products_not_synced'])){
+
+	                		foreach ($modified_data as $keyForm => $format) {
+	                	
+	                			if (isset($arrayReturn['products_not_synced'][$format['products_id']])){
+
+	                				if (!isset($arrayReturn['product_formats_not_synced'])){
+
+	                					$arrayReturn['product_formats_not_synced'] = array();
+
+	                				}
+
+	                				$arrayReturn['product_formats_not_synced'][$format['id']] = 'The Format with SL ID '.$format['id'].' has no product parent to synchronize.';
+	                				unset($modified_data[$keyForm]);
+
+	                			}
+
+	                		}
+
+	                	}
+
 	                    $arrayReturn['product_formats_to_sync'] = count($modified_data);
-	                    sl_debbug('Total count of sync product formats to store: '.count($modified_data));
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
 	                    
 	                    $product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data);
 
 	                    if (isset($product_format_data_to_store['not_synced_formats']) && !empty($product_format_data_to_store['not_synced_formats'])){
-	                    	$arrayReturn['product_formats_not_synced'] = $product_format_data_to_store['not_synced_formats'];
+
+	                    	if (isset($arrayReturn['product_formats_not_synced'])){
+
+	                    		foreach ($product_format_data_to_store['not_synced_formats'] as $error_format_id => $error_format_message) {
+	                    			
+	                    			$arrayReturn['product_formats_not_synced'][$error_format_id] = $error_format_message;
+	                    			
+	                    		}
+	                    		
+	                    	}else{
+
+	                    		$arrayReturn['product_formats_not_synced'] = $product_format_data_to_store['not_synced_formats'];
+
+	                    	}
+
 	                    	unset($product_format_data_to_store['not_synced_formats']);
+
 	                    }
 
 	                    if (isset($product_format_data_to_store['product_format_data']) && !empty($product_format_data_to_store['product_format_data'])){
@@ -1031,6 +1078,8 @@ class Synchronize {
 	                    	$arrayReturn['product_formats_to_sync'] = 0;
 
 	                	}
+
+	                	sl_debbug('Total count of sync product formats to store: '.$arrayReturn['product_formats_to_sync']);
 
 	                    break;
 	                default:
@@ -1065,7 +1114,7 @@ class Synchronize {
 
 		        	if ($sync_index != '_not_synced'){
 
-		        		if ($arrayReturn[$table_index.$sync_index] != 0){
+		        		if (isset($arrayReturn[$table_index.$sync_index]) && $arrayReturn[$table_index.$sync_index] != 0){
 
 		        			$new_table_index = $table_index;
 		        			if ($table_index == 'categories'){ $new_table_index = 'catalogue'; }
