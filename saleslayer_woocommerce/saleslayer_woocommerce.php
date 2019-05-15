@@ -9,7 +9,7 @@ if ( PHP_SESSION_NONE === session_status() ) {
 Plugin Name: SalesLayer WooCommerce
 Plugin URI: http://support.saleslayer.com/
 Description: Plugin que permite sincronizar datos desde SalesLayer a WooCommerce.
-Version: 1.9
+Version: 2.0
 Author:  Sales Layer
 Author URI: http://saleslayer.com/
 License:  GPL2
@@ -213,7 +213,7 @@ function slyr_wc_add_connector(){
 
             if ($result_check_plugins_requirements['error'] === 0){
                 
-                if (!class_exists('SalesLayer_Conn')) include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn.php');
+                if (!class_exists('SalesLayer_Conn_Woo')) include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn-Woo.php');
                 
                 $connector_id = $_POST['connector_id'];
                 $secret_key = $_POST['secret_key'];
@@ -221,8 +221,12 @@ function slyr_wc_add_connector(){
 
                 if (!$connector->check_connector($connector_id)){
                     
-                    $slconn = new SalesLayer_Conn ($connector_id, $secret_key);
+                    $slconn = new SalesLayer_Conn_Woo ($connector_id, $secret_key);
+                    $slconn->set_URL_connection(SLYR_WC_url_API);
                     $slconn->set_group_multicategory(true);
+                    $slconn->set_parents_category_tree(true);
+                    $slconn->set_same_parent_variants_modifications(true);
+                    $slconn->set_first_level_parent_modifications(true);
                     $slconn->get_info();
 
                     if (!$slconn->has_response_error()) {

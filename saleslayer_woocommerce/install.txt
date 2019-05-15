@@ -1,0 +1,7 @@
+If the server is set behind a NAT and you're getting redirection loops between the public IP(domain) and the local private IP of the VM when executing the CRON services.
+
+- A new entry has to be created in etc/hosts, with the local private IP address and the domain, to properly rout the internal curl calls so they work properly.
+
+Si el servidor esá detrás de un NAT y se están obteniendo bucles de redirección entre la IP pública (dominio) y la IP privada local de la VM al ejecutar los servicios CRON.
+
+- Hay que crear una entrada en etc/hosts, con la dirección IP privada local y el dominio, para enrutar las llamadas curl internas y que funcionen correctamente.

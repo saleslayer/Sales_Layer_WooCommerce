@@ -132,7 +132,7 @@ function update_media($file_url, $attachment_id){
 	
 	if (!empty($existing_attachment_metadata)){
 
-		$main_file_to_delete_path = ABSPATH.$uploads_path.$metadata['file'];
+		$main_file_to_delete_path = ABSPATH.$uploads_path.$existing_attachment_metadata['file'];
 
 		try{
 	        
@@ -312,7 +312,7 @@ function delete_media($attachment_id){
 	
 	if (!empty($existing_attachment_metadata)){
 
-		$main_file_to_delete_path = ABSPATH.$uploads_path.$metadata['file'];
+		$main_file_to_delete_path = ABSPATH.$uploads_path.$existing_attachment_metadata['file'];
 
 		try{
 	        

@@ -23,6 +23,9 @@ class Product {
 	protected $product_field_tags					= 'product_tags';
 	protected $product_field_downloadable			= 'product_downloadable';
 	protected $product_field_virtual				= 'product_virtual';
+	protected $product_field_shipping_class			= 'product_shipping_class';
+	protected $shipping_classes_loaded 				= false;
+	protected $shipping_classes 					= array();
 	protected $product_images_sizes       			= array();
 	protected $product_additional_fields 			= array();
 
@@ -84,9 +87,9 @@ class Product {
 
 	    $product_data_to_store = array();
 
-	    $fixed_product_fields = array('ID', 'ID_catalogue', $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_stock, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, 'related_products_references', 'crosssell_products_references', 'upsell_products_references', 'grouping_product_references');
+	    $fixed_product_fields = array('ID', 'ID_catalogue', $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_stock, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, 'related_products_references', 'crosssell_products_references', 'upsell_products_references', 'grouping_product_references', $this->product_field_shipping_class);
 
-	    $data_schema = json_decode($this->sl_data_schema, 1);
+		$data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['products'];
 
 	    if ($schema['fields'][$this->product_field_name]['has_multilingual']) {
@@ -222,6 +225,12 @@ class Product {
 		}
 	    $product_data_to_store['product_fields']['product_field_virtual'] = $this->product_field_virtual;
 
+    	if ($schema['fields'][$this->product_field_shipping_class]['has_multilingual']) {
+
+    		$this->product_field_shipping_class		.= '_'.$connector->conn_data['languages'];
+
+    	}
+        $product_data_to_store['product_fields']['product_field_shipping_class'] = $this->product_field_shipping_class;
 
 	    $this->product_images_sizes = array();
 
@@ -606,6 +615,103 @@ class Product {
 			}
 
 		}
+
+        if (isset($product_data[$this->product_field_shipping_class])){
+
+			$wp_product_shipping_class = '';
+
+			$wp_product_shipping_class_term = wp_get_object_terms( $wp_product['ID'], 'product_shipping_class');
+			if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0])){
+				$wp_product_shipping_class_term = $wp_product_shipping_class_term[0];
+			}
+			
+			if (is_object($wp_product_shipping_class_term)){
+			
+				$wp_product_shipping_class = isset( $wp_product_shipping_class_term->term_id ) ? $wp_product_shipping_class_term->term_id : 0;
+			
+			}else if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0]) && isset($wp_product_shipping_class_term[0]['term_id'])){
+			
+				$wp_product_shipping_class = $wp_product_shipping_class_term[0]['term_id'];
+			
+			}
+			
+			if (!$this->shipping_classes_loaded){
+
+    	    	if (taxonomy_exists('product_shipping_class')){
+
+    		    	$shipping_classes_terms = get_terms( 'product_shipping_class', 'orderby=name&hide_empty=0' );
+    	
+    		    	foreach ($shipping_classes_terms as $shipping_class_term) {
+    	
+    		    		$shipping_class_vars = get_object_vars($shipping_class_term);
+    		    		$this->shipping_classes[$shipping_class_vars['term_id']] = array('name' => $shipping_class_vars['name'], 'slug' => $shipping_class_vars['slug']);
+
+    		    	}
+
+    		    }
+
+    		    $this->shipping_classes_loaded = true;
+
+        	}
+
+        	$sl_product_shipping_class = '';
+
+        	if (is_array($product_data[$this->product_field_shipping_class]) && !empty($product_data[$this->product_field_shipping_class])){
+
+        		$sl_product_shipping_class = reset($product_data[$this->product_field_shipping_class]);
+
+        	}else if (!is_array($product_data[$this->product_field_shipping_class]) && $product_data[$this->product_field_shipping_class] != ''){
+
+        		$sl_product_shipping_class = $product_data[$this->product_field_shipping_class];
+
+        	}
+
+        	$sl_id_product_shipping_class = '';
+    		
+    		if ($sl_product_shipping_class != '' && !empty($this->shipping_classes)){
+
+        		if (is_numeric($sl_product_shipping_class)){
+
+        			if (isset($this->shipping_classes[$sl_product_shipping_class])){
+
+        				$sl_id_product_shipping_class = $sl_product_shipping_class;
+
+        			}
+                
+		        }else{
+
+		        	$sl_product_shipping_class_lower = trim(strtolower($sl_product_shipping_class));
+    		
+    		    	foreach ($this->shipping_classes as $shipping_class_term_id => $shipping_class) {
+		        		
+		        		if ($shipping_class['name'] == $sl_product_shipping_class || $shipping_class['slug'] == $sl_product_shipping_class || strtolower($shipping_class['name']) == $sl_product_shipping_class_lower || strtolower($shipping_class['slug']) == $sl_product_shipping_class_lower){
+
+		        			$sl_id_product_shipping_class = $shipping_class_term_id;
+		        			break;
+
+		        		}
+
+		        	}
+            	
+            	}
+
+            }
+
+    		if ($wp_product_shipping_class != $sl_id_product_shipping_class){
+
+            	if ($sl_id_product_shipping_class == '' && $wp_product_shipping_class != ''){
+
+            		wp_delete_object_term_relationships( $wp_product['ID'], 'product_shipping_class' );
+            		
+            	}else if ($sl_id_product_shipping_class != ''){
+
+            		sl_wp_set_object_terms( $wp_product['ID'], $sl_id_product_shipping_class, 'product_shipping_class');
+            		
+            	}
+
+            }
+
+        }
 
 		$wp_price = $wp_sale_price = $wp_regular_price = false;
 
