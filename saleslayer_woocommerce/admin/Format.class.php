@@ -356,9 +356,9 @@ class Format {
 
 						}
 
-						$sl_format_value = sanitize_title($sl_format_value);
-
 						$format_additional_field_sanitized = sanitize_title($format_additional_field);
+
+						$sl_format_value = sanitize_text_field( wp_unslash( $sl_format_value ) );
 						
 						$format['data'][$format_additional_field_lan] = $sl_format_value;
 
@@ -761,22 +761,50 @@ class Format {
 
 		}
 		
+		$prices_updated = false;
+		
 		if ($wp_sale_price !== false && (!isset($wp_format['_sale_price']) || (isset($wp_format['_sale_price']) && $wp_format['_sale_price'] !== $wp_sale_price))){
 
 			sl_update_post_meta( $wp_format['ID'], '_sale_price', $wp_sale_price);
+			$prices_updated = true;
 
 		}
 
 		if ($wp_regular_price !== false && (!isset($wp_format['_regular_price']) || (isset($wp_format['_regular_price']) && $wp_format['_regular_price'] !== $wp_regular_price))){
 
 			sl_update_post_meta( $wp_format['ID'], '_regular_price', $wp_regular_price);
+			$prices_updated = true;
 
 		}
 
 		if ($wp_price !== false && (!isset($wp_format['_price']) || (isset($wp_format['_price']) && $wp_format['_price'] !== $wp_price))){
 
 			sl_update_post_meta( $wp_format['ID'], '_price', $wp_price);
+			$prices_updated = true;
 			
+		}
+
+		if ($prices_updated){
+
+			$time_ini_parent_price = microtime(1);
+
+			try{
+				
+				// $wp_parent_product = wc_get_product( $wp_parent_product['ID'] );
+				// $wp_parent_product->save();
+
+				wc_delete_product_transients( $wp_format['ID'] );
+    			wc_delete_product_transients( $wp_parent_product['ID'] );
+
+
+			}catch(\Exception $e){
+
+				sl_debbug('## Error. Clearing/refreshing the parent product price cache: '.$e->getMessage());
+
+			}
+
+			sl_debbug('## time_parent_price: '.(microtime(1) - $time_ini_parent_price).' seconds.', 'timer');
+
 		}
 
 		$check_stock = true;
@@ -1082,7 +1110,7 @@ class Format {
 			    	
 			    	if (isset($wp_attributes[$cut_wp_product_attribute])){
  
-			            $wp_product_attribute_values = wp_get_object_terms( $wp_product_id,  $wp_product_attribute_name_sanitized, array('fields' => 'slugs'));
+			            $wp_product_attribute_values = wp_get_object_terms( $wp_product_id,  $wp_product_attribute_name_sanitized, array('fields' => 'names'));
 			            $products_attributes_data[$cut_wp_product_attribute] = $wp_product_attribute_values;
 
 			        }
@@ -1100,18 +1128,6 @@ class Format {
 				if (isset($sl_attributes[$product_attribute_name])){
 
 					$sl_attributes[$product_attribute_name] = array_filter(array_unique(array_merge($sl_attributes[$product_attribute_name], $product_attribute_values)));
-
-				}else{
-
-					if (!is_array($product_attribute_values)){
-				
-						$sl_attributes[$product_attribute_name][] = $product_attribute_values;
-					
-					}else{
-				
-						$sl_attributes[$product_attribute_name] = $product_attribute_values;
-					
-					}
 
 				}
 
@@ -1258,32 +1274,32 @@ class Format {
 			$wp_product_attributes_used = array();
 
 		}
+			
+		$attribute_taxonomies = wc_get_attribute_taxonomies();
+		$wp_attributes = array();
+
+		if ( $attribute_taxonomies ){
+		    foreach ($attribute_taxonomies as $tax){
+		    	$wp_attributes[$tax->attribute_name]['data'] = get_object_vars($tax);
+		    	
+		    	if (taxonomy_exists(wc_attribute_taxonomy_name($tax->attribute_name))){
+			    	
+			    	$tax_terms = get_terms( wc_attribute_taxonomy_name($tax->attribute_name), 'orderby=name&hide_empty=0' );
+			    	$terms_to_array = array();
+			    	foreach ($tax_terms as $tax_term) {
+		
+			    		$terms_to_array[] = get_object_vars($tax_term);
+		
+			    	}
+		
+			    	$wp_attributes[$tax->attribute_name]['values'] = $terms_to_array;
+
+			    }
+		    }
+		}
 
 		if (count($sl_parent_attributes) > 0){
 			
-			$attribute_taxonomies = wc_get_attribute_taxonomies();
-			$wp_attributes = array();
-
-			if ( $attribute_taxonomies ){
-			    foreach ($attribute_taxonomies as $tax){
-			    	$wp_attributes[$tax->attribute_name]['data'] = get_object_vars($tax);
-			    	
-			    	if (taxonomy_exists(wc_attribute_taxonomy_name($tax->attribute_name))){
-				    	
-				    	$tax_terms = get_terms( wc_attribute_taxonomy_name($tax->attribute_name), 'orderby=name&hide_empty=0' );
-				    	$terms_to_array = array();
-				    	foreach ($tax_terms as $tax_term) {
-			
-				    		$terms_to_array[] = get_object_vars($tax_term);
-			
-				    	}
-			
-				    	$wp_attributes[$tax->attribute_name]['values'] = $terms_to_array;
-
-				    }
-			    }
-			}
-
 			foreach ($sl_parent_attributes as $attribute_name => $attribute_values){
 
 				if (!empty($wp_attributes) && isset($wp_attributes[$attribute_name])){
@@ -1297,7 +1313,7 @@ class Format {
 
 							foreach ($wp_attributes[$attribute_name]['values'] as $wp_attribute_value){
 							
-								if ($wp_attribute_value['slug'] == $attribute_value){
+								if ($wp_attribute_value['name'] == $attribute_value){
 							
 									$found = true;
 							
@@ -1308,7 +1324,7 @@ class Format {
 						}
 
 						if (!$found){
-						
+
 							sl_wp_set_object_terms( $wp_attributes[$attribute_name]['data']['attribute_id'], $attribute_value, 'pa_'.$attribute_name , false);
 
 						}
@@ -1317,7 +1333,7 @@ class Format {
 
 					}
 
-					$wp_existing_attributes = wp_get_object_terms( $wp_parent_product['ID'],  'pa_'.$attribute_name, array('fields' => 'slugs'));
+					$wp_existing_attributes = wp_get_object_terms( $wp_parent_product['ID'],  'pa_'.$attribute_name, array('fields' => 'names'));
 					
 					$is_update = true;
 					if (!empty($wp_existing_attributes)){
@@ -1359,17 +1375,39 @@ class Format {
 
 			}
 
-			$pos = 0;
-			foreach ($wp_product_attributes as $keyPA => $wp_product_attribute) {
-			
-				$wp_product_attributes[$keyPA]['position'] = $pos;
-				$pos++;
-			
-			}
-
-			sl_update_post_meta( $wp_parent_product['ID'], '_product_attributes', $wp_product_attributes );
-			
 		}
+
+		$pos = 0;
+		foreach ($wp_product_attributes as $keyPA => $wp_product_attribute) {
+		
+			$wp_product_attributes[$keyPA]['position'] = $pos;
+			$pos++;
+
+			if ($wp_product_attribute['is_variation'] == 1){
+
+			    $pos_wp_product_attribute = strpos($wp_product_attribute['name'], 'pa_');
+			    
+			    if ($pos_wp_product_attribute !== false){
+			        
+			        $wp_product_attribute_name = substr($wp_product_attribute['name'], 3, strlen($wp_product_attribute['name']));
+
+			    }else{
+
+			    	$wp_product_attribute_name = $wp_product_attribute['name'];
+
+			    }
+
+		    	if (empty($sl_parent_attributes) || (!empty($sl_parent_attributes) && !isset($sl_parent_attributes[$wp_product_attribute_name]))){
+
+		    		$wp_product_attributes[$keyPA]['is_variation'] = 0;
+		
+		        }
+
+			}
+		
+		}
+
+		sl_update_post_meta( $wp_parent_product['ID'], '_product_attributes', $wp_product_attributes );
 
 	}
 

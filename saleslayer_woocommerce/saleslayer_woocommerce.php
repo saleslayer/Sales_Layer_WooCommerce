@@ -9,7 +9,7 @@ if ( PHP_SESSION_NONE === session_status() ) {
 Plugin Name: SalesLayer WooCommerce
 Plugin URI: http://support.saleslayer.com/
 Description: Plugin que permite sincronizar datos desde SalesLayer a WooCommerce.
-Version: 2.0
+Version: 2.1
 Author:  Sales Layer
 Author URI: http://saleslayer.com/
 License:  GPL2
