@@ -17,6 +17,7 @@ class Format {
 	protected $format_field_enabled					= 'format_enabled';
 	protected $format_field_downloadable			= 'format_downloadable';
 	protected $format_field_virtual					= 'format_virtual';
+	protected $format_field_shipping_class 			= 'format_shipping_class';
 	protected $format_field_image        			= 'format_image';
 	protected $format_images_sizes       			= array();
 	protected $format_additional_fields 			= array();
@@ -58,7 +59,7 @@ class Format {
 
 	    $product_format_data_to_store = array();
 
-	    $fixed_format_fields = array('ID', 'ID_products', $this->format_field_sku, $this->format_field_description, $this->format_field_regular_price, $this->format_field_sale_price, $this->format_field_stock, $this->format_field_weight, $this->format_field_length, $this->format_field_width, $this->format_field_height, $this->format_field_enabled, $this->format_field_downloadable, $this->format_field_virtual, $this->format_field_image);
+	    $fixed_format_fields = array('ID', 'ID_products', $this->format_field_sku, $this->format_field_description, $this->format_field_regular_price, $this->format_field_sale_price, $this->format_field_stock, $this->format_field_weight, $this->format_field_length, $this->format_field_width, $this->format_field_height, $this->format_field_enabled, $this->format_field_downloadable, $this->format_field_virtual, $this->format_field_image, $this->format_field_shipping_class);
 
 	    $data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['product_formats'];
@@ -161,6 +162,13 @@ class Format {
 		}
 		$product_format_data_to_store['format_fields']['format_field_virtual'] = $this->format_field_virtual;
 		
+		if ($schema['fields'][$this->format_field_shipping_class]['has_multilingual']) {
+
+			$this->format_field_shipping_class		.= '_'.$connector->conn_data['languages'];
+
+		}
+	    $product_format_data_to_store['format_fields']['format_field_shipping_class'] = $this->format_field_shipping_class;
+
 		if ($schema['fields'][$this->format_field_image]['has_multilingual']) {
 
 			$this->format_field_image				.= '_'.$connector->conn_data['languages'];
@@ -645,6 +653,101 @@ class Format {
 			}
 
 		}
+
+		if (isset($format_data[$this->format_field_shipping_class])){
+
+			if (taxonomy_exists('product_shipping_class')){
+
+				$shipping_class = Shipping_class::get_instance();
+
+				$wp_format_shipping_class = '';
+
+				$wp_format_shipping_class_term = wp_get_object_terms( $wp_format['ID'], 'product_shipping_class');
+				if (is_array($wp_format_shipping_class_term) && isset($wp_format_shipping_class_term[0])){
+					$wp_format_shipping_class_term = $wp_format_shipping_class_term[0];
+				}
+				
+				if (is_object($wp_format_shipping_class_term)){
+				
+					$wp_format_shipping_class = isset( $wp_format_shipping_class_term->term_id ) ? $wp_format_shipping_class_term->term_id : 0;
+				
+				}else if (is_array($wp_format_shipping_class_term) && isset($wp_format_shipping_class_term[0]) && isset($wp_format_shipping_class_term[0]['term_id'])){
+				
+					$wp_format_shipping_class = $wp_format_shipping_class_term[0]['term_id'];
+				
+				}
+			
+	        	$sl_format_shipping_class = '';
+
+	        	if (is_array($format_data[$this->format_field_shipping_class]) && !empty($format_data[$this->format_field_shipping_class])){
+
+	        		$sl_format_shipping_class = reset($format_data[$this->format_field_shipping_class]);
+
+	        	}else if (!is_array($format_data[$this->format_field_shipping_class]) && $format_data[$this->format_field_shipping_class] != ''){
+
+	        		$sl_format_shipping_class = $format_data[$this->format_field_shipping_class];
+
+	        	}
+
+	        	$sl_id_format_shipping_class = '';
+	    		
+	    		if ($sl_format_shipping_class != ''){
+
+	        		if (is_numeric($sl_format_shipping_class)){
+
+	        			if (isset($shipping_class->shipping_classes[$sl_format_shipping_class])){
+
+	        				$sl_id_format_shipping_class = $sl_format_shipping_class;
+
+	        			}
+	                
+			        }else{
+
+			        	$sl_format_shipping_class_lower = trim(strtolower($sl_format_shipping_class));
+	    		
+	    		    	foreach ($shipping_class->shipping_classes as $shipping_class_term_id => $shipping_class_data) {
+			        		
+			        		if ($shipping_class_data['name'] == $sl_format_shipping_class || $shipping_class_data['slug'] == $sl_format_shipping_class || strtolower($shipping_class_data['name']) == $sl_format_shipping_class_lower || strtolower($shipping_class_data['slug']) == $sl_format_shipping_class_lower){
+
+			        			$sl_id_format_shipping_class = $shipping_class_term_id;
+			        			break;
+
+			        		}
+
+			        	}
+	            	
+	            	}
+
+	            	if ($sl_id_format_shipping_class == ''){
+
+	            		$sl_id_format_shipping_class = $shipping_class->create_shipping_class($sl_format_shipping_class);
+
+	            	}
+
+	            }
+
+	    		if ($wp_format_shipping_class != $sl_id_format_shipping_class){
+
+	            	if ($sl_id_format_shipping_class == '' && $wp_format_shipping_class != ''){
+
+	            		wp_delete_object_term_relationships( $wp_format['ID'], 'product_shipping_class' );
+	            		
+	            	}else if ($sl_id_format_shipping_class != ''){
+
+	            		sl_wp_set_object_terms( $wp_format['ID'], $sl_id_format_shipping_class, 'product_shipping_class');
+	            		
+	            	}
+
+	            }
+
+			}else{
+
+				sl_debbug('## Error. Product shipping class taxonomy does not exist.');
+
+			}
+
+        }
+
 
 		$wp_price = $wp_sale_price = $wp_regular_price = false;
 

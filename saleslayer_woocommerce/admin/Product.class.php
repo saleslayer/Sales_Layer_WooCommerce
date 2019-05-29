@@ -24,8 +24,6 @@ class Product {
 	protected $product_field_downloadable			= 'product_downloadable';
 	protected $product_field_virtual				= 'product_virtual';
 	protected $product_field_shipping_class			= 'product_shipping_class';
-	protected $shipping_classes_loaded 				= false;
-	protected $shipping_classes 					= array();
 	protected $product_images_sizes       			= array();
 	protected $product_additional_fields 			= array();
 
@@ -618,98 +616,95 @@ class Product {
 
         if (isset($product_data[$this->product_field_shipping_class])){
 
-			$wp_product_shipping_class = '';
+			if (taxonomy_exists('product_shipping_class')){
 
-			$wp_product_shipping_class_term = wp_get_object_terms( $wp_product['ID'], 'product_shipping_class');
-			if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0])){
-				$wp_product_shipping_class_term = $wp_product_shipping_class_term[0];
+				$shipping_class = Shipping_class::get_instance();
+
+				$wp_product_shipping_class = '';
+
+				$wp_product_shipping_class_term = wp_get_object_terms( $wp_product['ID'], 'product_shipping_class');
+				if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0])){
+					$wp_product_shipping_class_term = $wp_product_shipping_class_term[0];
+				}
+				
+				if (is_object($wp_product_shipping_class_term)){
+				
+					$wp_product_shipping_class = isset( $wp_product_shipping_class_term->term_id ) ? $wp_product_shipping_class_term->term_id : 0;
+				
+				}else if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0]) && isset($wp_product_shipping_class_term[0]['term_id'])){
+				
+					$wp_product_shipping_class = $wp_product_shipping_class_term[0]['term_id'];
+				
+				}
+
+	        	$sl_product_shipping_class = '';
+
+	        	if (is_array($product_data[$this->product_field_shipping_class]) && !empty($product_data[$this->product_field_shipping_class])){
+
+	        		$sl_product_shipping_class = reset($product_data[$this->product_field_shipping_class]);
+
+	        	}else if (!is_array($product_data[$this->product_field_shipping_class]) && $product_data[$this->product_field_shipping_class] != ''){
+
+	        		$sl_product_shipping_class = $product_data[$this->product_field_shipping_class];
+
+	        	}
+
+	        	$sl_id_product_shipping_class = '';
+	    		
+	    		if ($sl_product_shipping_class != ''){
+
+	        		if (is_numeric($sl_product_shipping_class)){
+
+	        			if (isset($shipping_class->shipping_classes[$sl_product_shipping_class])){
+
+	        				$sl_id_product_shipping_class = $sl_product_shipping_class;
+
+	        			}
+	                
+			        }else{
+
+			        	$sl_product_shipping_class_lower = trim(strtolower($sl_product_shipping_class));
+	    		
+	    		    	foreach ($shipping_class->shipping_classes as $shipping_class_term_id => $shipping_class_data) {
+			        		
+			        		if ($shipping_class_data['name'] == $sl_product_shipping_class || $shipping_class_data['slug'] == $sl_product_shipping_class || strtolower($shipping_class_data['name']) == $sl_product_shipping_class_lower || strtolower($shipping_class_data['slug']) == $sl_product_shipping_class_lower){
+
+			        			$sl_id_product_shipping_class = $shipping_class_term_id;
+			        			break;
+
+			        		}
+
+			        	}
+	            	
+	            	}
+
+	            	if ($sl_id_product_shipping_class == ''){
+
+	            		$sl_id_product_shipping_class = $shipping_class->create_shipping_class($sl_product_shipping_class);
+
+	            	}
+
+	            }
+
+	    		if ($wp_product_shipping_class != $sl_id_product_shipping_class){
+
+	            	if ($sl_id_product_shipping_class == '' && $wp_product_shipping_class != ''){
+
+	            		wp_delete_object_term_relationships( $wp_product['ID'], 'product_shipping_class' );
+	            		
+	            	}else if ($sl_id_product_shipping_class != ''){
+
+	            		sl_wp_set_object_terms( $wp_product['ID'], $sl_id_product_shipping_class, 'product_shipping_class');
+	            		
+	            	}
+
+	            }
+
+			}else{
+
+				sl_debbug('## Error. Product shipping class taxonomy does not exist.');
+
 			}
-			
-			if (is_object($wp_product_shipping_class_term)){
-			
-				$wp_product_shipping_class = isset( $wp_product_shipping_class_term->term_id ) ? $wp_product_shipping_class_term->term_id : 0;
-			
-			}else if (is_array($wp_product_shipping_class_term) && isset($wp_product_shipping_class_term[0]) && isset($wp_product_shipping_class_term[0]['term_id'])){
-			
-				$wp_product_shipping_class = $wp_product_shipping_class_term[0]['term_id'];
-			
-			}
-			
-			if (!$this->shipping_classes_loaded){
-
-    	    	if (taxonomy_exists('product_shipping_class')){
-
-    		    	$shipping_classes_terms = get_terms( 'product_shipping_class', 'orderby=name&hide_empty=0' );
-    	
-    		    	foreach ($shipping_classes_terms as $shipping_class_term) {
-    	
-    		    		$shipping_class_vars = get_object_vars($shipping_class_term);
-    		    		$this->shipping_classes[$shipping_class_vars['term_id']] = array('name' => $shipping_class_vars['name'], 'slug' => $shipping_class_vars['slug']);
-
-    		    	}
-
-    		    }
-
-    		    $this->shipping_classes_loaded = true;
-
-        	}
-
-        	$sl_product_shipping_class = '';
-
-        	if (is_array($product_data[$this->product_field_shipping_class]) && !empty($product_data[$this->product_field_shipping_class])){
-
-        		$sl_product_shipping_class = reset($product_data[$this->product_field_shipping_class]);
-
-        	}else if (!is_array($product_data[$this->product_field_shipping_class]) && $product_data[$this->product_field_shipping_class] != ''){
-
-        		$sl_product_shipping_class = $product_data[$this->product_field_shipping_class];
-
-        	}
-
-        	$sl_id_product_shipping_class = '';
-    		
-    		if ($sl_product_shipping_class != '' && !empty($this->shipping_classes)){
-
-        		if (is_numeric($sl_product_shipping_class)){
-
-        			if (isset($this->shipping_classes[$sl_product_shipping_class])){
-
-        				$sl_id_product_shipping_class = $sl_product_shipping_class;
-
-        			}
-                
-		        }else{
-
-		        	$sl_product_shipping_class_lower = trim(strtolower($sl_product_shipping_class));
-    		
-    		    	foreach ($this->shipping_classes as $shipping_class_term_id => $shipping_class) {
-		        		
-		        		if ($shipping_class['name'] == $sl_product_shipping_class || $shipping_class['slug'] == $sl_product_shipping_class || strtolower($shipping_class['name']) == $sl_product_shipping_class_lower || strtolower($shipping_class['slug']) == $sl_product_shipping_class_lower){
-
-		        			$sl_id_product_shipping_class = $shipping_class_term_id;
-		        			break;
-
-		        		}
-
-		        	}
-            	
-            	}
-
-            }
-
-    		if ($wp_product_shipping_class != $sl_id_product_shipping_class){
-
-            	if ($sl_id_product_shipping_class == '' && $wp_product_shipping_class != ''){
-
-            		wp_delete_object_term_relationships( $wp_product['ID'], 'product_shipping_class' );
-            		
-            	}else if ($sl_id_product_shipping_class != ''){
-
-            		sl_wp_set_object_terms( $wp_product['ID'], $sl_id_product_shipping_class, 'product_shipping_class');
-            		
-            	}
-
-            }
 
         }
 
