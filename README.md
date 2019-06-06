@@ -1,4 +1,4 @@
-<h1><a href="https://saleslayer.com/" title="Title" rel="nofollow">Sales Layer</a> WooCommerce plugin</h1>
+<h1><a href="https://saleslayer.com/" title="Title">Sales Layer</a> WooCommerce plugin</h1>
 Sales Layer plugin allows you to easily synchronize your catalogue information with WooCommerce.
 
 <h2>How To Start</h2>
