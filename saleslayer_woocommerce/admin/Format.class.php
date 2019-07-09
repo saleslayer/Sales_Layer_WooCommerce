@@ -351,12 +351,18 @@ class Format {
 						$sl_format_value = $format_data[$format_additional_field_lan];
 
 						if (is_array($sl_format_value) && !empty($sl_format_value)){
-						
-							$sl_format_value = $sl_format_value[0];
-						
+																		
+							$sl_format_value = reset($sl_format_value);
+							
+							if (is_array($sl_format_value) && !empty($sl_format_value)){
+								    
+								$sl_format_value = reset($sl_format_value);
+								    
+							}
+							
 						}
 
-						if ((!is_array($sl_format_value) && $sl_format_value == '') || (is_array($sl_format_value) && empty($sl_format_value))){
+						if ((!is_array($sl_format_value) && $sl_format_value === '') || (is_array($sl_format_value) && empty($sl_format_value))){
 
 							$attribute_data_empty[] = 'The format attribute '.$format_additional_field.' is empty.'; 
 							$format_ok = false;
