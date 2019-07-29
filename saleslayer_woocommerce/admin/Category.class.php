@@ -259,7 +259,7 @@ class Category {
 		
 		}
 
-		if (isset($wp_category['order']) && $wp_category['order'] != $category_data[$this->category_field_order]){
+		if (isset($category_data[$this->category_field_order]) && (!isset($wp_category['order']) || (isset($wp_category['order']) && $wp_category['order'] != $category_data[$this->category_field_order]))){
 		
 			sl_update_woocommerce_term_meta($wp_category['term_id'], 'order', $category_data[$this->category_field_order]);
 			
