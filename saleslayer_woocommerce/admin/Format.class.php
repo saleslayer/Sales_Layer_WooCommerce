@@ -59,7 +59,7 @@ class Format {
 
 	    $product_format_data_to_store = array();
 
-	    $fixed_format_fields = array('ID', 'ID_products', $this->format_field_sku, $this->format_field_description, $this->format_field_regular_price, $this->format_field_sale_price, $this->format_field_stock, $this->format_field_weight, $this->format_field_length, $this->format_field_width, $this->format_field_height, $this->format_field_enabled, $this->format_field_downloadable, $this->format_field_virtual, $this->format_field_image, $this->format_field_shipping_class);
+	    $fixed_format_fields = array('ID', 'ID_products', $this->format_field_sku, $this->format_field_description, $this->format_field_regular_price, $this->format_field_sale_price, $this->format_field_stock, $this->format_field_manage_stock, $this->format_field_stock_status, $this->format_field_weight, $this->format_field_length, $this->format_field_width, $this->format_field_height, $this->format_field_enabled, $this->format_field_downloadable, $this->format_field_virtual, $this->format_field_image, $this->format_field_shipping_class);
 
 	    $data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['product_formats'];
@@ -351,7 +351,7 @@ class Format {
 						$sl_format_value = $format_data[$format_additional_field_lan];
 
 						if (is_array($sl_format_value) && !empty($sl_format_value)){
-																		
+												
 							$sl_format_value = reset($sl_format_value);
 							
 							if (is_array($sl_format_value) && !empty($sl_format_value)){
