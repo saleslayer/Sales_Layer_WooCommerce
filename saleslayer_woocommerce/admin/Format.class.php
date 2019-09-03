@@ -1104,12 +1104,14 @@ class Format {
 						if (!empty($sl_format_image[$img_format])){
 
 							$image_url = $sl_format_image[$img_format];
-							$parse_url_image = pathinfo($image_url);
+
 							$md5_image = verify_md5_image_url($image_url);
 							if (!$md5_image){ continue; }
 
+							$parse_url_image = pathinfo($image_url);
+							$parse_url_image_basename = urldecode($parse_url_image['basename']);
 									
-							if ($parse_url_image['basename'] == $wp_format_thumbnail_name){
+							if ($parse_url_image_basename == $wp_format_thumbnail_name){
 
 								if (!$wp_format_thumbnail_md5 || ($wp_format_thumbnail_md5 !== false && $wp_format_thumbnail_md5 !== $md5_image)){
 
@@ -1123,7 +1125,7 @@ class Format {
 
 							}else{
 
-								$thumb_id = get_thumbnail_id_by_title($parse_url_image['basename']);
+								$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
 								
 								if ($thumb_id === 0){
 								

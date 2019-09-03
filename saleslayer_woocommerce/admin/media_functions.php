@@ -7,27 +7,34 @@
  */
 function get_image_url_filename($image_url){
 
-	$image_url  = str_replace('https://', 'http://', $image_url); 
-	
-	$image_url_info = pathinfo($image_url);
-	$image_url_encoded = $image_url_info['dirname'].'/'.urlencode($image_url_info['filename']).'.'.$image_url_info['extension'];
+	$image_url  = str_replace('https://', 'http://', $image_url);
 
-	if (url_exists($image_url_encoded)){
+	if (url_exists($image_url)){
 
-		$image_content_str = @file_get_contents(trim($image_url_encoded));
+		$image_content_str = @file_get_contents(trim($image_url));
 
 		if ($image_content_str) {
 
-			$parse_image_url = pathinfo($image_url);
-			$filename = $parse_image_url['filename'].'.'.$parse_image_url['extension'];
+			$image_url_info = pathinfo($image_url);
+
+			$filename = urldecode($image_url_info['basename']);
 
 			return $filename;
 			
+		}else{
+
+			sl_debbug('## Error. Getting image url file name contents: '.$image_url);
+
 		}
 		
+	}else{
+
+		sl_debbug('## Error. Checking if url exists: '.$image_url);
+
 	}
 
 	return false;
+
 }
 
 /**
@@ -42,6 +49,7 @@ function fetch_media($file_url, $post_id) {
 	require_once(ABSPATH . 'wp-admin/includes/image.php');
 	
 	$new_filename = get_image_url_filename($file_url);
+
 	if (!$new_filename || !$post_id){
 		
 		return false;
@@ -58,10 +66,7 @@ function fetch_media($file_url, $post_id) {
 		mkdir(ABSPATH.$artDir);
 	}
 
-	$file_url_info = pathinfo($file_url);
-	$file_url_encoded = $file_url_info['dirname'].'/'.urlencode($file_url_info['filename']).'.'.$file_url_info['extension'];
-	// copy($file_url, ABSPATH.$artDir.$new_filename);
-	copy($file_url_encoded, ABSPATH.$artDir.$new_filename);
+	copy($file_url, ABSPATH.$artDir.$new_filename);
 
 	$siteurl = get_option('siteurl');
 	$file_info = getimagesize(ABSPATH.$artDir.$new_filename);
@@ -117,6 +122,7 @@ function update_media($file_url, $attachment_id){
 	require_once(ABSPATH . 'wp-admin/includes/image.php');
 	
 	$new_filename = get_image_url_filename($file_url);
+
 	if (!$new_filename || !$attachment_id){
 	    
 	    return false;
@@ -174,11 +180,8 @@ function update_media($file_url, $attachment_id){
 	        mkdir(ABSPATH.$importedmedia_path);
 
 	    }
-
-	    $file_url_info = pathinfo($file_url);
-	    $file_url_encoded = $file_url_info['dirname'].'/'.urlencode($file_url_info['filename']).'.'.$file_url_info['extension'];
-	    // copy($file_url, ABSPATH.$importedmedia_path.$new_filename);
-	    copy($file_url_encoded, ABSPATH.$importedmedia_path.$new_filename);
+	    
+	    copy($file_url, ABSPATH.$importedmedia_path.$new_filename);
 
 	    $siteurl = get_option('siteurl');
 	    $file_info = getimagesize(ABSPATH.$importedmedia_path.$new_filename);
@@ -401,15 +404,21 @@ function verify_md5_image_url($url){
 
     $md5_image = false;
 
-    try{
+    if ($url != ''){
 
-        $url_info = pathinfo($url);
-        $url_encoded = $url_info['dirname'].'/'.urlencode($url_info['filename']).'.'.$url_info['extension'];
-        $md5_image = md5_file($url_encoded);   
+	    try{
 
-    }catch(\Exception $e){
+	    	$md5_image = md5_file($url);
 
-        sl_debbug("## Error. Couldn't get MD5 from image with URL ".$url);
+	    }catch(\Exception $e){
+
+	        sl_debbug("## Error. Couldn't get MD5 from image with URL: ".$url);
+
+	    }
+
+    }else{
+
+    	sl_debbug("## Error. Couldn't get MD5 from image with empty URL: ".$url);
 
     }
 

@@ -1155,10 +1155,11 @@ class Product {
 							if (!$md5_image){ continue; }
 							
 							$parse_url_image = pathinfo($image_url);
-						
+							$parse_url_image_basename = urldecode($parse_url_image['basename']);
+							
 							if ($sl_product_image == $main_image){
 							
-								if ($parse_url_image['basename'] == $wp_product_thumbnail_name){
+								if ($parse_url_image_basename == $wp_product_thumbnail_name){
 							
 									if ($wp_product_thumbnail_md5 !== false && $wp_product_thumbnail_md5 == $md5_image){
 							
@@ -1174,7 +1175,7 @@ class Product {
 
 								}else{
 							
-									$thumb_id = get_thumbnail_id_by_title($parse_url_image['basename']);
+									$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
 							
 									if ($thumb_id === 0){
 							
@@ -1207,8 +1208,8 @@ class Product {
 								if (!empty($wp_product_image_gallery_data)){
 
 									foreach ($wp_product_image_gallery_data as $image_id => $wp_product_image_data) {
-
-										if ($parse_url_image['basename'] == $wp_product_image_data['image_name']){
+										
+										if ($parse_url_image_basename == $wp_product_image_data['image_name']){
 									
 											$image_gallery_found = true;
 
@@ -1229,7 +1230,7 @@ class Product {
 
 								if (!$image_gallery_found){
 
-									$thumb_id = get_thumbnail_id_by_title($parse_url_image['basename']);
+									$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
 
 									if ($thumb_id === 0){
 
@@ -1239,7 +1240,7 @@ class Product {
 
 										$wp_thumbnail_url = wp_get_attachment_url($thumb_id);
 										$wp_product_thumbnail_md5 = verify_md5_image_url($wp_thumbnail_url);
-
+								
 										if (!$wp_product_thumbnail_md5 || ($wp_product_thumbnail_md5 !== false && $wp_product_thumbnail_md5 !== $md5_image)){
 
 											$thumb_id = update_media($image_url, $thumb_id);
@@ -1294,7 +1295,11 @@ class Product {
 
 					foreach ($excess_product_image_gallery_ids as $excess_product_image_gallery_id){
 
-						if (!in_array($excess_product_image_gallery_id, array('', 0, null, false))){ delete_media($excess_product_image_gallery_id); }
+						if (!in_array($excess_product_image_gallery_id, array('', 0, null, false))){ 
+
+							delete_media($excess_product_image_gallery_id); 
+
+						}
 
 					}
 
