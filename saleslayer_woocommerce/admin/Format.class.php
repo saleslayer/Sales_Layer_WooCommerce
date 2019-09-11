@@ -22,15 +22,12 @@ class Format {
 	protected $format_images_sizes       			= array();
 	protected $format_additional_fields 			= array();
 	protected $parent_product_attributes 			= array();
-	
-	protected $syncedFormats 			= 0;
-	protected $notSyncedFormats			= array();
-	protected $deletedFormats 			= 0;
-	protected $notDeletedFormats			= array();
 
 	private $sl_data_schema = array();
 	public $comp_id;
 	
+	protected $media_field_names = array();
+
 	/**
 	 * Function set connector's data schema.
 	 * @param array $sl_data_schema 		connector's data schema
@@ -210,11 +207,25 @@ class Format {
 					$product_format_data_to_store['format_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 					$this->format_additional_fields[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 					
+					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
+
+						$product_format_data_to_store['product_formats_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+						$this->media_field_names[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+
+					}
+
 				}else{
 				
 					$product_format_data_to_store['format_additional_fields'][$field_name] = $field_name;
 					$this->format_additional_fields[$field_name] = $field_name;
 				
+					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
+
+						$product_format_data_to_store['product_formats_media_field_names'][$field_name] = $field_name;
+						$this->media_field_names[$field_name] = $field_name;
+
+					}
+
 				}
 			
 			}
@@ -303,12 +314,35 @@ class Format {
 					
 					if (isset($format_data[$format_additional_field_lan])){
 
-						$sl_format_value = $format_data[$format_additional_field_lan];
+						if (isset($this->media_field_names[$format_additional_field])){
 
-						if (is_array($sl_format_value) && !empty($sl_format_value)){
-						
-							$sl_format_value = $sl_format_value[0];
-						
+							foreach ($format_data[$format_additional_field_lan] as $hash) {
+							
+							    foreach ($hash as $file) {
+							
+									$sl_format_value = urldecode($file);
+									break 2;
+							
+							    }
+							
+							}
+
+						}else{
+							
+							$sl_format_value = $format_data[$format_additional_field_lan];
+
+							if (is_array($sl_format_value) && !empty($sl_format_value)){
+													
+								$sl_format_value = reset($sl_format_value);
+								
+								if (is_array($sl_format_value) && !empty($sl_format_value)){
+									    
+									$sl_format_value = reset($sl_format_value);
+									    
+								}
+								
+							}
+
 						}
 
 						if ((!is_array($sl_format_value) && $sl_format_value !== '') || (is_array($sl_format_value) && !empty($sl_format_value))){
@@ -345,21 +379,38 @@ class Format {
 			if (isset($this->parent_product_attributes[$sl_parent_product_id]) && !empty($this->parent_product_attributes[$sl_parent_product_id])){
 			
 				foreach ($this->parent_product_attributes[$sl_parent_product_id] as $format_additional_field => $format_additional_field_lan) {
-				
+
 					if (isset($format_data[$format_additional_field_lan])){
 
-						$sl_format_value = $format_data[$format_additional_field_lan];
+						if (isset($this->media_field_names[$format_additional_field])){
 
-						if (is_array($sl_format_value) && !empty($sl_format_value)){
-												
-							$sl_format_value = reset($sl_format_value);
+							foreach ($format_data[$format_additional_field_lan] as $hash) {
 							
-							if (is_array($sl_format_value) && !empty($sl_format_value)){
-								    
-								$sl_format_value = reset($sl_format_value);
-								    
+							    foreach ($hash as $file) {
+							
+									$sl_format_value = urldecode($file);
+									break 2;
+							
+							    }
+							
 							}
+
+						}else{
 							
+							$sl_format_value = $format_data[$format_additional_field_lan];
+
+							if (is_array($sl_format_value) && !empty($sl_format_value)){
+													
+								$sl_format_value = reset($sl_format_value);
+								
+								if (is_array($sl_format_value) && !empty($sl_format_value)){
+									    
+									$sl_format_value = reset($sl_format_value);
+									    
+								}
+								
+							}
+
 						}
 
 						if ((!is_array($sl_format_value) && $sl_format_value === '') || (is_array($sl_format_value) && empty($sl_format_value))){
@@ -406,7 +457,6 @@ class Format {
 
 				}
 
-
 			}else{
 
 				$error_message = $format_data[$this->format_field_sku]." - The format attribute data is empty/wrong.";
@@ -437,7 +487,7 @@ class Format {
 	 * @return string 				result of synchronization
 	 */
 	public function sync_stored_product_format($format){
-	
+
 		$time_ini_formats_per_prod = microtime(1);
 
 		$sl_format_id        	= $format['format_data']['id'];
@@ -445,7 +495,7 @@ class Format {
 		$format_data			= $format['format_data']['data'];
 
 		$wp_parent_product = find_saleslayer_product($sl_parent_product_id, $this->comp_id);
-			
+		
 		if (!$wp_parent_product){
 
 			sl_debbug('## Error. '.$format_data[$this->format_field_sku]." - The format parent does not exist.");
@@ -454,10 +504,10 @@ class Format {
 		}else{
 
 			$parent_attributes = $this->get_parent_attributes($wp_parent_product['ID'], $format['sl_attributes']);
-
+			
 		}
 
-		$this->sync_parent_data($wp_parent_product, $parent_attributes);
+		$this->sync_parent_data($wp_parent_product['ID'], $parent_attributes);
 		
 		$time_ini_format_core_data = microtime(1);
 		
@@ -467,12 +517,38 @@ class Format {
 
 			foreach ($format['parent_product_attributes'] as $format_additional_field => $format_additional_field_lan) {
 
-				$sl_format_attributes['attribute_pa_'.sanitize_title($format_additional_field)] = sanitize_title($format_data[$format_additional_field_lan]);
+				$format_additional_field_sanitized = sanitize_title($format_additional_field);
+				$attribute_taxonomy_name = wc_attribute_taxonomy_name($format_additional_field_sanitized);
+
+				if (!taxonomy_exists($attribute_taxonomy_name)){
+
+					$attribute_taxonomy_name = '';
+
+					if (strpos($format_additional_field_sanitized, '_') !== false){
+
+						$format_additional_field_sanitized_hyphen = str_replace('_', '-', $format_additional_field_sanitized);
+						$attribute_taxonomy_name_hyphen = wc_attribute_taxonomy_name($format_additional_field_sanitized_hyphen);
+
+						if (taxonomy_exists($attribute_taxonomy_name_hyphen)){
+
+							$attribute_taxonomy_name = $attribute_taxonomy_name_hyphen;
+
+						}
+
+					}
+
+				}
+
+				if ($attribute_taxonomy_name !== ''){
+
+					$sl_format_attributes['attribute_'.$attribute_taxonomy_name] = sanitize_title($format_data[$format_additional_field_lan]);
+
+				}
 
 			}
 
 		}
-		
+
 		$wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id);
 		if (!$wp_format){
 			
@@ -486,7 +562,7 @@ class Format {
 			}
 			
 			$wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id);
-
+			
 			if (!$wp_format){
 				
 				sl_debbug('## Error. '.$format_data[$this->format_field_sku]." - The format could not been created.");
@@ -500,17 +576,15 @@ class Format {
 
 		if (SLYR_WC_DEBBUG > 1) sl_debbug(" SKU ({$this->format_field_sku}): ".$format_data[$this->format_field_sku]);
 
-
 		//Format attributes
 		foreach ($sl_format_attributes as $format_name => $format_value) {
 			
-			if ($wp_format[$format_name] != $format_value){
+			if (!isset($wp_format[$format_name]) || (isset($wp_format[$format_name]) && $wp_format[$format_name] != $format_value)){
 
 				sl_update_post_meta( $wp_format['ID'], $format_name, $format_value );
 
 			}
 
-			
 		}
 
 		//Format post fields
@@ -552,18 +626,18 @@ class Format {
 		}
 
 		//Format meta data
-		if (isset($format_data[$this->format_field_sku]) && ($wp_format['_sku'] != $format_data[$this->format_field_sku])){
+		if (isset($format_data[$this->format_field_sku]) && (!isset($wp_format['_sku']) || (isset($wp_format['_sku']) && $wp_format['_sku'] != $format_data[$this->format_field_sku]))){
 
 			sl_update_post_meta( $wp_format['ID'], '_sku', $format_data[$this->format_field_sku]);
 
 		}
-
-		if (isset($format_data[$this->format_field_description]) && ($wp_format['_variation_description'] != $format_data[$this->format_field_description])){
+		
+		if (isset($format_data[$this->format_field_description]) && (!isset($wp_format['_variation_description']) || (isset($wp_format['_variation_description']) && $wp_format['_variation_description'] != $format_data[$this->format_field_description]))){
 
 			sl_update_post_meta( $wp_format['ID'], '_variation_description', $format_data[$this->format_field_description]);
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_weight])){
 
 			$sl_weight = $format_data[$this->format_field_weight];
@@ -574,14 +648,14 @@ class Format {
 				
 			}
 
-			if ($wp_format['_weight'] != $sl_weight){
+			if (!isset($wp_format['_weight']) || (isset($wp_format['_weight']) && $wp_format['_weight'] != $sl_weight)){
 
 				sl_update_post_meta( $wp_format['ID'], '_weight', $sl_weight);
 
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_length])){
 
 			$sl_length = $format_data[$this->format_field_length];
@@ -592,14 +666,14 @@ class Format {
 
 			}
 
-			if ($wp_format['_length'] != $sl_length){
+			if (!isset($wp_format['_length']) || (isset($wp_format['_length']) && $wp_format['_length'] != $sl_length)){
 
 				sl_update_post_meta( $wp_format['ID'], '_length', $sl_length);
 
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_width])){
 
 			$sl_width = $format_data[$this->format_field_width];
@@ -610,14 +684,14 @@ class Format {
 				
 			}
 
-			if ($wp_format['_width'] != $sl_width){
+			if (!isset($wp_format['_width']) || (isset($wp_format['_width']) && $wp_format['_width'] != $sl_width)){
 
 				sl_update_post_meta( $wp_format['ID'], '_width', $sl_width);
 
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_height])){
 
 			$sl_height = $format_data[$this->format_field_height];
@@ -628,14 +702,14 @@ class Format {
 				
 			}
 
-			if ($wp_format['_height'] != $sl_height){
+			if (!isset($wp_format['_height']) || (isset($wp_format['_height']) && $wp_format['_height'] != $sl_height)){
 
 				sl_update_post_meta( $wp_format['ID'], '_height', $sl_height);
 
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_downloadable])){
 			
 			$sl_downloadable = sl_validate_boolean($format_data[$this->format_field_downloadable]);
@@ -647,7 +721,7 @@ class Format {
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_virtual])){
 			
 			$sl_virtual = sl_validate_boolean($format_data[$this->format_field_virtual]);
@@ -659,7 +733,7 @@ class Format {
 			}
 
 		}
-
+		
 		if (isset($format_data[$this->format_field_shipping_class])){
 
 			if (taxonomy_exists('product_shipping_class')){
@@ -753,7 +827,6 @@ class Format {
 			}
 
         }
-
 
 		$wp_price = $wp_sale_price = $wp_regular_price = false;
 
@@ -905,7 +978,6 @@ class Format {
 				wc_delete_product_transients( $wp_format['ID'] );
     			wc_delete_product_transients( $wp_parent_product['ID'] );
 
-
 			}catch(\Exception $e){
 
 				sl_debbug('## Error. Clearing/refreshing the parent product price cache: '.$e->getMessage());
@@ -942,7 +1014,7 @@ class Format {
 
 				$sl_manage_stock = sl_validate_boolean($sl_format_manage_stock);
 				
-				if ((!isset($wp_format['_manage_stock']) || (isset($wp_format['_manage_stock']) && $wp_format['_manage_stock'] != $sl_manage_stock))){
+				if (!isset($wp_format['_manage_stock']) || (isset($wp_format['_manage_stock']) && $wp_format['_manage_stock'] != $sl_manage_stock)){
 		
 					sl_update_post_meta( $wp_format['ID'], '_manage_stock', $sl_manage_stock);
 				
@@ -952,13 +1024,13 @@ class Format {
 		
 					$check_stock = false;
 
-					if (!in_array($wp_format['_stock'], array('', null))){
+					if (!isset($wp_format['_stock']) || (isset($wp_format['_stock']) && !in_array($wp_format['_stock'], array('', null)))){
 		
 						sl_update_post_meta( $wp_format['ID'], '_stock', '');
 
 						if (!isset($format_data[$this->format_field_stock_status]) || (isset($format_data[$this->format_field_stock_status]) && $format_data[$this->format_field_stock_status] === '')){
 		
-							if ($wp_format['_stock_status'] !== 'outofstock'){
+							if (!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $wp_format['_stock_status'] !== 'outofstock')){
 		
 								sl_update_post_meta( $wp_format['ID'], '_stock_status', 'outofstock');
 
@@ -1004,7 +1076,7 @@ class Format {
 							
 							}
 							
-							if ($format_stock_status != $wp_format['_stock_status']){
+							if (!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $format_stock_status != $wp_format['_stock_status'])){
 
 								sl_update_post_meta( $wp_format['ID'], '_stock_status', $format_stock_status);
 
@@ -1041,13 +1113,13 @@ class Format {
 					//wc_stock_amount to delete decimals
 					$sl_stock = wc_stock_amount($sl_stock);
 
-					if ((!isset($wp_format['_manage_stock']) || (isset($wp_format['_manage_stock']) && $wp_format['_manage_stock'] == 'no'))){
+					if (!isset($wp_format['_manage_stock']) || (isset($wp_format['_manage_stock']) && $wp_format['_manage_stock'] == 'no')){
 						
 						sl_update_post_meta( $wp_format['ID'], '_manage_stock', 'yes'); 
 					
 					}
 
-					if ($wp_format['_stock'] != $sl_stock){
+					if (!isset($wp_format['_stock']) || (isset($wp_format['_stock']) && $wp_format['_stock'] != $sl_stock)){
 						
 						if ($wp_format['_stock_status'] == 'outofstock' && $sl_stock > 0){
 						
@@ -1081,11 +1153,15 @@ class Format {
 
 			if(count($sl_format_images) > 0) {
 
-				$wp_thumbnail_id = $wp_format['_thumbnail_id'];
-				if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
-				
-					$wp_thumbnail_id = $wp_thumbnail_id[0];
-				
+				if (isset($wp_format['_thumbnail_id'])){
+
+					$wp_thumbnail_id = $wp_format['_thumbnail_id'];
+					if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
+					
+						$wp_thumbnail_id = $wp_thumbnail_id[0];
+					
+					}
+
 				}
 
 				if (!in_array($wp_thumbnail_id, array('', 0, null, false))){
@@ -1182,22 +1258,34 @@ class Format {
 	 */
 	public function get_parent_attributes($wp_product_id, $sl_attributes){
 
-		$attribute_taxonomies = wc_get_attribute_taxonomies();
-		$wp_attributes = array();
-
-		if ( $attribute_taxonomies ){
-		    
-		    foreach ($attribute_taxonomies as $tax){
-
-		        $wp_attributes[sanitize_title($tax->attribute_name)] = 0;
-		        
-		    }
-
-		}
-
 		foreach ($sl_attributes as $sl_attribute_name => $sl_attributes_values) {
-			
-			if (!isset($wp_attributes[$sl_attribute_name])){
+
+			$attribute_taxonomy_name_exists = false;
+
+			$attribute_taxonomy_name = wc_attribute_taxonomy_name($sl_attribute_name);
+
+			if (!taxonomy_exists($attribute_taxonomy_name)){
+
+				if (strpos($sl_attribute_name, '_') !== false){
+
+					$sl_attribute_name_hyphen = str_replace('_', '-', $sl_attribute_name);
+					$attribute_taxonomy_name_hyphen = wc_attribute_taxonomy_name($sl_attribute_name_hyphen);
+
+					if (taxonomy_exists($attribute_taxonomy_name_hyphen)){
+
+						$attribute_taxonomy_name_exists = true;
+
+					}
+
+				}
+
+			}else{
+
+				$attribute_taxonomy_name_exists = true;
+
+			}
+
+			if (!$attribute_taxonomy_name_exists){
 
 				unset($sl_attributes[$sl_attribute_name]);
 
@@ -1205,24 +1293,24 @@ class Format {
 
 		}
 
-		if (!empty($wp_attributes)){
+		$products_attributes_data = array();
 
-			$wp_product = wc_get_product( $wp_product_id );
-			$wp_product_attributes = $wp_product->get_attributes();
-			
+		$wp_product = wc_get_product( $wp_product_id );
+		$wp_product_attributes = $wp_product->get_attributes();
+		
+		if (!empty($wp_product_attributes)){
+
 			foreach ($wp_product_attributes as $wp_product_attribute_name => $wp_product_attribute) {
 			    
 			    $wp_product_attribute_name_sanitized = sanitize_title($wp_product_attribute_name);			
-			    $pos_wp_product_attribute = strpos($wp_product_attribute_name_sanitized, 'pa_');
 			    
-			    if ($pos_wp_product_attribute === 0){
+			    if (strpos($wp_product_attribute_name_sanitized, 'pa_') === 0){
 			        
 			        $cut_wp_product_attribute = substr($wp_product_attribute_name_sanitized, 3, strlen($wp_product_attribute_name_sanitized));
 			    	
-			    	if (isset($wp_attributes[$cut_wp_product_attribute])){
- 
-			            $wp_product_attribute_values = wp_get_object_terms( $wp_product_id,  $wp_product_attribute_name_sanitized, array('fields' => 'names'));
-			            $products_attributes_data[$cut_wp_product_attribute] = $wp_product_attribute_values;
+			    	if (taxonomy_exists($wp_product_attribute_name_sanitized)){
+
+			    	    $products_attributes_data[$cut_wp_product_attribute] = wp_get_object_terms( $wp_product_id,  $wp_product_attribute_name_sanitized, array('fields' => 'names'));
 
 			        }
 
@@ -1307,7 +1395,6 @@ class Format {
 
 	}
 
-
 	/**
 	 * Function to create a format.
 	 * @param string $sl_product_id 		Sales Layer id
@@ -1366,16 +1453,17 @@ class Format {
 	 * @param string $sl_parent_attributes		Parent attributes to synchronize Sales Layer company id
 	 * @return void
 	 */
-	public function sync_parent_data($wp_parent_product, $sl_parent_attributes){
+	public function sync_parent_data($wp_parent_product_id, $sl_parent_attributes){
 
-		$wp_parent_type = wp_get_object_terms( $wp_parent_product['ID'],  'product_type', array('fields' => 'slugs'));
+		$wp_parent_type = wp_get_object_terms( $wp_parent_product_id,  'product_type', array('fields' => 'slugs'));
+
 		if ($wp_parent_type[0] !== 'variable'){
 
-			sl_wp_set_object_terms( $wp_parent_product['ID'], 'variable', 'product_type' );
+			sl_wp_set_object_terms( $wp_parent_product_id, 'variable', 'product_type' );
 		
 		}
 		
-		$wp_product_attributes = get_post_meta( $wp_parent_product['ID'], '_product_attributes' );
+		$wp_product_attributes = get_post_meta( $wp_parent_product_id, '_product_attributes' );
 		
 		$wp_product_attributes_count = 0;
 		if (!empty($wp_product_attributes)){
@@ -1385,66 +1473,62 @@ class Format {
 			$wp_product_attributes_used = array();
 
 		}
-			
-		$attribute_taxonomies = wc_get_attribute_taxonomies();
-		$wp_attributes = array();
-
-		if ( $attribute_taxonomies ){
-		    foreach ($attribute_taxonomies as $tax){
-		    	$wp_attributes[$tax->attribute_name]['data'] = get_object_vars($tax);
-		    	
-		    	if (taxonomy_exists(wc_attribute_taxonomy_name($tax->attribute_name))){
-			    	
-			    	$tax_terms = get_terms( wc_attribute_taxonomy_name($tax->attribute_name), 'orderby=name&hide_empty=0' );
-			    	$terms_to_array = array();
-			    	foreach ($tax_terms as $tax_term) {
-		
-			    		$terms_to_array[] = get_object_vars($tax_term);
-		
-			    	}
-		
-			    	$wp_attributes[$tax->attribute_name]['values'] = $terms_to_array;
-
-			    }
-		    }
-		}
 
 		if (count($sl_parent_attributes) > 0){
 			
 			foreach ($sl_parent_attributes as $attribute_name => $attribute_values){
 
-				if (!empty($wp_attributes) && isset($wp_attributes[$attribute_name])){
-					
+				$attribute_taxonomy_name = wc_attribute_taxonomy_name($attribute_name);
+
+				if (!taxonomy_exists($attribute_taxonomy_name)){
+
+					$attribute_taxonomy_name = '';
+
+					if (strpos($attribute_name, '_') !== false){
+
+						$attribute_name_hyphen = str_replace('_', '-', $attribute_name);
+
+						$attribute_taxonomy_name_hyphen = wc_attribute_taxonomy_name($attribute_name_hyphen);
+
+						if (taxonomy_exists($attribute_taxonomy_name_hyphen)){
+
+							$attribute_name = $attribute_name_hyphen;
+							$attribute_taxonomy_name = $attribute_taxonomy_name_hyphen;
+
+						}
+
+					}
+
+				}
+
+				if ($attribute_taxonomy_name !== ''){
+
 					$attribute_values_to_update = array();
 
 					foreach ($attribute_values as $attribute_value) {
 
-						$found = false;
-						if (!empty($wp_attributes[$attribute_name]['values'])){
+						$attribute_value_sanitized = sanitize_title($attribute_value);
 
-							foreach ($wp_attributes[$attribute_name]['values'] as $wp_attribute_value){
-							
-								if ($wp_attribute_value['name'] == $attribute_value){
-							
-									$found = true;
-							
-								}
-							
-							}
-						
+						$found = false;
+						$term_exists = term_exists( $attribute_value_sanitized, $attribute_taxonomy_name );
+
+						if ( !is_null($term_exists) && $term_exists !== 0 ) {
+
+							$found = true;
+
 						}
 
 						if (!$found){
 
-							sl_wp_set_object_terms( $wp_attributes[$attribute_name]['data']['attribute_id'], $attribute_value, 'pa_'.$attribute_name , false);
-
+							sl_wp_set_object_terms( wc_attribute_taxonomy_id_by_name($attribute_taxonomy_name), $attribute_value, $attribute_taxonomy_name , false);
+						
 						}
 
 						$attribute_values_to_update[] = $attribute_value;
 
 					}
 
-					$wp_existing_attributes = wp_get_object_terms( $wp_parent_product['ID'],  'pa_'.$attribute_name, array('fields' => 'names'));
+					$wp_existing_attributes = wp_get_object_terms( $wp_parent_product_id,  $attribute_taxonomy_name, array('fields' => 'names'));
 					
 					$is_update = true;
 					if (!empty($wp_existing_attributes)){
@@ -1462,14 +1546,14 @@ class Format {
 
 					if ($is_update){
 					
-						$resultado = sl_wp_set_object_terms( $wp_parent_product['ID'], $attribute_values_to_update, 'pa_'.$attribute_name);
-					
+						$resultado = sl_wp_set_object_terms( $wp_parent_product_id, $attribute_values_to_update, $attribute_taxonomy_name);
+
 					}
 
 					if (empty($wp_product_attributes) || !isset($wp_product_attributes[$attribute_name])){
-						
-						$wp_product_attributes['pa_'.$attribute_name] = array(
-						        'name' 			=> 'pa_'.htmlspecialchars(stripslashes($attribute_name)),
+				
+						$wp_product_attributes[$attribute_taxonomy_name] = array(
+						        'name' 			=> $attribute_taxonomy_name,
 						        'position'      => 0,
 						        'is_visible'    => 1,
 						        'is_variation'  => 1,
@@ -1477,17 +1561,19 @@ class Format {
 						);
 
 					}else{
-						if ($wp_product_attributes['pa_'.$attribute_name]['is_variation'] == 0){ $wp_product_attributes['pa_'.$attribute_name]['is_variation'] = 1; }
+				
+						if ($wp_product_attributes[$attribute_taxonomy_name]['is_variation'] == 0){ $wp_product_attributes[$attribute_taxonomy_name]['is_variation'] = 1; }
+						
 					}
 
-					$wp_product_attributes_used[] = 'pa_'.$attribute_name;
-
+					$wp_product_attributes_used[] = $attribute_taxonomy_name;
+					
 				}
 
 			}
 
 		}
-
+		
 		$pos = 0;
 		foreach ($wp_product_attributes as $keyPA => $wp_product_attribute) {
 		
@@ -1496,9 +1582,14 @@ class Format {
 
 			if ($wp_product_attribute['is_variation'] == 1){
 
-			    $pos_wp_product_attribute = strpos($wp_product_attribute['name'], 'pa_');
-			    
-			    if ($pos_wp_product_attribute !== false){
+			    if (empty($sl_parent_attributes)){
+
+			    	$wp_product_attributes[$keyPA]['is_variation'] = 0;
+			    	continue;
+
+			    }
+
+			    if (strpos($wp_product_attribute['name'], 'pa_') !== false){
 			        
 			        $wp_product_attribute_name = substr($wp_product_attribute['name'], 3, strlen($wp_product_attribute['name']));
 
@@ -1508,18 +1599,50 @@ class Format {
 
 			    }
 
-		    	if (empty($sl_parent_attributes) || (!empty($sl_parent_attributes) && !isset($sl_parent_attributes[$wp_product_attribute_name]))){
+			    $is_in_sl_parent_atributes = false;
 
-		    		$wp_product_attributes[$keyPA]['is_variation'] = 0;
-		
-		        }
+				if (isset($sl_parent_attributes[$wp_product_attribute_name])){
+
+					$is_in_sl_parent_atributes = true;			    
+
+				}
+
+			    if (strpos($wp_product_attribute_name, '_') !== false){
+
+			    	$wp_product_attribute_name_hyphen = str_replace('_', '-', $wp_product_attribute_name);
+			    	
+			    	if (isset($sl_parent_attributes[$wp_product_attribute_name_hyphen])){
+
+			    		$is_in_sl_parent_atributes = true;			    
+
+			    	}
+
+			    }
+
+			    if (strpos($wp_product_attribute_name, '-') !== false){
+
+			    	$wp_product_attribute_name_lowbar = str_replace('-', '_', $wp_product_attribute_name);
+			    	
+			    	if (isset($sl_parent_attributes[$wp_product_attribute_name_lowbar])){
+
+			    		$is_in_sl_parent_atributes = true;			    
+
+			    	}
+
+			    }
+
+			    if (!$is_in_sl_parent_atributes){
+
+			    	$wp_product_attributes[$keyPA]['is_variation'] = 0;
+			    
+				}
 
 			}
 		
 		}
-
-		sl_update_post_meta( $wp_parent_product['ID'], '_product_attributes', $wp_product_attributes );
-
+		
+		sl_update_post_meta( $wp_parent_product_id, '_product_attributes', $wp_product_attributes );
+		
 	}
 
 	/**

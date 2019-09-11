@@ -24,13 +24,12 @@ class Product {
 	protected $product_field_downloadable			= 'product_downloadable';
 	protected $product_field_virtual				= 'product_virtual';
 	protected $product_field_shipping_class			= 'product_shipping_class';
+	protected $product_field_related_references		= 'related_products_references';
+	protected $product_field_crosssell_references	= 'crosssell_products_references';
+	protected $product_field_upsell_references		= 'upsell_products_references';
+	protected $product_field_grouping_references	= 'grouping_product_references';
 	protected $product_images_sizes       			= array();
 	protected $product_additional_fields 			= array();
-
-	protected $syncedProducts 			= 0;
-	protected $notSyncedProducts		= array();
-	protected $deletedProducts 			= 0;
-	protected $notDeletedProducts		= array();
 
 	private $sl_data_schema = array();
 
@@ -85,7 +84,7 @@ class Product {
 
 	    $product_data_to_store = array();
 
-	    $fixed_product_fields = array('ID', 'ID_catalogue', $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_stock, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, 'related_products_references', 'crosssell_products_references', 'upsell_products_references', 'grouping_product_references', $this->product_field_shipping_class);
+	    $fixed_product_fields = array('ID', 'ID_catalogue', $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_stock, $this->product_field_manage_stock, $this->product_field_stock_status, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, $this->product_field_related_references, $this->product_field_crosssell_references, $this->product_field_upsell_references, $this->product_field_grouping_references, $this->product_field_shipping_class);
 
 		$data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['products'];
@@ -229,6 +228,34 @@ class Product {
 
     	}
         $product_data_to_store['product_fields']['product_field_shipping_class'] = $this->product_field_shipping_class;
+
+    	if ($schema['fields'][$this->product_field_related_references]['has_multilingual']) {
+
+    		$this->product_field_related_references		.= '_'.$connector->conn_data['languages'];
+
+    	}
+        $product_data_to_store['product_fields']['product_field_related_references'] = $this->product_field_related_references;
+
+    	if ($schema['fields'][$this->product_field_crosssell_references]['has_multilingual']) {
+
+    		$this->product_field_crosssell_references		.= '_'.$connector->conn_data['languages'];
+
+    	}
+        $product_data_to_store['product_fields']['product_field_crosssell_references'] = $this->product_field_crosssell_references;
+
+    	if ($schema['fields'][$this->product_field_upsell_references]['has_multilingual']) {
+
+    		$this->product_field_upsell_references		.= '_'.$connector->conn_data['languages'];
+
+    	}
+        $product_data_to_store['product_fields']['product_field_upsell_references'] = $this->product_field_upsell_references;
+
+    	if ($schema['fields'][$this->product_field_grouping_references]['has_multilingual']) {
+
+    		$this->product_field_grouping_references		.= '_'.$connector->conn_data['languages'];
+
+    	}
+        $product_data_to_store['product_fields']['product_field_grouping_references'] = $this->product_field_grouping_references;
 
 	    $this->product_images_sizes = array();
 
@@ -399,7 +426,6 @@ class Product {
 						
 						}
 
-
 					}else{
 						
 						$sl_product_parent_id = 0;
@@ -455,7 +481,7 @@ class Product {
 		$product_data_modified = array('ID' => $wp_product['ID']);
 
 		//Product basic data
-		if ($wp_product['post_title'] != $product_data[$this->product_field_name]){
+		if (!isset($wp_product['post_title']) || (isset($wp_product['post_title']) && $wp_product['post_title'] != $product_data[$this->product_field_name])){
 			
 			$product_data_modified['post_title'] = $product_data[$this->product_field_name];
 			$product_data_modified['post_name'] = sanitize_title($product_data[$this->product_field_name]);
@@ -465,22 +491,22 @@ class Product {
 		
 		}
 
-		if ($wp_product['post_content'] != $product_data[$this->product_field_description]){
+		if (!isset($wp_product['post_content']) || (isset($wp_product['post_content']) && $wp_product['post_content'] != $product_data[$this->product_field_description])){
 			
 			$product_data_modified['post_content'] = $product_data[$this->product_field_description];
 			$product_modified = true;
 		
 		}
 
-		if ($wp_product['post_excerpt'] != $product_data[$this->product_field_description_short]){
+		if (!isset($wp_product['post_excerpt']) || (isset($wp_product['post_excerpt']) && $wp_product['post_excerpt'] != $product_data[$this->product_field_description_short])){
 			
 			$product_data_modified['post_excerpt'] = $product_data[$this->product_field_description_short];
 			$product_modified = true;
 		
 		}
 
-		if ($wp_product['menu_order'] != $product_data[$this->product_field_menu_order]){
-			
+		if (isset($product_data[$this->product_field_menu_order])){
+
 			$sl_menu_order = $product_data[$this->product_field_menu_order];
 
 			if (!is_numeric($sl_menu_order) && filter_var($sl_menu_order, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION)){
@@ -489,7 +515,7 @@ class Product {
 			
 			}
 
-			if ($wp_product['menu_order'] = $sl_menu_order){
+			if (!isset($wp_product['menu_order']) || (isset($wp_product['menu_order']) && $wp_product['menu_order'] != $sl_menu_order)){
 
 				$product_data_modified['menu_order'] = $sl_menu_order;
 				$product_modified = true;
@@ -505,18 +531,17 @@ class Product {
 		}
 
 		//Product meta data
-		if (isset($product_data[$this->product_field_sku]) && ($wp_product['_sku'] != $product_data[$this->product_field_sku])){
+		if (isset($product_data[$this->product_field_sku]) && (!isset($wp_product['_sku']) || (isset($wp_product['_sku']) && $wp_product['_sku'] != $product_data[$this->product_field_sku]))){
 
 			sl_update_post_meta( $wp_product['ID'], '_sku', $product_data[$this->product_field_sku]);
 
 		}
 
-		if (isset($product_data[$this->product_field_purchase_note]) && ($wp_product['_purchase_note'] != $product_data[$this->product_field_purchase_note])){
+		if (isset($product_data[$this->product_field_purchase_note]) && (!isset($wp_product['_purchase_note']) || (isset($wp_product['_purchase_note']) && $wp_product['_purchase_note'] != $product_data[$this->product_field_purchase_note]))){
 
 			sl_update_post_meta( $wp_product['ID'], '_purchase_note', $product_data[$this->product_field_purchase_note]);
 
 		}
-
 
 		if (isset($product_data[$this->product_field_weight])){
 
@@ -528,7 +553,7 @@ class Product {
 				
 			}
 
-			if ($wp_product['_weight'] != $sl_weight){
+			if (!isset($wp_product['_weight']) || (isset($wp_product['_weight']) && $wp_product['_weight'] != $sl_weight)){
 
 				sl_update_post_meta( $wp_product['ID'], '_weight', $sl_weight);
 
@@ -546,7 +571,7 @@ class Product {
 
 			}
 
-			if ($wp_product['_length'] != $sl_length){
+			if (!isset($wp_product['_length']) || (isset($wp_product['_length']) && $wp_product['_length'] != $sl_length)){
 
 				sl_update_post_meta( $wp_product['ID'], '_length', $sl_length);
 
@@ -564,7 +589,7 @@ class Product {
 				
 			}
 
-			if ($wp_product['_width'] != $sl_width){
+			if (!isset($wp_product['_width']) || (isset($wp_product['_width']) && $wp_product['_width'] != $sl_width)){
 
 				sl_update_post_meta( $wp_product['ID'], '_width', $sl_width);
 
@@ -582,7 +607,7 @@ class Product {
 				
 			}
 
-			if ($wp_product['_height'] != $sl_height){
+			if (!isset($wp_product['_height']) || (isset($wp_product['_height']) && $wp_product['_height'] != $sl_height)){
 
 				sl_update_post_meta( $wp_product['ID'], '_height', $sl_height);
 
@@ -867,7 +892,7 @@ class Product {
 
 				$sl_manage_stock = sl_validate_boolean($sl_product_manage_stock);
 				
-				if ((!isset($wp_product['_manage_stock']) || (isset($wp_product['_manage_stock']) && $wp_product['_manage_stock'] != $sl_manage_stock))){
+				if (!isset($wp_product['_manage_stock']) || (isset($wp_product['_manage_stock']) && $wp_product['_manage_stock'] != $sl_manage_stock)){
 		
 					sl_update_post_meta( $wp_product['ID'], '_manage_stock', $sl_manage_stock);
 				
@@ -877,13 +902,13 @@ class Product {
 		
 					$check_stock = false;
 
-					if (!in_array($wp_product['_stock'], array('', null))){
+					if (!isset($wp_product['_stock']) || (isset($wp_product['_stock']) && !in_array($wp_product['_stock'], array('', null)))){
 		
 						sl_update_post_meta( $wp_product['ID'], '_stock', '');
 
 						if (!isset($product_data[$this->product_field_stock_status]) || (isset($product_data[$this->product_field_stock_status]) && $product_data[$this->product_field_stock_status] === '')){
 		
-							if ($wp_product['_stock_status'] !== 'outofstock'){
+							if (!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $wp_product['_stock_status'] !== 'outofstock')){
 		
 								sl_update_post_meta( $wp_product['ID'], '_stock_status', 'outofstock');
 
@@ -896,7 +921,7 @@ class Product {
 					if (isset($product_data[$this->product_field_stock_status])){
 
 						$sl_product_stock_status = $product_data[$this->product_field_stock_status];
-						
+
 						if (is_array($sl_product_stock_status) && !empty($sl_product_stock_status)){
 						
 							$sl_product_stock_status = trim(strtolower(reset($sl_product_stock_status)));
@@ -929,7 +954,7 @@ class Product {
 							
 							}
 
-							if ($product_stock_status != $wp_product['_stock_status']){
+							if (!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $product_stock_status != $wp_product['_stock_status'])){
 
 								sl_update_post_meta( $wp_product['ID'], '_stock_status', $product_stock_status);
 
@@ -966,19 +991,19 @@ class Product {
 					//wc_stock_amount to delete decimals
 					$sl_stock = wc_stock_amount($sl_stock);
 
-					if ((!isset($wp_product['_manage_stock']) || (isset($wp_product['_manage_stock']) && $wp_product['_manage_stock'] == 'no'))){
+					if (!isset($wp_product['_manage_stock']) || (isset($wp_product['_manage_stock']) && $wp_product['_manage_stock'] == 'no')){
 						
 						sl_update_post_meta( $wp_product['ID'], '_manage_stock', 'yes'); 
 					
 					}
 
-					if ($wp_product['_stock'] != $sl_stock){
+					if (!isset($wp_product['_stock']) || (isset($wp_product['_stock']) && $wp_product['_stock'] != $sl_stock)){
 						
-						if ($wp_product['_stock_status'] == 'outofstock' && $sl_stock > 0){
+						if ((!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $wp_product['_stock_status'] == 'outofstock')) && $sl_stock > 0){
 						
 							sl_update_post_meta( $wp_product['ID'], '_stock_status', 'instock'); 
 						
-						}else if ($wp_product['_stock_status'] == 'instock' && $sl_stock <= 0){
+						}else if ((!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $wp_product['_stock_status'] == 'instock')) && $sl_stock <= 0){
 						
 							sl_update_post_meta( $wp_product['ID'], '_stock_status', 'outofstock');
 						
@@ -1032,7 +1057,7 @@ class Product {
 		
 		}
 
-		$linked_fields = array('related_products_references' => '_related_ids', 'crosssell_products_references' => '_crosssell_ids', 'upsell_products_references' => '_upsell_ids', 'grouping_product_references' => '_children');
+		$linked_fields = array($this->product_field_related_references => '_related_ids', $this->product_field_crosssell_references => '_crosssell_ids', $this->product_field_upsell_references => '_upsell_ids', $this->product_field_grouping_references => '_children');
 		
 		$linked_product_data = array();
 
@@ -1101,11 +1126,15 @@ class Product {
 			
 			if(count($sl_product_images) > 0) {
 
-				$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product['_thumbnail_id'];
-				if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
-				
-					$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_thumbnail_id[0];
-				
+				if (isset($wp_product['_thumbnail_id'])){
+
+					$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product['_thumbnail_id'];
+					if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
+					
+						$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_thumbnail_id[0];
+					
+					}
+
 				}
 
 				if (!in_array($wp_thumbnail_id, array('', 0, null, false))){
@@ -1334,7 +1363,7 @@ class Product {
 
 			$wp_product_type = $wp_product->get_type();
 			$wp_product_sku = $wp_product->get_sku();
-		
+			
 			foreach ($linked_product_data as $linked_idx => $linked_data) {
 
 				$linked_type = $linked_data['linked_type'];
@@ -1353,7 +1382,7 @@ class Product {
 		        $linked_product_ids = array();
 
 	        	foreach ($linked_data['linked_references'] as $linked_reference) {
-		        	
+
 		        	if ($linked_type == '_children' && $linked_reference == $wp_product_sku){
 
 		        	    sl_debbug('## Error. Grouping product reference is the same as the current product: '.$linked_reference);
@@ -1361,14 +1390,14 @@ class Product {
 
 		        	}
 
-		        	$wp_linked_product_id = wc_get_product_id_by_sku($linked_reference);
-
+		        	// Auto-populate wp_wc_product_meta_lookup table?
+		        	// $wp_linked_product_id = wc_get_product_id_by_sku($linked_reference);
+		        	$wp_linked_product_id = $this->sl_find_product_id_by_sku($linked_reference);
 		        	if ($wp_linked_product_id != 0 && !in_array($wp_linked_product_id, $linked_product_ids)){
 
 		        		$linked_product_ids[] = $wp_linked_product_id;
 
 		        	}
-
 
 		        }
 
@@ -1421,78 +1450,93 @@ class Product {
 			$wp_product_attributes_used = array();
 
 		}
-		
+
 		if (count($this->product_additional_fields) > 0) {
 			
-			$attribute_taxonomies = wc_get_attribute_taxonomies();
-			$wp_attributes = array();
-
-			if ( $attribute_taxonomies ){
-			    foreach ($attribute_taxonomies as $tax){
-			    	$wp_attributes[$tax->attribute_name]['data'] = get_object_vars($tax);
-			    	
-			    	if (taxonomy_exists(wc_attribute_taxonomy_name($tax->attribute_name))){
-				    	
-				    	$tax_terms = get_terms( wc_attribute_taxonomy_name($tax->attribute_name), 'orderby=name&hide_empty=0' );
-				    	$terms_to_array = array();
-				    	foreach ($tax_terms as $tax_term) {
-			
-				    		$terms_to_array[] = get_object_vars($tax_term);
-			
-				    	}
-			
-				    	$wp_attributes[$tax->attribute_name]['values'] = $terms_to_array;
-
-				    }
-			    }
-			}
-
 			foreach($this->product_additional_fields as $field_name => $field_name_lan) {
 
+				$attribute_values = array();
 				$field_name_sanitized = sanitize_title($field_name);
 
+				if (isset($product_data[$field_name_lan]) && ((is_array($product_data[$field_name_lan]) && !empty($product_data[$field_name_lan])) || (!is_array($product_data[$field_name_lan]) && $product_data[$field_name_lan] != ''))){	
 
-				if (isset($product_data[$field_name_lan]) && ((is_array($product_data[$field_name_lan]) && !empty($product_data[$field_name_lan])) || (!is_array($product_data[$field_name_lan]) && $product_data[$field_name_lan] != ''))){
-					
-					if (!empty($wp_attributes) && isset($wp_attributes[$field_name_sanitized])){
-						
-						if (is_array($product_data[$field_name_lan])){
-							$attribute_values = $product_data[$field_name_lan];
-						}else{
-							$attribute_values = array($product_data[$field_name_lan]);
+					$attribute_taxonomy_name = wc_attribute_taxonomy_name($field_name_sanitized);
+
+					if (!taxonomy_exists($attribute_taxonomy_name)){
+
+						$attribute_taxonomy_name = '';
+
+						if (strpos($field_name_sanitized, '_') !== false){
+
+							$field_name_sanitized_hyphen = str_replace('_', '-', $field_name_sanitized);
+							$attribute_taxonomy_name_hyphen = wc_attribute_taxonomy_name($field_name_sanitized_hyphen);
+
+							if (taxonomy_exists($attribute_taxonomy_name_hyphen)){
+
+								$field_name_sanitized = $field_name_sanitized_hyphen;
+								$attribute_taxonomy_name = $attribute_taxonomy_name_hyphen;
+
+							}
+
 						}
+
+					}
+
+					if ($attribute_taxonomy_name !== ''){
+
+						if (isset($this->media_field_names[$field_name])){
+											        
+					        foreach ($product_data[$field_name_lan] as $hash) {
+					        
+					            foreach ($hash as $file) {
+					        
+					        		$attribute_values[] = urldecode($file);
+					        
+					            }
+					        
+					        }
+
+					    }else{
+
+							if (is_array($product_data[$field_name_lan])){
+								
+								$attribute_values = $product_data[$field_name_lan];
+								
+							}else{
+
+								$attribute_values = array($product_data[$field_name_lan]);
+								
+							}
+					    	
+					    }
 
 						$attribute_values_to_update = array();
 
 						foreach ($attribute_values as $attribute_value) {
+							
 							$attribute_value_sanitized = sanitize_title($attribute_value);
 
 							$found = false;
-							if (!empty($wp_attributes[$field_name_sanitized]['values'])){
 
-								foreach ($wp_attributes[$field_name_sanitized]['values'] as $wp_attribute_value){
-								
-									if ($wp_attribute_value['slug'] == $attribute_value_sanitized){
-								
-										$found = true;
-								
-									}
-								
-								}
-							
+							$term_exists = term_exists( $attribute_value_sanitized, $attribute_taxonomy_name );
+
+							if ( !is_null($term_exists) && $term_exists !== 0 ) {
+
+								$found = true;
+
 							}
 
 							if (!$found){
-							
-								sl_wp_set_object_terms( $wp_attributes[$field_name_sanitized]['data']['attribute_id'], $attribute_value_sanitized, 'pa_'.$field_name_sanitized , false);
 
+								sl_wp_set_object_terms( wc_attribute_taxonomy_id_by_name($attribute_taxonomy_name), $attribute_value, $attribute_taxonomy_name , false);
+								
 							}
 
 							$attribute_values_to_update[] = $attribute_value_sanitized;
 
 						}
 
-						$wp_existing_attributes = wp_get_object_terms( $product_id,  'pa_'.$field_name_sanitized, array('fields' => 'slugs'));
+						$wp_existing_attributes = wp_get_object_terms( $product_id,  $attribute_taxonomy_name, array('fields' => 'slugs'));
 						
 						$is_update = true;
 						if (!empty($wp_existing_attributes)){
@@ -1509,26 +1553,25 @@ class Product {
 						}
 
 						if ($is_update){
-						
 
-							sl_wp_set_object_terms( $product_id, $attribute_values_to_update, 'pa_'.$field_name_sanitized);
-						
+							sl_wp_set_object_terms( $product_id, $attribute_values_to_update, $attribute_taxonomy_name);
+					
 						}
 
 						if (empty($wp_product_attributes) || !isset($wp_product_attributes[$field_name_sanitized])){
 							
-							$wp_product_attributes['pa_'.$field_name_sanitized] = array(
-							        'name' 			=> 'pa_'.htmlspecialchars(stripslashes($field_name)),
+							$wp_product_attributes[$attribute_taxonomy_name] = array(
+							        'name' 			=> $attribute_taxonomy_name,
 							        'position'      => 0,
 							        'is_visible'    => 1,
 							        'is_variation'  => 0,
 							        'is_taxonomy'   => 1
 							);
-
+					
 						}
-
-						$wp_product_attributes_used[] = 'pa_'.$field_name_sanitized;
-
+						
+						$wp_product_attributes_used[] = $attribute_taxonomy_name;
+					
 					}else{
 
 						$attribute_value = '';
@@ -1541,11 +1584,11 @@ class Product {
 					        
 					                if ($attribute_value == ''){
 					        
-					                	$attribute_value = $file;
+					                	$attribute_value = urldecode($file);
 					        
 					                }else{
 					        
-					                	$attribute_value.= '|'.$file;
+					                	$attribute_value.= '|'.urldecode($file);
 					        
 					                }
 					        
@@ -1564,7 +1607,6 @@ class Product {
 								$attribute_value = $product_data[$field_name_lan];
 								
 							}
-					    	
 					    	
 					    }
 
@@ -1604,7 +1646,7 @@ class Product {
 					}
 
 				}
-
+		
 			}
 				
 			$pos = 0;
@@ -1758,6 +1800,46 @@ class Product {
 	}
 
 	/**
+	 * Function to find a product id by sku.
+	 * @param string $product_sku 				product sku
+	 * @return boolean 							result of finding
+	 */
+	public function sl_find_product_id_by_sku($product_sku){
+
+		$posts = get_posts(
+			array(
+			    'post_type' => 'product',
+			    'post_status' => 'any',
+			    'meta_query' => array(
+			    	array(
+				    	'key' => '_sku',
+				    	'value' => $product_sku,
+				    	'compare' => '='
+			    	)
+			    ),
+	    	)
+		);
+
+		if( is_wp_error( $posts ) ) {
+
+			sl_debbug('## Error. sl_find_product_id_by_sku: '.$posts->get_error_message());
+
+		}else{
+
+		    if (!empty($posts)){
+		    	
+		    	$wp_product = json_decode(json_encode($posts[0]), true);
+		    	return $wp_product['ID'];
+		    
+			}
+
+		}
+
+		return 0;
+
+	}
+
+	/**
 	 * Function to find a product by name.
 	 * @param string $product_name 				product name
 	 * @param string $product_id 				Sales Layer id
@@ -1819,7 +1901,6 @@ class Product {
 				if (!is_array($wp_thumbnail_id)){ $wp_thumbnail_id = array($wp_thumbnail_id); }
 			
 			}
-
 
 			$wp_product_image_gallery = '';
 			if (isset($wp_product['_product_image_gallery'])){

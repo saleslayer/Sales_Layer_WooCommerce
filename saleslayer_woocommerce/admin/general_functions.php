@@ -320,7 +320,6 @@ function find_saleslayer_product($saleslayerid = null, $saleslayercompid = null,
 		    'post_status' => 'any'
     	));
 
-
 	if( is_wp_error( $posts ) ) {
 
 		sl_debbug('## Error. find_saleslayer_product: '.$posts->get_error_message());
@@ -409,6 +408,8 @@ function sl_update_post_meta($post_id, $meta_key, $meta_value, $prev_value = '')
 		sl_debbug('## Error. sl_update_post_meta: '.$resultado->get_error_message());
 
 	}
+
+	unset($resultado);
 
 }
 
@@ -937,7 +938,6 @@ function sl_connection_query($type, $query, $params = array()){
 
     		}
 
-    		
     		$resultado = json_decode(json_encode($resultado), true);
 
     		if ($resultado && strpos($query, 'sl_cuenta_registros') !== false){
@@ -961,7 +961,6 @@ function sl_connection_query($type, $query, $params = array()){
     		$resultado = json_decode(json_encode($resultado), true);
 
     	}
-
 
     }catch(\Exception $e) {
         

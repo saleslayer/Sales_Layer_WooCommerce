@@ -154,7 +154,7 @@ class SalesLayer_Conn_Woo
         if ($this->__get_parents_category_tree !== false) {
             $URL .= '&parents_category_tree=1';
         }
-        
+
         return $URL;
     }
 
@@ -324,7 +324,7 @@ class SalesLayer_Conn_Woo
 
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1800); // 30 minutes * 60 seconds
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
+            
             if ($this->SSL && $this->SSL_Cert) {
                 curl_setopt($ch, CURLOPT_PORT, 443);
                 curl_setopt($ch, CURLOPT_SSLCERT, $this->SSL_Cert);
@@ -333,6 +333,8 @@ class SalesLayer_Conn_Woo
                 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
             }
+
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
             if ($add_reference_files) {
                 if (!is_array($params)) {

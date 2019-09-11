@@ -9,7 +9,7 @@ if ( PHP_SESSION_NONE === session_status() ) {
 Plugin Name: SalesLayer WooCommerce
 Plugin URI: http://support.saleslayer.com/
 Description: Plugin que permite sincronizar datos desde SalesLayer a WooCommerce.
-Version: 2.1
+Version: 2.2
 Author:  Sales Layer
 Author URI: http://saleslayer.com/
 License:  GPL2
@@ -172,7 +172,6 @@ function slyr_wc_enqueue_scripts(){
 
 }
 
-
 function slyr_wc_menu() {
     
     $menu_pages[]= add_menu_page( SLYR_WC_name.' Options', SLYR_WC_name, 'manage_options', 'slyr_wc_menu', 'slyr_wc_how_to_start',
@@ -200,7 +199,6 @@ function slyr_wc_how_to_start() {
 }
 
 function slyr_wc_add_connector(){
-
 
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
@@ -390,7 +388,6 @@ function check_plugin_requirements(){
     return array('error' => 0);
 
 }
-
 
 add_action('wp_ajax_sl_wc_synchronize_connector', 'sl_wc_synchronize_connector');
 

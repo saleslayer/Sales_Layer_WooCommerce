@@ -10,14 +10,6 @@ class Category {
 	protected $category_field_order = 'section_order';
 	protected $category_images_sizes = array();
 
-	protected $delayedCategories     = array();
-	protected $checkedCategories     = 0;
-
-	protected $syncedCategories 		= 0;
-	protected $notSyncedCategories		= array();
-	protected $deletedCategories 		= 0;
-	protected $notDeletedCategories		= array();
-
 	private $sl_data_schema = array();
 	public $comp_id;
 
@@ -232,7 +224,6 @@ class Category {
 		if (SLYR_WC_DEBBUG) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
 
 		if (SLYR_WC_DEBBUG > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
-
 
 		$category_modified = false;
 		$category_data_modified = array();
