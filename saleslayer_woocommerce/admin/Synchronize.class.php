@@ -717,7 +717,7 @@ class Synchronize {
                     
                     $sql_update = " UPDATE ".SLYR_WC_syncdata_table.
                                             " SET sync_tries = ".$sync_tries.", ".
-                                            " item_data = '".json_encode($item_data)."'".
+                                            " item_data = '".addslashes(html_entity_decode(json_encode($item_data)))."'".
                                             " WHERE id = ".$item_to_update['id'];
 
 					sl_connection_query('update', $sql_update);
