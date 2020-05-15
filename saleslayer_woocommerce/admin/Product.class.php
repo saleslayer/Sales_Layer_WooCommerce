@@ -3,12 +3,16 @@
 
 class Product {
 	
+	public $product_id_field = 'ID';
+	public $product_id_catalogue_field = 'ID_catalogue';
+
 	//Define every product attribute
 	protected $product_field_name         			= 'product_name';
 	protected $product_field_description  			= 'product_description';
 	protected $product_field_description_short 		= 'product_description_short';
 	protected $product_field_image        			= 'product_image';
 	public 	  $product_field_sku          			= 'product_sku';
+	protected $product_field_status					= 'product_status';
 	protected $product_field_stock					= 'product_stock';
 	protected $product_field_manage_stock			= 'product_manage_stock';
 	protected $product_field_stock_status			= 'product_stock_status';
@@ -39,6 +43,7 @@ class Product {
 	public $comp_id;
 
 	protected $media_field_names = array();
+	protected $media_class;
 	
 	/**
 	 * Function to get instance of the class.
@@ -76,191 +81,24 @@ class Product {
 	/**
 	* Function to store Sales Layer products data.
 	* @param  array $products              		products data to organize
+	* @param  array $sl_language 				Sales Layer connector language
 	* @return array $products_data_to_store     products data to store
 	*/
-	public function prepare_product_data_to_store($products){
+	public function prepare_product_data_to_store($products, $sl_language){
 
 		$connector = Connector::get_instance();
 
 	    $product_data_to_store = array();
 
-	    $fixed_product_fields = array('ID', 'ID_catalogue', $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_stock, $this->product_field_manage_stock, $this->product_field_stock_status, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, $this->product_field_related_references, $this->product_field_crosssell_references, $this->product_field_upsell_references, $this->product_field_grouping_references, $this->product_field_shipping_class);
+	    $fixed_product_fields = array($this->product_id_field, $this->product_id_catalogue_field, $this->product_field_name, $this->product_field_description, $this->product_field_description_short, $this->product_field_regular_price, $this->product_field_sale_price, $this->product_field_image, $this->product_field_sku, $this->product_field_status, $this->product_field_stock, $this->product_field_manage_stock, $this->product_field_stock_status, $this->product_field_menu_order, $this->product_field_weight, $this->product_field_length, $this->product_field_width, $this->product_field_height, $this->product_field_purchase_note, $this->product_field_tags, $this->product_field_downloadable, $this->product_field_virtual, $this->product_field_related_references, $this->product_field_crosssell_references, $this->product_field_upsell_references, $this->product_field_grouping_references, $this->product_field_shipping_class);
 
 		$data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['products'];
 
-	    if ($schema['fields'][$this->product_field_name]['has_multilingual']) {
-
-			$this->product_field_name				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_name'] = $this->product_field_name;
-
-		if ($schema['fields'][$this->product_field_description]['has_multilingual']) {
-
-			$this->product_field_description 		.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_description'] = $this->product_field_description;
-
-		if ($schema['fields'][$this->product_field_description_short]['has_multilingual']) {
-
-			$this->product_field_description_short	.= '_' .$connector->conn_data['languages'];
-		
-		}
-	    $product_data_to_store['product_fields']['product_field_description_short'] = $this->product_field_description_short;
-
-		if ($schema['fields'][$this->product_field_image]['has_multilingual']) {
-
-			$this->product_field_image				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_image'] = $this->product_field_image;
-
-		if ($schema['fields'][$this->product_field_sku]['has_multilingual']) {
-
-			$this->product_field_sku				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_sku'] = $this->product_field_sku;
-
-		if ($schema['fields'][$this->product_field_stock]['has_multilingual']) {
-
-			$this->product_field_stock				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_stock'] = $this->product_field_stock;
-
-    	if ($schema['fields'][$this->product_field_manage_stock]['has_multilingual']) {
-
-    		$this->product_field_manage_stock		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_manage_stock'] = $this->product_field_manage_stock;
-
-        if ($schema['fields'][$this->product_field_stock_status]['has_multilingual']) {
-
-    		$this->product_field_stock_status		.= '_'.$connector->conn_data['languages'];
-
-    	}
-    	$product_data_to_store['product_fields']['product_field_stock_status'] = $this->product_field_stock_status;
-
-		if ($schema['fields'][$this->product_field_menu_order]['has_multilingual']) {
-
-			$this->product_field_menu_order			.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_menu_order'] = $this->product_field_menu_order;
-
-		if ($schema['fields'][$this->product_field_weight]['has_multilingual']) {
-
-			$this->product_field_weight				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_weight'] = $this->product_field_weight;
-
-		if ($schema['fields'][$this->product_field_length]['has_multilingual']) {
-
-			$this->product_field_length				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_length'] = $this->product_field_length;
-
-		if ($schema['fields'][$this->product_field_width]['has_multilingual']) {
-
-			$this->product_field_width				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_width'] = $this->product_field_width;
-
-		if ($schema['fields'][$this->product_field_height]['has_multilingual']) {
-
-			$this->product_field_height				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_height'] = $this->product_field_height;
-
-		if ($schema['fields'][$this->product_field_purchase_note]['has_multilingual']) {
-
-			$this->product_field_purchase_note		.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_purchase_note'] = $this->product_field_purchase_note;
-
-		if ($schema['fields'][$this->product_field_regular_price]['has_multilingual']) {
-
-			$this->product_field_regular_price		.= '_' .$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_regular_price'] = $this->product_field_regular_price;
-
-		if ($schema['fields'][$this->product_field_sale_price]['has_multilingual']) {
-
-			$this->product_field_sale_price			.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_sale_price'] = $this->product_field_sale_price;
-
-		if ($schema['fields'][$this->product_field_tags]['has_multilingual']) {
-
-			$this->product_field_tags				.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_tags'] = $this->product_field_tags;
-
-		if ($schema['fields'][$this->product_field_downloadable]['has_multilingual']) {
-
-			$this->product_field_downloadable		.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_downloadable'] = $this->product_field_downloadable;
-
-		if ($schema['fields'][$this->product_field_virtual]['has_multilingual']) {
-
-			$this->product_field_virtual			.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_data_to_store['product_fields']['product_field_virtual'] = $this->product_field_virtual;
-
-    	if ($schema['fields'][$this->product_field_shipping_class]['has_multilingual']) {
-
-    		$this->product_field_shipping_class		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_shipping_class'] = $this->product_field_shipping_class;
-
-    	if ($schema['fields'][$this->product_field_related_references]['has_multilingual']) {
-
-    		$this->product_field_related_references		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_related_references'] = $this->product_field_related_references;
-
-    	if ($schema['fields'][$this->product_field_crosssell_references]['has_multilingual']) {
-
-    		$this->product_field_crosssell_references		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_crosssell_references'] = $this->product_field_crosssell_references;
-
-    	if ($schema['fields'][$this->product_field_upsell_references]['has_multilingual']) {
-
-    		$this->product_field_upsell_references		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_upsell_references'] = $this->product_field_upsell_references;
-
-    	if ($schema['fields'][$this->product_field_grouping_references]['has_multilingual']) {
-
-    		$this->product_field_grouping_references		.= '_'.$connector->conn_data['languages'];
-
-    	}
-        $product_data_to_store['product_fields']['product_field_grouping_references'] = $this->product_field_grouping_references;
-
 	    $this->product_images_sizes = array();
 
-	    if (!empty($schema['fields']['product_image']['image_sizes'])) {
-	    	$product_field_images_sizes = $schema['fields']['product_image']['image_sizes'];
+	    if (!empty($schema['fields'][$this->product_field_image]['image_sizes'])) {
+	    	$product_field_images_sizes = $schema['fields'][$this->product_field_image]['image_sizes'];
 	    	$ordered_image_sizes = order_array_img($product_field_images_sizes);
 	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
 	    		$this->product_images_sizes[] = $img_size;
@@ -284,11 +122,50 @@ class Product {
 
 	    $product_data_to_store['product_fields']['product_images_sizes'] = $this->product_images_sizes;
 
-		foreach ($schema['fields'] as $field_name => $field_props) {
+	    $field_names = ['product_field_name',
+						'product_field_description',
+						'product_field_description_short',
+						'product_field_regular_price',
+						'product_field_sale_price',
+						'product_field_image',
+						'product_field_sku',
+						'product_field_status',
+						'product_field_stock',
+						'product_field_manage_stock',
+						'product_field_stock_status',
+						'product_field_menu_order',
+						'product_field_weight',
+						'product_field_length',
+						'product_field_width',
+						'product_field_height',
+						'product_field_purchase_note',
+						'product_field_tags',
+						'product_field_downloadable',
+						'product_field_virtual',
+						'product_field_related_references',
+						'product_field_crosssell_references',
+						'product_field_upsell_references',
+						'product_field_grouping_references',
+						'product_field_shipping_class'
+					];
+
+	    foreach ($field_names as $field_name){
+
+		    if (isset($schema['fields'][$this->$field_name]) && $schema['fields'][$this->$field_name]['has_multilingual']) {
+
+		        $this->$field_name .= '_'.$sl_language;
+
+		    }
+
+	        $product_data_to_store['product_fields'][$field_name] = $this->$field_name;
+	    
+	    }
+
+	    foreach ($schema['fields'] as $field_name => $field_props) {
 			
 			if (!in_array($field_name, $fixed_product_fields)) {
 				
-				if ($field_props['has_multilingual']) {
+				if (isset($field_props['has_multilingual']) && $field_props['has_multilingual']) {
 
 					$product_data_to_store['product_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 				
@@ -333,7 +210,7 @@ class Product {
 
 				}
 
-				$product_data_to_store['not_synced_products'][$products[$result_row['array_index']]['id']] = $result_row['error_message'];
+				$product_data_to_store['not_synced_products'][$products[$result_row['array_index']][$this->product_id_field]] = $result_row['error_message'];
 				unset($products[$result_row['array_index']]);
 		
 			}
@@ -345,7 +222,7 @@ class Product {
 
 	        foreach ($products as $keyProd => $product) {
 
-                if (empty($product['catalogue_id'])){
+                if (empty($product[$this->product_id_catalogue_field])){
 
                 	if (!isset($product_data_to_store['not_synced_products'])){ 
 
@@ -353,7 +230,7 @@ class Product {
 
                 	}
 
-                	$product_data_to_store['not_synced_products'][$product['id']] = 'Product '.$product['data'][$this->product_field_name].' with SL ID '.$product['id'].' has no categories.';
+                	$product_data_to_store['not_synced_products'][$product[$this->product_id_field]] = 'Product '.$product['data'][$this->product_field_name].' with SL ID '.$product[$this->product_id_field].' has no categories.';
                     unset($products[$keyProd]);
 
                 }
@@ -381,8 +258,8 @@ class Product {
 
 		$time_ini_product_core_data = microtime(1);
 
-		$sl_product_id        	= $product['id'];
-		$sl_product_parent_ids	= $product['catalogue_id'];
+		$sl_product_id        	= $product[$this->product_id_field];
+		$sl_product_parent_ids	= $product[$this->product_id_catalogue_field];
 		$product_data        	= $product['data'];
 
 		$wp_category_ids = array();
@@ -524,9 +401,44 @@ class Product {
 		
 		}
 
+
+		if (isset($product_data[$this->product_field_status])){
+
+			$sl_status = $product_data[$this->product_field_status];
+			
+			if (is_array($sl_status)) $sl_status = reset($sl_status);
+			
+			if ($sl_status !== '' && !is_numeric($sl_status)){
+
+				$sl_status = trim(strtolower($sl_status));
+				if (in_array($sl_status, array('publicado', 'publicada', 'published'))) $sl_status = 'publish';
+				if (in_array($sl_status, array('privado', 'privada'))) $sl_status = 'private';
+				if ($sl_status == 'borrador') $sl_status = 'draft';
+				if ($sl_status == 'pendiente') $sl_status = 'pending';
+				if ($sl_status == 'papelera') $sl_status = 'trash';
+
+				$wp_status = array('publish', 'private', 'draft', 'pending', 'trash');
+				
+				if (in_array( $sl_status , $wp_status) && $sl_status != $wp_product['post_status']){
+
+					$product_data_modified['post_status'] = $sl_status;
+					$product_modified = true;
+
+				}
+
+			}
+		
+		}
+
 		if ($product_modified){
 
 			sl_wp_update_post($product_data_modified, true);
+
+		}
+
+		if (!isset($wp_product['_product_version']) || (isset($wp_product['_product_version']) && $wp_product['_product_version'] != WC_VERSION)){
+
+			sl_update_post_meta( $wp_product['ID'], '_product_version', WC_VERSION );
 
 		}
 
@@ -1047,10 +959,6 @@ class Product {
 
 				}
 
-				// $wp_tags = wp_get_post_terms($wp_product['ID'], 'product_tag');
-				// $wp_tags = json_decode(json_encode($wp_tags), true);
-				// sl_debbug('wp_tags: '.print_r($wp_tags,1));
-
 				sl_wp_set_post_terms( $wp_product['ID'], $sl_tags, 'product_tag' );
 
 			}
@@ -1120,29 +1028,34 @@ class Product {
 		//Product images
 		if (!empty($product_data[$this->product_field_image])){
 
-			$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product_thumbnail_name = $wp_product_thumbnail_md5 = $wp_gallery_ids = '';
+			if (is_null($this->media_class)) $this->media_class = Media_class::get_instance();
+
+			$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product_thumbnail_name = $wp_product_thumbnail_filesize = $wp_gallery_ids = '';
 			
 			$sl_product_images = $product_data[$this->product_field_image];
 			
 			if(count($sl_product_images) > 0) {
 
 				if (isset($wp_product['_thumbnail_id'])){
-
+					// $time_ini_read_thubmnail_id = microtime(1);
 					$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product['_thumbnail_id'];
 					if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
 					
 						$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_thumbnail_id[0];
 					
 					}
+					// sl_debbug('# time_read_thubmnail_id: '.(microtime(1) - $time_ini_read_thubmnail_id).' seconds.', 'timer');
 
 				}
 
 				if (!in_array($wp_thumbnail_id, array('', 0, null, false))){
 					
+					// $time_ini_read_thubmnail_data = microtime(1);
 					$wp_product_thumbnail_url = wp_get_attachment_url($wp_thumbnail_id);
 					$wp_parse_product_thumbnail_url = pathinfo($wp_product_thumbnail_url);
 					$wp_product_thumbnail_name = $wp_parse_product_thumbnail_url['basename'];
-					$wp_product_thumbnail_md5 = verify_md5_image_url($wp_product_thumbnail_url);
+					$wp_product_thumbnail_filesize = $this->media_class->read_image_file_size($wp_product_thumbnail_url);
+					// sl_debbug('# time_read_thubmnail_data: '.(microtime(1) - $time_ini_read_thubmnail_data).' seconds.', 'timer');
 				
 				}
 
@@ -1151,6 +1064,7 @@ class Product {
 
 				if ($wp_product_image_gallery != ''){
 
+					// $time_ini_read_image_gallery_data = microtime(1);
 					$wp_product_image_gallery_ids = explode(',', $wp_product_image_gallery);
 					
 					foreach ($wp_product_image_gallery_ids as $keyPI => $wp_product_image_gallery_id) {
@@ -1158,15 +1072,16 @@ class Product {
 						$wp_product_image_gallery_url = wp_get_attachment_url($wp_product_image_gallery_id);
 						$wp_parse_product_image_gallery_url = pathinfo($wp_product_image_gallery_url);
 						$wp_product_image_gallery_name = $wp_parse_product_image_gallery_url['basename'];
-						$wp_product_image_gallery_md5 = verify_md5_image_url($wp_product_image_gallery_url);
+						$wp_product_image_gallery_filesize = $this->media_class->read_image_file_size($wp_product_image_gallery_url);
 
 						if (!isset($wp_product_image_gallery_data[$wp_product_image_gallery_id])){ 
 
-							$wp_product_image_gallery_data[$wp_product_image_gallery_id] = array('image_name' => $wp_product_image_gallery_name, 'md5_image' => $wp_product_image_gallery_md5);
+							$wp_product_image_gallery_data[$wp_product_image_gallery_id] = array('image_name' => $wp_product_image_gallery_name, 'filesize_image' => $wp_product_image_gallery_filesize);
 						
 						}
 
 					}
+					// sl_debbug('# time_read_image_gallery_data: '.(microtime(1) - $time_ini_read_image_gallery_data).' seconds.', 'timer');
 					
 				}
 
@@ -1175,28 +1090,32 @@ class Product {
 				
 				foreach ($this->product_images_sizes as $img_format) {
 
+					// $time_ini_image_size = microtime(1);
+
 					foreach ($sl_product_images as $sl_product_image) {
 						
+						// $time_ini_product_image = microtime(1);
 						if (!empty($sl_product_image[$img_format])){
 
 							$image_url = $sl_product_image[$img_format];
-							$md5_image = verify_md5_image_url($image_url);
-							if (!$md5_image){ continue; }
+							$filesize_image = $this->media_class->read_image_file_size($image_url);
+							if (!$filesize_image){ continue; }
 							
 							$parse_url_image = pathinfo($image_url);
 							$parse_url_image_basename = urldecode($parse_url_image['basename']);
 							
 							if ($sl_product_image == $main_image){
 							
+								// $time_ini_process_main_image = microtime(1);
 								if ($parse_url_image_basename == $wp_product_thumbnail_name){
 							
-									if ($wp_product_thumbnail_md5 !== false && $wp_product_thumbnail_md5 == $md5_image){
+									if ($wp_product_thumbnail_filesize !== false && $wp_product_thumbnail_filesize == $filesize_image){
 							
 										continue;
 
 									}else{
 							
-										if (!update_media($image_url, $wp_thumbnail_id)){
+										if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
 											$wp_thumbnail_id = '';
 										}
 
@@ -1204,21 +1123,21 @@ class Product {
 
 								}else{
 							
-									$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
+									$thumb_id = $this->media_class->get_thumbnail_id_by_title($parse_url_image_basename);
 							
 									if ($thumb_id === 0){
 							
-										$wp_thumbnail_id = fetch_media($image_url, $wp_product['ID']);
+										$wp_thumbnail_id = $this->media_class->fetch_media($image_url, $wp_product['ID'], true);
 									
 									}else{
 
 										$wp_thumbnail_id = $thumb_id;
 										$wp_thumbnail_url = wp_get_attachment_url($wp_thumbnail_id);
-										$wp_product_thumbnail_md5 = verify_md5_image_url($wp_thumbnail_url);
+										$wp_product_thumbnail_filesize = $this->media_class->read_image_file_size($wp_thumbnail_url);
 							
-										if (!$wp_product_thumbnail_md5 || ($wp_product_thumbnail_md5 !== false && $wp_product_thumbnail_md5 !== $md5_image)){
+										if (!$wp_product_thumbnail_filesize || ($wp_product_thumbnail_filesize !== false && $wp_product_thumbnail_filesize !== $filesize_image)){
 							
-											if (!update_media($image_url, $wp_thumbnail_id)){
+											if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
 												$wp_thumbnail_id = '';
 											}
 							
@@ -1229,9 +1148,11 @@ class Product {
 								}
 
 								if ($wp_thumbnail_id === false){ $wp_thumbnail_id = ''; }
+								// sl_debbug('# time_process_main_image: '.(microtime(1) - $time_ini_process_main_image).' seconds.', 'timer');
 
 							}else{
 								
+								// $time_ini_process_image_gallery = microtime(1);
 								$image_gallery_found = false;
 
 								if (!empty($wp_product_image_gallery_data)){
@@ -1242,9 +1163,9 @@ class Product {
 									
 											$image_gallery_found = true;
 
-											if (!$wp_product_image_data['md5_image'] || ($wp_product_image_data['md5_image'] !== false && $wp_product_image_data['md5_image'] !== $md5_image)){
+											if (!$wp_product_image_data['filesize_image'] || ($wp_product_image_data['filesize_image'] !== false && $wp_product_image_data['filesize_image'] !== $filesize_image)){
 
-												$result_update = update_media($image_url, $image_id);
+												$result_update = $this->media_class->update_media($image_url, $image_id);
 												if (!$result_update){ continue; }
 
 											}
@@ -1259,20 +1180,20 @@ class Product {
 
 								if (!$image_gallery_found){
 
-									$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
+									$thumb_id = $this->media_class->get_thumbnail_id_by_title($parse_url_image_basename);
 
 									if ($thumb_id === 0){
 
-										$thumb_id = fetch_media($image_url, $wp_product['ID']);
+										$thumb_id = $this->media_class->fetch_media($image_url, $wp_product['ID']);
 									
 									}else{
 
 										$wp_thumbnail_url = wp_get_attachment_url($thumb_id);
-										$wp_product_thumbnail_md5 = verify_md5_image_url($wp_thumbnail_url);
+										$wp_product_thumbnail_filesize = $this->media_class->read_image_file_size($wp_thumbnail_url);
 								
-										if (!$wp_product_thumbnail_md5 || ($wp_product_thumbnail_md5 !== false && $wp_product_thumbnail_md5 !== $md5_image)){
+										if (!$wp_product_thumbnail_filesize || ($wp_product_thumbnail_filesize !== false && $wp_product_thumbnail_filesize !== $filesize_image)){
 
-											$thumb_id = update_media($image_url, $thumb_id);
+											$thumb_id = $this->media_class->update_media($image_url, $thumb_id);
 
 										}
 
@@ -1285,13 +1206,16 @@ class Product {
 									}
 
 								}
+								// sl_debbug('# time_process_image_gallery: '.(microtime(1) - $time_ini_process_image_gallery).' seconds.', 'timer');
 
 							}
 
 						}
+						// sl_debbug('# time_product_image: '.(microtime(1) - $time_ini_product_image).' seconds.', 'timer');
 
 					}
 
+					// sl_debbug('# time_image_size '.$img_format.': '.(microtime(1) - $time_ini_image_size).' seconds.', 'timer');
 				}
 
 				if (!empty($new_product_image_gallery_ids)){
@@ -1305,19 +1229,24 @@ class Product {
 
 			if (!isset($wp_product['_thumbnail_id']) || (isset($wp_product['_thumbnail_id']) && ((!is_array($wp_product['_thumbnail_id']) && $wp_product['_thumbnail_id'] != $wp_thumbnail_id) || is_array($wp_product['_thumbnail_id']) && $wp_product['_thumbnail_id'][0] != $wp_thumbnail_id))){
 
+				// $time_ini_update_thumbnail_id = microtime(1);
 				sl_update_post_meta( $wp_product['ID'], '_thumbnail_id', $wp_thumbnail_id );
+				// sl_debbug('# time_update_thumbnail_id: '.(microtime(1) - $time_ini_update_thumbnail_id).' seconds.', 'timer');
 
 			}
 
 			if (!isset($wp_product['_product_image_gallery']) || (isset($wp_product['_product_image_gallery']) && $wp_product['_product_image_gallery'] != $wp_gallery_ids)){
 				
+				// $time_ini_update_product_image_gallery = microtime(1);
 				sl_update_post_meta( $wp_product['ID'], '_product_image_gallery', $wp_gallery_ids );
+				// sl_debbug('# time_update_product_image_gallery: '.(microtime(1) - $time_ini_update_product_image_gallery).' seconds.', 'timer');
 
 			}
 
-			if (!in_array($old_wp_thumbnail_id, array('', 0, null, false)) && $old_wp_thumbnail_id != $wp_thumbnail_id){ delete_media($old_wp_thumbnail_id); }
+			if (!in_array($old_wp_thumbnail_id, array('', 0, null, false)) && $old_wp_thumbnail_id != $wp_thumbnail_id){ $this->media_class->delete_media($old_wp_thumbnail_id); }
 
 			if (!empty($wp_product_image_gallery_ids)){
+				// $time_ini_delete_images = microtime(1);
 
 				$excess_product_image_gallery_ids = array_diff($wp_product_image_gallery_ids, $new_product_image_gallery_ids);
 				if (!empty($excess_product_image_gallery_ids)){
@@ -1326,13 +1255,14 @@ class Product {
 
 						if (!in_array($excess_product_image_gallery_id, array('', 0, null, false))){ 
 
-							delete_media($excess_product_image_gallery_id); 
+							$this->media_class->delete_media($excess_product_image_gallery_id); 
 
 						}
 
 					}
 
 				}
+				// sl_debbug('# time_delete_images: '.(microtime(1) - $time_ini_delete_images).' seconds.', 'timer');
 
 			}
 
@@ -1519,7 +1449,7 @@ class Product {
 							$found = false;
 
 							$term_exists = term_exists( $attribute_value_sanitized, $attribute_taxonomy_name );
-
+							
 							if ( !is_null($term_exists) && $term_exists !== 0 ) {
 
 								$found = true;
@@ -1754,7 +1684,7 @@ class Product {
 		$posts = get_posts(
 			array(
 			    'post_type' => 'product',
-			    'post_status' => 'any',
+			    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash'),
 			    'meta_query' => array(
 			    	array(
 				    	'key' => '_sku',
@@ -1782,6 +1712,8 @@ class Product {
 				
 					sl_update_post_meta($wp_product['ID'], '_saleslayerid', $product_id);
 					sl_update_post_meta($wp_product['ID'], '_saleslayercompid', $comp_id);
+
+					sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'publish'), true);
 				
 					return true;
 
@@ -1809,7 +1741,7 @@ class Product {
 		$posts = get_posts(
 			array(
 			    'post_type' => 'product',
-			    'post_status' => 'any',
+			    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash'),
 			    'meta_query' => array(
 			    	array(
 				    	'key' => '_sku',
@@ -1866,6 +1798,8 @@ class Product {
 					sl_update_post_meta($wp_product['ID'], '_saleslayerid', $product_id);
 					sl_update_post_meta($wp_product['ID'], '_saleslayercompid', $comp_id);
 				
+					sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'publish'), true);
+
 					return true;
 
 				}else if ($wp_saleslayerid == $product_id && $wp_saleslayercompid == $comp_id){
@@ -1889,52 +1823,16 @@ class Product {
 	 */
 	public function delete_stored_product ($product_to_delete) {
 
-		sl_debbug('Deleting product with SL id: '.$product_to_delete.' comp_id: '.$this->comp_id);
+		sl_debbug('Disabling product with SL id: '.$product_to_delete.' comp_id: '.$this->comp_id. '. Setting it to draft status.');
 
 		$wp_product = find_saleslayer_product($product_to_delete, $this->comp_id);
 		if ($wp_product){
-		
-			$wp_thumbnail_id = array();
-			if (isset($wp_product['_thumbnail_id'])){
 
-				$wp_thumbnail_id = $wp_product['_thumbnail_id'];
-				if (!is_array($wp_thumbnail_id)){ $wp_thumbnail_id = array($wp_thumbnail_id); }
+			sl_delete_post_meta($wp_product['ID'], '_saleslayerid');
+			sl_delete_post_meta($wp_product['ID'], '_saleslayercompid');
+
+			sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'draft'), true);
 			
-			}
-
-			$wp_product_image_gallery = '';
-			if (isset($wp_product['_product_image_gallery'])){
-
-				$wp_product_image_gallery = $wp_product['_product_image_gallery'];	
-				
-			}
-			
-			if (wp_delete_post( $wp_product['ID'])){
-
-				if (!empty($wp_thumbnail_id)){
-		
-					foreach ($wp_thumbnail_id as $wp_thumb_id) {
-
-						if (!in_array($wp_thumb_id, array('', 0, null, false))){ delete_media($wp_thumb_id); }
-					
-					}
-		
-				}
-
-				if ($wp_product_image_gallery != ''){
-
-					$wp_product_image_gallery_ids = explode(',', $wp_product_image_gallery);
-
-					foreach ($wp_product_image_gallery_ids as $wp_product_image_gallery_id) {
-
-						if (!in_array($wp_product_image_gallery_id, array('', 0, null, false))){ delete_media($wp_product_image_gallery_id); }
-
-					}
-
-				}
-		
-			}
-
 		}else{
 
 			sl_debbug('## Error. The product with id: '.$product_to_delete.' does not exist.');

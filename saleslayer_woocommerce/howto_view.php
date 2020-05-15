@@ -23,7 +23,7 @@
 				<ol>
 					<li>Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_add_connector"><?php echo SLYR_WC_name; ?> -> Add connector</a></li>
 					<li>Add the connection credentials.</li>
-					<li>In <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">connectors</a>, push Synchronize to import categories, products and product formats automatically.</li>
+					<li>In <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">connectors</a>, push Synchronize to import categories, products and product variants automatically.</li>
 				</ol>
 			</section>
 			<section class="howtoinfo">
@@ -35,8 +35,8 @@
 					<li>Define the fields relationship in the <strong><?php echo SLYR_WC_company_name; ?></strong> WooCommerce connector: </li>
 					<ol>
 						<li>One size for image fields.</li>
-						<li>Most WooCommerce fields are already defined in each section, extra fields for products or product formats will be <strong><a href="<?php echo admin_url() ?>edit.php?post_type=product&page=product_attributes"> attributes</a></strong> and they must have been created in WooCommerce in order to synchronize.</li>
-						<li>When synchronizing a product that has formats, WooCommerce attributes that are synchronized will be marked as <strong>Used for variations</strong>, then, attribute values from the product and product formats will be combined and assigned to the product. Variations must have only one value for each attribute.</li>
+						<li>Most WooCommerce fields are already defined in each section, extra fields for products or product variants will be <strong><a href="<?php echo admin_url() ?>edit.php?post_type=product&page=product_attributes"> attributes</a></strong> and they must have been created in WooCommerce in order to synchronize.</li>
+						<li>When synchronizing a product that has variants, WooCommerce attributes that are synchronized will be marked as <strong>Used for variations</strong>, then, attribute values from the product and product variants will be combined and assigned to the product. Variations must have only one value for each attribute.</li>
 					</ol>
 				</ol>
 			</section>

@@ -37,7 +37,7 @@
 #slyr_catalogue_admin h6 {font-size: 115%; line-height: 115%; margin: 0 0 10px 0; color: rgba(1,1,1,0.5)}
 #slyr_catalogue_admin h7 {font-size: 105%; line-height: 110%; margin: 0 0 10px 0; color: rgba(1,1,1,0.5)}
 
-#slyr_catalogue_admin  .button_block {width: 100%}
+#slyr_catalogue_admin .button_block {width: 100%}
 
 #slyr_catalogue_admin .form-table { width: 100% }
 #slyr_catalogue_admin .form-table td { padding: 0 0 15px 0 }
@@ -86,4 +86,39 @@
     background: #000;
     color: #fff;
     background-color: rgb(212, 63, 58);
+}
+
+#slyr_catalogue_admin .slyr_progress{
+
+    margin: 12px;
+    width: 100%;
+
+}
+
+#slyr_catalogue_admin .slyr_progress .progress {
+    position: relative;
+}
+
+#slyr_catalogue_admin .slyr_progress .progress-bar {
+    z-index: 1;
+    /*position: absolute;*/
+}
+
+#slyr_catalogue_admin .slyr_progress .progress-bar .slyr_progress_span{
+
+    position: absolute;
+    /*top: 0;*/
+    z-index: 2;
+    text-align: center;
+    width: 17%;
+    color: black;
+
+}
+
+#slyr_catalogue_admin .slyr_of{
+
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
 }

@@ -1,20 +1,26 @@
 <?php
-// session_start();
+/*
+Plugin Name:    SalesLayer WooCommerce
+Plugin URI:     http://support.saleslayer.com/
+Description:    Plugin que permite sincronizar tu catalogo desde SalesLayer a WooCommerce.
+Version:        2.3
+Author:         Sales Layer
+Author URI:     http://saleslayer.com/
+License:        GPL2
+License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
+Text Domain:    saleslayer_woocommerce
+WC requires at least: 3.0.0
+WC tested up to: 4.1.0
+*/
+
 if ( PHP_SESSION_NONE === session_status() ) {
     session_start();
 }
 
-// echo 'SESSION STATUS: '.print_R(session_status(),1);
-/*
-Plugin Name: SalesLayer WooCommerce
-Plugin URI: http://support.saleslayer.com/
-Description: Plugin que permite sincronizar datos desde SalesLayer a WooCommerce.
-Version: 2.2
-Author:  Sales Layer
-Author URI: http://saleslayer.com/
-License:  GPL2
-*/
 defined( 'ABSPATH' ) or die( '¡Sin trampas!' );
+// require_once(ABSPATH . 'wp-admin/includes/file.php');
+require_once(ABSPATH . 'wp-admin/includes/file.php');
+
 ?>
 <?php
 /*  Copyright 2016-2018  Sales Layer   (email : alexis@saleslayer.com, pedro.moreno@saleslayer.com)
@@ -49,6 +55,10 @@ function sl_debbug($msg, $type = ''){
 
     if (SLYR_WC_DEBBUG > 0){
 
+        WP_Filesystem();
+
+        global $wp_filesystem;
+
         $error_write = false;
         if (strpos($msg, '## Error.') !== false){
             $error_write = true;
@@ -68,6 +78,10 @@ function sl_debbug($msg, $type = ''){
                 $file = SLYR_WC__LOGS_DIR.'/_debbug_log_saleslayer_syncdata_'.date('Y-m-d').'.dat';
                 break;
 
+            case 'mediameta':
+                $file = SLYR_WC__LOGS_DIR.'/_debbug_log_saleslayer_media_meta_'.date('Y-m-d').'.dat';
+                break;
+
             default:
                 $file = SLYR_WC__LOGS_DIR.'/_debbug_log_saleslayer_'.date('Y-m-d').'.dat';
                 break;
@@ -82,9 +96,15 @@ function sl_debbug($msg, $type = ''){
 
         $time_end_process = round(microtime(true) - SLYR_TIME_INI_PROCESS);
 
-        file_put_contents($file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg\r\n", FILE_APPEND);
+        file_put_contents($file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg".PHP_EOL, FILE_APPEND);
 
-        if ($new_file){ chmod($file, 0777); }
+        if ($new_file){  
+            if (!is_null($wp_filesystem)){
+                $wp_filesystem->chmod($file);
+            }else{
+                chmod($file, 0777);
+            }
+        }
 
         if ($error_write){
 
@@ -92,9 +112,15 @@ function sl_debbug($msg, $type = ''){
             
             if (!file_exists($error_file)){ $new_error_file = true; }
 
-            file_put_contents($error_file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg\r\n", FILE_APPEND);
+            file_put_contents($error_file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg".PHP_EOL, FILE_APPEND);
             
-            if ($new_error_file){ chmod($error_file, 0777); }
+            if ($new_error_file){
+                if (!is_null($wp_filesystem)){
+                    $wp_filesystem->chmod($error_file);
+                }else{
+                    chmod($error_file, 0777);
+                }
+            }
 
         }
 
@@ -117,7 +143,6 @@ function slyr_wc_activate(){
 //    Init
 function slyr_wc_plugin_init(){
 
-    // global $wpdb;
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Connector.class.php');
     
     $connector = new Connector();
@@ -136,16 +161,14 @@ function slyr_wc_plugin_init(){
 
 function slyr_wc_enqueue_stylesheets(){
 
-    //    Register Bootstrap and flat ui styles
+    // Register Bootstrap and flat ui styles
     if (is_admin()) {
         
-        wp_register_style('mystyle', plugin_dir_url( __FILE__ ).'css/style_admin.css');
+        wp_register_style('sl_wc_style_admin', plugin_dir_url( __FILE__ ).'css/style_admin.css');
+        wp_enqueue_style('sl_wc_style_admin');
 
-        wp_enqueue_style('mystyle');
-
-        wp_enqueue_style('bootstrap', plugin_dir_url( __FILE__ ).'css/bootstrap.min.css');
-
-        wp_enqueue_style('bootstrap');
+        wp_register_style('sl_wc_bootstrap_min', plugin_dir_url( __FILE__ ).'css/bootstrap.min.css');
+        wp_enqueue_style('sl_wc_bootstrap_min');
 
     }
 
@@ -155,15 +178,14 @@ function slyr_wc_enqueue_scripts(){
 
     if (is_admin()){
 
-        $scripts = array('jquery-3.3.1.min');
+        //Cargamos nuestro jquery porque el jQuery de WP solo funciona con el comando jQuery, no $
+        $scripts = array('jquery-3.5.0.min');//, 'bootstrap');
         
         if (!empty($scripts)){   
         
-            wp_enqueue_script('jquery');
-
             foreach($scripts as $script ){
-                wp_register_script('slyr_plugin_script_'.$script, plugin_dir_url( __FILE__ ).'js/'.$script.'.js',array('jquery'), null, true);
-                wp_enqueue_script ('slyr_plugin_script_'.$script);
+                wp_register_script('slyr_wc_script_'.$script, plugin_dir_url( __FILE__ ).'js/'.$script.'.js',array('jquery'), null, true);
+                wp_enqueue_script ('slyr_wc_script_'.$script);
             }
 
         }
@@ -377,6 +399,34 @@ function synchronize_connector($connector_id, $secret_key){
     
 }
 
+function sl_wc_process_pending_meta(){
+
+    include_once(SLYR_WC__PLUGIN_DIR.'admin/Media_class.class.php');
+
+    $media_class = new Media_class();
+    $return_message = $media_class->process_pending_meta();
+
+    echo json_encode(array('error' => 0, 'message' => '<div class="dialog dialog-warning">'.$return_message.'</div>'));
+
+    wp_die();
+
+}
+
+add_filter( 'cron_schedules', 'media_meta_add_cron_schedule' );
+function media_meta_add_cron_schedule( $schedules ) {
+    $schedules[SLYR_WC_media_meta_minutes_interval] = array(
+        'interval' => SLYR_WC_media_meta_minutes_start * 60,
+        'display'  => __( 'Once every '.SLYR_WC_media_meta_minutes_start.' minutes' ),
+    );
+ 
+    return $schedules;
+}
+ 
+if (!wp_next_scheduled( 'sl_wc_media_meta_schedule' ) ) {
+    wp_schedule_event( time(), SLYR_WC_media_meta_minutes_interval, 'sl_wc_media_meta_schedule' );
+}
+add_action('sl_wc_media_meta_schedule', 'sl_wc_process_pending_meta');
+
 function check_plugin_requirements(){
 
     if (!extension_loaded('curl')){
@@ -511,7 +561,7 @@ add_filter( 'cron_schedules', 'auto_sync_add_cron_schedule' );
 function auto_sync_add_cron_schedule( $schedules ) {
     $schedules[SLYR_WC_auto_sync_minutes_interval] = array(
         'interval' => SLYR_WC_auto_sync_minutes_start * 60,
-        'display'  => __( 'Once every 15 minutes' ),
+        'display'  => __( 'Once every '.SLYR_WC_auto_sync_minutes_start.' minutes' ),
     );
  
     return $schedules;
@@ -529,13 +579,10 @@ add_action('sl_wc_auto_sync_schedule', 'sl_wc_auto_sync_connectors');
 function sl_wc_syncdata_connectors(){
 
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Synchronize.class.php');
-
-    $sl_time_ini_syncdata_process = microtime(1);
-
+    
     $sync_class = new Synchronize();
     $sync_class->sync_data_connectors();
-   
-    sl_debbug('total synctime time: '.(microtime(1) - $sl_time_ini_syncdata_process).' seconds.', 'syncdata');
+
     wp_die();
 
 }
@@ -544,7 +591,7 @@ add_filter( 'cron_schedules', 'syncdata_add_cron_schedule' );
 function syncdata_add_cron_schedule( $schedules ) {
     $schedules[SLYR_WC_syncdata_minutes_interval] = array(
         'interval' => SLYR_WC_syncdata_minutes_start * 60,
-        'display'  => __( 'Once every 5 minutes' ),
+        'display'  => __( 'Once every '.SLYR_WC_syncdata_minutes_start.' minutes' ),
     );
  
     return $schedules;

@@ -2,6 +2,9 @@
 
 class Format {
 	
+	public $format_id_field = 'ID';
+	public $format_id_products_field = 'ID_products';
+
 	//Define every format attribute
 	public    $format_field_sku          			= 'format_sku';
 	protected $format_field_description  			= 'format_description';
@@ -28,6 +31,8 @@ class Format {
 	
 	protected $media_field_names = array();
 
+	protected $media_class;
+
 	/**
 	 * Function set connector's data schema.
 	 * @param array $sl_data_schema 		connector's data schema
@@ -48,9 +53,10 @@ class Format {
 	/**
 	* Function to store Sales Layer product formats data.
 	* @param  array $formats 						  product formats data to organize
+	* @param  array $sl_language 					  Sales Layer connector language
 	* @return array $product_format_data_to_store     product formats data to store
 	*/
-	public function prepare_product_format_data_to_store($formats){
+	public function prepare_product_format_data_to_store($formats, $sl_language){
 
 		$connector = Connector::get_instance();
 
@@ -60,143 +66,61 @@ class Format {
 
 	    $data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['product_formats'];
-	    		
-		if ($schema['fields'][$this->format_field_sku]['has_multilingual']) {
 
-			$this->format_field_sku				.= '_'.$connector->conn_data['languages'];
+	    $this->format_images_sizes = array();
 
-		}
-		$product_format_data_to_store['format_fields']['format_field_sku'] = $this->format_field_sku;
+	    if (!empty($schema['fields'][$this->format_field_image]['image_sizes'])) {
+	    	$format_field_images_sizes = $schema['fields'][$this->format_field_image]['image_sizes'];
+	    	$ordered_image_sizes = order_array_img($format_field_images_sizes);
+	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
+	    		$this->format_images_sizes[] = $img_size;
+	    	}
 
-		if ($schema['fields'][$this->format_field_description]['has_multilingual']) {
+	    } else if (!empty($schema['fields']['image_sizes'])) {
 
-			$this->format_field_description 		.= '_'.$connector->conn_data['languages'];
+	    	$format_field_images_sizes = $schema['fields']['image_sizes'];
+	    	$ordered_image_sizes = order_array_img($format_field_images_sizes);
+	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
+	    		$this->format_images_sizes[] = $img_size;
+	    	}
 
-		}
-		$product_format_data_to_store['format_fields']['format_field_description'] = $this->format_field_description;
+	    } else {
 
-		if ($schema['fields'][$this->format_field_regular_price]['has_multilingual']) {
+	    	$this->format_images_sizes[] = 'IMD';
 
-			$this->format_field_regular_price		.= '_' .$connector->conn_data['languages'];
+	    }
 
-		}
-		$product_format_data_to_store['format_fields']['format_field_regular_price'] = $this->format_field_regular_price;
+	    $product_format_data_to_store['format_fields']['format_images_sizes'] = $this->format_images_sizes;
 
-		if ($schema['fields'][$this->format_field_sale_price]['has_multilingual']) {
+        $field_names = ['format_field_sku',
+        				'format_field_description',
+        				'format_field_regular_price',
+        				'format_field_sale_price',
+        				'format_field_stock',
+        				'format_field_manage_stock',
+        				'format_field_stock_status',
+        				'format_field_weight',
+        				'format_field_length',
+        				'format_field_width',
+        				'format_field_height',
+        				'format_field_enabled',
+        				'format_field_downloadable',
+        				'format_field_virtual',
+        				'format_field_image',
+        				'format_field_shipping_class',
+    				];
 
-			$this->format_field_sale_price			.= '_'.$connector->conn_data['languages'];
+        foreach ($field_names as $field_name){
 
-		}
-		$product_format_data_to_store['format_fields']['format_field_sale_price'] = $this->format_field_sale_price;
+    	    if (isset($schema['fields'][$this->$field_name]) && $schema['fields'][$this->$field_name]['has_multilingual']) {
 
-		if ($schema['fields'][$this->format_field_stock]['has_multilingual']) {
+    	        $this->$field_name .= '_'.$sl_language;
 
-			$this->format_field_stock				.= '_'.$connector->conn_data['languages'];
+    	    }
 
-		}
-		$product_format_data_to_store['format_fields']['format_field_stock'] = $this->format_field_stock;
-
-		if ($schema['fields'][$this->format_field_manage_stock]['has_multilingual']) {
-
-			$this->format_field_manage_stock		.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_manage_stock'] = $this->format_field_manage_stock;
-
-		if ($schema['fields'][$this->format_field_stock_status]['has_multilingual']) {
-
-			$this->format_field_stock_status		.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_stock_status'] = $this->format_field_stock_status;		
-
-		if ($schema['fields'][$this->format_field_weight]['has_multilingual']) {
-
-			$this->format_field_weight				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_weight'] = $this->format_field_weight;
-
-		if ($schema['fields'][$this->format_field_length]['has_multilingual']) {
-
-			$this->format_field_length				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_length'] = $this->format_field_length;
-
-		if ($schema['fields'][$this->format_field_width]['has_multilingual']) {
-
-			$this->format_field_width				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_width'] = $this->format_field_width;
-
-		if ($schema['fields'][$this->format_field_height]['has_multilingual']) {
-			
-			$this->format_field_height				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_height'] = $this->format_field_height;
-
-		if ($schema['fields'][$this->format_field_enabled]['has_multilingual']) {
-
-			$this->format_field_enabled				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_enabled'] = $this->format_field_enabled;
-
-		if ($schema['fields'][$this->format_field_downloadable]['has_multilingual']) {
-
-			$this->format_field_downloadable		.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_downloadable'] = $this->format_field_downloadable;
-
-		if ($schema['fields'][$this->format_field_virtual]['has_multilingual']) {
-
-			$this->format_field_virtual			.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_virtual'] = $this->format_field_virtual;
-		
-		if ($schema['fields'][$this->format_field_shipping_class]['has_multilingual']) {
-
-			$this->format_field_shipping_class		.= '_'.$connector->conn_data['languages'];
-
-		}
-	    $product_format_data_to_store['format_fields']['format_field_shipping_class'] = $this->format_field_shipping_class;
-
-		if ($schema['fields'][$this->format_field_image]['has_multilingual']) {
-
-			$this->format_field_image				.= '_'.$connector->conn_data['languages'];
-
-		}
-		$product_format_data_to_store['format_fields']['format_field_image'] = $this->format_field_image;
-		
-		$this->format_images_sizes = array();
-
-		if (!empty($schema['fields']['format_image']['image_sizes'])) {
-			$format_field_images_sizes = $schema['fields']['format_image']['image_sizes'];
-			$ordered_image_sizes = order_array_img($format_field_images_sizes);
-			foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-				$this->format_images_sizes[] = $img_size;
-			}
-
-		} else if (!empty($schema['fields']['image_sizes'])) {
-
-			$format_field_images_sizes = $schema['fields']['image_sizes'];
-			$ordered_image_sizes = order_array_img($format_field_images_sizes);
-			foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-				$this->format_images_sizes[] = $img_size;
-			}
-
-		} else {
-
-			$this->format_images_sizes[] = 'IMD';
-
-		}
-
-		$product_format_data_to_store['format_fields']['format_images_sizes'] = $this->format_images_sizes;
+            $product_format_data_to_store['format_fields'][$field_name] = $this->$field_name;
+        
+        }
 		
 		foreach ($schema['fields'] as $field_name => $field_props) {
 			
@@ -252,7 +176,7 @@ class Format {
 
 				}
 
-				$product_format_data_to_store['not_synced_formats'][$formats[$result_row['array_index']]['id']] = $result_row['error_message'];
+				$product_format_data_to_store['not_synced_formats'][$formats[$result_row['array_index']][$this->format_id_field]] = $result_row['error_message'];
 				unset($formats[$result_row['array_index']]);
 
 			}
@@ -307,11 +231,11 @@ class Format {
 
 			foreach ($formats as $format) {
 				
-				$sl_parent_product_id	= $format['products_id'];
+				$sl_parent_product_id	= $format[$this->format_id_products_field];
 				$format_data			= $format['data'];
 
 				foreach ($this->format_additional_fields as $format_additional_field => $format_additional_field_lan){
-					
+
 					if (isset($format_data[$format_additional_field_lan])){
 
 						if (isset($this->media_field_names[$format_additional_field])){
@@ -369,8 +293,8 @@ class Format {
 
 		foreach ($formats as $format) {
 			
-			$sl_format_id        	= $format['id'];
-			$sl_parent_product_id	= $format['products_id'];
+			$sl_format_id        	= $format[$this->format_id_field];
+			$sl_parent_product_id	= $format[$this->format_id_products_field];
 			$format_data			= $format['data'];
 
 			$format_ok = true;
@@ -379,7 +303,7 @@ class Format {
 			if (isset($this->parent_product_attributes[$sl_parent_product_id]) && !empty($this->parent_product_attributes[$sl_parent_product_id])){
 			
 				foreach ($this->parent_product_attributes[$sl_parent_product_id] as $format_additional_field => $format_additional_field_lan) {
-
+				
 					if (isset($format_data[$format_additional_field_lan])){
 
 						if (isset($this->media_field_names[$format_additional_field])){
@@ -490,11 +414,13 @@ class Format {
 
 		$time_ini_formats_per_prod = microtime(1);
 
-		$sl_format_id        	= $format['format_data']['id'];
-		$sl_parent_product_id	= $format['format_data']['products_id'];
+		$sl_format_id        	= $format['format_data'][$this->format_id_field];
+		$sl_parent_product_id	= $format['format_data'][$this->format_id_products_field];
 		$format_data			= $format['format_data']['data'];
 
+		// $time_ini_find_saleslayer_parent_product = microtime(1);
 		$wp_parent_product = find_saleslayer_product($sl_parent_product_id, $this->comp_id);
+		// sl_debbug('## time_find_saleslayer_parent_product: '.(microtime(1) - $time_ini_find_saleslayer_parent_product).' seconds.', 'timer');
 		
 		if (!$wp_parent_product){
 
@@ -503,12 +429,16 @@ class Format {
 
 		}else{
 
+			// $time_ini_get_parent_attributes = microtime(1);
 			$parent_attributes = $this->get_parent_attributes($wp_parent_product['ID'], $format['sl_attributes']);
+			// sl_debbug('## time_get_parent_attributes: '.(microtime(1) - $time_ini_get_parent_attributes).' seconds.', 'timer');
 			
 		}
-
-		$this->sync_parent_data($wp_parent_product['ID'], $parent_attributes);
 		
+		// $time_ini_sync_parent_data = microtime(1);
+		$this->sync_parent_data($wp_parent_product['ID'], $parent_attributes);
+		// sl_debbug('## time_sync_parent_data: '.(microtime(1) - $time_ini_sync_parent_data).' seconds.', 'timer');
+
 		$time_ini_format_core_data = microtime(1);
 		
 		$sl_format_attributes = array();
@@ -590,30 +520,47 @@ class Format {
 		//Format post fields
 		$updated_format_data = array('ID' => $wp_format['ID']);
 		$format_data_modified = false;
+
 		if (isset($format_data[$this->format_field_enabled])){
 			
 			$sl_status = $format_data[$this->format_field_enabled];
-			$wp_status = array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit');
 			
-			if (!in_array($sl_status, $wp_status)){
+			if (is_array($sl_status)) $sl_status = reset($sl_status);
+			
+			if ($sl_status !== ''){
 
-				$sl_bool_status = sl_validate_boolean($sl_status);
-				
-				if ($sl_bool_status == 'yes'){
-				
-					$sl_status = 'publish';
-				
-				}else{
+				if (!is_numeric($sl_status)){
 
-					$sl_status = 'private';
+					$sl_status = trim(strtolower($sl_status));
+					if (in_array($sl_status, array('enabled', 'habilitado', 'habilitada', 'activated', 'activado', 'activada'))) $sl_status = 'publish';
+					if (in_array($sl_status, array('disabled', 'deshabilitado', 'deshabilitada', 'deactivated', 'desactivado', 'desactivada'))) $sl_status = 'private';
+
+				} 
+				
+				$wp_status = array('publish', 'private');
+				
+				if (!in_array( $sl_status , $wp_status, true)){
+				
+					$sl_bool_status = sl_validate_boolean($sl_status);
+					
+					if ($sl_bool_status == 'yes'){
+					
+						$sl_status = 'publish';
+					
+					}else{
+						
+						$sl_status = 'private';
+
+					}
 
 				}
 
-			}
-			if ($sl_status != $wp_format['post_status']){
+				if ($sl_status != $wp_format['post_status']){
 
-				$updated_format_data['post_status'] = $sl_status;
-				$format_data_modified = true;
+					$updated_format_data['post_status'] = $sl_status;
+					$format_data_modified = true;
+
+				}
 
 			}
 
@@ -635,6 +582,12 @@ class Format {
 		if (isset($format_data[$this->format_field_description]) && (!isset($wp_format['_variation_description']) || (isset($wp_format['_variation_description']) && $wp_format['_variation_description'] != $format_data[$this->format_field_description]))){
 
 			sl_update_post_meta( $wp_format['ID'], '_variation_description', $format_data[$this->format_field_description]);
+
+		}
+		
+		if (!isset($wp_format['_product_version']) || (isset($wp_format['_product_version']) && $wp_format['_product_version'] != WC_VERSION)){
+
+			sl_update_post_meta( $wp_format['ID'], '_product_version', WC_VERSION );
 
 		}
 		
@@ -1121,11 +1074,11 @@ class Format {
 
 					if (!isset($wp_format['_stock']) || (isset($wp_format['_stock']) && $wp_format['_stock'] != $sl_stock)){
 						
-						if ($wp_format['_stock_status'] == 'outofstock' && $sl_stock > 0){
+						if ((!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $wp_format['_stock_status'] == 'outofstock')) && $sl_stock > 0){
 						
 							sl_update_post_meta( $wp_format['ID'], '_stock_status', 'instock'); 
 						
-						}else if ($wp_format['_stock_status'] == 'instock' && $sl_stock <= 0){
+						}else if ((!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $wp_format['_stock_status'] == 'instock')) && $sl_stock <= 0){
 						
 							sl_update_post_meta( $wp_format['ID'], '_stock_status', 'outofstock');
 						
@@ -1147,7 +1100,9 @@ class Format {
 		//Format images
 		if (!empty($format_data[$this->format_field_image])) {
 
-			$wp_thumbnail_id = $wp_format_thumbnail_name = $wp_format_thumbnail_md5 = $wp_gallery_ids = '';
+			if (is_null($this->media_class)) $this->media_class = Media_class::get_instance();
+
+			$wp_thumbnail_id = $wp_format_thumbnail_name = $wp_format_thumbnail_filesize = $wp_gallery_ids = '';
 
 			$sl_format_images = $format_data[$this->format_field_image];
 
@@ -1169,7 +1124,7 @@ class Format {
 					$wp_format_thumbnail_url = wp_get_attachment_url($wp_thumbnail_id);
 					$wp_parse_format_thumbnail_url = pathinfo($wp_format_thumbnail_url);
 					$wp_format_thumbnail_name = $wp_parse_format_thumbnail_url['basename'];
-					$wp_format_thumbnail_md5 = verify_md5_image_url($wp_format_thumbnail_url);
+					$wp_format_thumbnail_filesize = $this->media_class->read_image_file_size($wp_format_thumbnail_url);
 				
 				}
 
@@ -1180,18 +1135,17 @@ class Format {
 						if (!empty($sl_format_image[$img_format])){
 
 							$image_url = $sl_format_image[$img_format];
-
-							$md5_image = verify_md5_image_url($image_url);
-							if (!$md5_image){ continue; }
+							$filesize_image = $this->media_class->read_image_file_size($image_url);
+							if (!$filesize_image){ continue; }
 
 							$parse_url_image = pathinfo($image_url);
 							$parse_url_image_basename = urldecode($parse_url_image['basename']);
 									
 							if ($parse_url_image_basename == $wp_format_thumbnail_name){
 
-								if (!$wp_format_thumbnail_md5 || ($wp_format_thumbnail_md5 !== false && $wp_format_thumbnail_md5 !== $md5_image)){
+								if (!$wp_format_thumbnail_filesize || ($wp_format_thumbnail_filesize !== false && $wp_format_thumbnail_filesize !== $filesize_image)){
 
-									if (!update_media($image_url, $wp_thumbnail_id)){
+									if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
 								
 										continue;
 								
@@ -1201,21 +1155,21 @@ class Format {
 
 							}else{
 
-								$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
+								$thumb_id = $this->media_class->get_thumbnail_id_by_title($parse_url_image_basename);
 								
 								if ($thumb_id === 0){
 								
-									$new_wp_thumbnail_id = fetch_media($image_url, $wp_format['ID']);
+									$new_wp_thumbnail_id = $this->media_class->fetch_media($image_url, $wp_format['ID'], true);
 									sl_update_post_meta($wp_format['ID'], '_thumbnail_id', $new_wp_thumbnail_id);
 
 								}else{
 
 									$wp_thumbnail_url = wp_get_attachment_url($thumb_id);
-									$wp_format_thumbnail_md5 = verify_md5_image_url($wp_thumbnail_url);
+									$wp_format_thumbnail_filesize = $this->media_class->read_image_file_size($wp_thumbnail_url);
 								
-									if (!$wp_format_thumbnail_md5 || ($wp_format_thumbnail_md5 !== false && $wp_format_thumbnail_md5 !== $md5_image)){
+									if (!$wp_format_thumbnail_filesize || ($wp_format_thumbnail_filesize !== false && $wp_format_thumbnail_filesize !== $filesize_image)){
 								
-										if (!update_media($image_url, $thumb_id)){
+										if (!$this->media_class->update_media($image_url, $thumb_id, true)){
 
 											continue;
 								
@@ -1227,7 +1181,7 @@ class Format {
 
 								}
 
-								if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ delete_media($wp_thumbnail_id); }
+								if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ $this->media_class->delete_media($wp_thumbnail_id); }
 
 							}
 
@@ -1359,7 +1313,7 @@ class Format {
 			array(
 			    'post_type' => 'product_variation',
 			    'meta_query' => $meta_query,
-			    'post_status' => 'any'
+			    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
 	    	)
 		);
 
@@ -1380,7 +1334,9 @@ class Format {
 				sl_update_post_meta($wp_format['ID'], '_saleslayerid', $product_id);
 				sl_update_post_meta($wp_format['ID'], '_saleslayercompid', $comp_id);
 				sl_update_post_meta($wp_format['ID'], '_saleslayerformatid', $format_id);
-			
+
+				sl_wp_update_post(array('ID' => $wp_format['ID'], 'post_status' => 'publish'), true);
+
 				return true;
 
 			}else if ($wp_saleslayerid == $product_id && $wp_saleslayercompid == $comp_id && $wp_saleslayerformatid == $format_id){
@@ -1409,7 +1365,7 @@ class Format {
 		$children_args = array(
 			'post_parent' => $parent_id,
 			'post_type'   => 'product_variation', 
-			'post_status' => 'any' 
+			'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
 		);
 
 		$children = get_children( $children_args );
@@ -1652,47 +1608,17 @@ class Format {
 	 */
 	public function delete_stored_product_format ($format_to_delete) {
 
-		sl_debbug('Deleting product format with SL id: '.$format_to_delete.' comp_id: '.$this->comp_id);
+		sl_debbug('Disabling product format with SL id: '.$format_to_delete.' comp_id: '.$this->comp_id. '. Setting it to private status.');
 
 		$wp_format = find_saleslayer_format(null, $connector->conn_data['comp_id'], $format_to_delete);
 		
 		if ($wp_format){
-		
-			$wp_thumbnail_id = array();
-			if (isset($wp_format['_thumbnail_id'])){
+	
+			sl_delete_post_meta($wp_format['ID'], '_saleslayerid');
+			sl_delete_post_meta($wp_format['ID'], '_saleslayercompid');
+			sl_delete_post_meta($wp_format['ID'], '_saleslayerformatid');
 
-				$wp_thumbnail_id = $wp_format['_thumbnail_id'];
-				if (!is_array($wp_thumbnail_id)){ $wp_thumbnail_id = array($wp_thumbnail_id); }
-			
-			}
-
-			if (wp_delete_post( $wp_format['ID'], true)){
-
-				if (!empty($wp_thumbnail_id)){
-		
-					foreach ($wp_thumbnail_id as $wp_thumb_id) {
-
-						if (!in_array($wp_thumb_id, array('', 0, null, false))){ delete_media($wp_thumb_id); }
-					
-					}
-		
-				}				
-		
-			}
-
-			$wp_parent_product = wc_get_product( $wp_format['post_parent'] );
-			
-			if ($wp_parent_product){
-				
-				$wp_parent_childrens = $wp_parent_product->get_children();
-				
-				if (empty($wp_parent_childrens)){
-				
-					sl_wp_set_object_terms($wp_format['post_parent'], 'simple', 'product_type' );
-						
-				}
-
-			}
+			sl_wp_update_post(array('ID' => $wp_format['ID'], 'post_status' => 'private'), true);
 
 		}else{
 

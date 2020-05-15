@@ -6,7 +6,7 @@ include_once(SLYR_WC__PLUGIN_DIR.'admin/Category.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Product.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Format.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/general_functions.php');
-include_once(SLYR_WC__PLUGIN_DIR.'admin/media_functions.php');
+include_once(SLYR_WC__PLUGIN_DIR.'admin/Media_class.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Shipping_class.class.php');
 
 class Synchronize {
@@ -30,6 +30,8 @@ class Synchronize {
     protected		$cat_class;
     protected		$prod_class;
     protected		$form_class;
+
+    protected 		$db;
 
 	public function __construct () {
 
@@ -74,7 +76,8 @@ class Synchronize {
 
 		                        if ($struc['type']=='image') {
 
-		                            $schema[$table]['fields']['image_sizes']=$struc['image_sizes'];
+		                            $schema[$table]['fields'][$struc['basename']]['image_sizes']=$struc['image_sizes'];
+
 		                        }
 		                    }
 
@@ -120,7 +123,7 @@ class Synchronize {
 	    if (!$this->initialized_vars){
 	        
 	        $this->category_fields = array('category_field_name', 'category_field_description', 'category_field_description_short', 'category_field_image', 'category_images_sizes', 'category_field_order');
-            $this->product_fields = array('product_field_name', 'product_field_description', 'product_field_description_short', 'product_field_image', 'product_field_sku', 'product_field_stock', 'product_field_manage_stock', 'product_field_stock_status', 'product_field_menu_order', 'product_field_weight', 'product_field_length', 'product_field_width', 'product_field_height', 'product_field_purchase_note', 'product_field_regular_price', 'product_field_sale_price', 'product_field_tags', 'product_field_downloadable', 'product_field_virtual', 'product_images_sizes', 'product_additional_fields', 'image_extensions', 'product_shipping_class', 'product_field_related_references', 'product_field_crosssell_references', 'product_field_upsell_references', 'product_field_grouping_references');
+            $this->product_fields = array('product_field_name', 'product_field_description', 'product_field_description_short', 'product_field_image', 'product_field_sku', 'product_field_status', 'product_field_stock', 'product_field_manage_stock', 'product_field_stock_status', 'product_field_menu_order', 'product_field_weight', 'product_field_length', 'product_field_width', 'product_field_height', 'product_field_purchase_note', 'product_field_regular_price', 'product_field_sale_price', 'product_field_tags', 'product_field_downloadable', 'product_field_virtual', 'product_images_sizes', 'product_additional_fields', 'image_extensions', 'product_shipping_class', 'product_field_related_references', 'product_field_crosssell_references', 'product_field_upsell_references', 'product_field_grouping_references');
             $this->product_format_fields = array('format_field_sku', 'format_field_description', 'format_field_regular_price', 'format_field_sale_price', 'format_field_stock', 'format_manage_stock', 'format_stock_status', 'format_field_weight', 'format_field_length', 'format_field_width', 'format_field_height', 'format_field_enabled', 'format_field_downloadable', 'format_field_virtual', 'format_field_image', 'format_images_sizes', 'format_additional_fields', 'parent_product_attributes', 'image_extensions', 'format_shipping_class');
 	        $this->initialized_vars = true;
 
@@ -370,7 +373,6 @@ class Synchronize {
 	        if (isset($result['sl_cuenta_registros']) && $result['sl_cuenta_registros'] > 0){
 
 	        	$this->cat_class = new Category();
-	        	// $prod_class = new Product();
 	        	$this->prod_class = Product::get_instance();
 	        	$this->form_class = new Format();
 
@@ -487,7 +489,6 @@ class Synchronize {
 	                do{
 
 	                    $items_to_update = sl_connection_query('read', $sql_items_to_update);
-
 	                    if (!empty($items_to_update) && isset($items_to_update[0])){
 	                    	
 	                    	$this->check_process_time();
@@ -578,7 +579,7 @@ class Synchronize {
         }
 
         $item_data = json_decode($item_to_update['item_data'],1);
-        
+
         if ($item_data == ''){
         
             sl_debbug("## Error. Decoding item's data: ".print_R($item_to_update['item_data'],1), 'syncdata');
@@ -713,11 +714,11 @@ class Synchronize {
                 
                 if ($sync_tries == 2 && $item_to_update['item_type'] == 'category'){
 
-                    $item_data['catalogue_parent_id'] = 0;
+                    $item_data[$this->cat_class->category_id_parent_field] = 0;
                     
                     $sql_update = " UPDATE ".SLYR_WC_syncdata_table.
                                             " SET sync_tries = ".$sync_tries.", ".
-                                            " item_data = '".addslashes(html_entity_decode(json_encode($item_data)))."'".
+                                            " item_data = '".json_encode($item_data)."'".
                                             " WHERE id = ".$item_to_update['id'];
 
 					sl_connection_query('update', $sql_update);
@@ -781,22 +782,21 @@ class Synchronize {
 		$connector = Connector::get_instance();
 
 		$this->cat_class = new Category();
-		// $prod_class = new Product();
 		$this->prod_class = Product::get_instance();
 		$this->form_class = new Format();
 
 		$last_update = $connector->get_info($connector_id, 'last_update');
 
 		$conn_data = array();
-		$conn_data['default_cat_id'] = $this->cat_class->get_default_cat_id();
-		
-		$slconn = new SalesLayer_Conn_Woo ($connector_id, $secret_key);
+		$conn_data['default_cat_id'] = $this->cat_class->default_cat_id;
+
+		$slconn = new SalesLayer_Conn_Woo ($connector_id, $secret_key, true);
 		$slconn->set_URL_connection(SLYR_WC_url_API);
 		$slconn->set_group_multicategory(true);
 		$slconn->set_parents_category_tree(true);
 		$slconn->set_same_parent_variants_modifications(true);
 		$slconn->set_first_level_parent_modifications(true);
-
+		
 		if (is_null($last_update)){
 			$slconn->get_info();
 		}else{
@@ -804,6 +804,8 @@ class Synchronize {
 		}
 		
 		$get_response_table_data  = $slconn->get_response_table_data();
+		
+		$get_response_default_language = '';
 
 		if ($slconn->get_response_languages_used()){
 
@@ -868,7 +870,7 @@ class Synchronize {
 
 	                            $arrayReturn['categories_to_delete'] = count($deleted_data);
 	                            sl_debbug('Total count of delete categories to store: '.count($deleted_data));
-	                            if (SLYR_WC_DEBBUG > 1)  sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
+	                            if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
 
 	                            foreach ($deleted_data as $delete_category_id) {
 	                                
@@ -885,8 +887,8 @@ class Synchronize {
 
 	                            $arrayReturn['products_to_delete'] = count($deleted_data);
 	                            sl_debbug('Total count of delete products to store: '.count($deleted_data));
-	                            if (SLYR_WC_DEBBUG > 1)  sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
-
+	                            if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
+	                            
 	                            foreach ($deleted_data as $delete_product_id) {
 	                                
 	                                $item_data['sl_id'] = $delete_product_id;
@@ -902,7 +904,7 @@ class Synchronize {
 	                            
 	                            $arrayReturn['product_formats_to_delete'] = count($deleted_data);
 	                            sl_debbug('Total count of delete product formats to store: '.count($deleted_data));
-	                            if (SLYR_WC_DEBBUG > 1)  sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
+	                            if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
 
 	                            foreach ($deleted_data as $delete_product_format_id) {
 	                                 
@@ -940,7 +942,7 @@ class Synchronize {
 	                    $arrayReturn['categories_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
 
-	                    $category_data_to_store = $this->cat_class->prepare_category_data_to_store($modified_data);
+	                    $category_data_to_store = $this->cat_class->prepare_category_data_to_store($modified_data, $get_response_default_language);
 	                    if (isset($category_data_to_store['category_data']) && !empty($category_data_to_store['category_data'])){
 
 	                        $categories_to_sync = $category_data_to_store['category_data'];
@@ -950,7 +952,7 @@ class Synchronize {
 
 	                        foreach ($categories_to_sync as $category_to_sync) {
 	                            
-	                            $item_data_to_insert = html_entity_decode(json_encode($category_to_sync));
+	                            $item_data_to_insert = json_encode($category_to_sync);
 	                            $sync_params_to_insert = json_encode($category_params);
 
 	                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
@@ -970,7 +972,7 @@ class Synchronize {
 	                   	$arrayReturn['products_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
 
-	                    $product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data);
+	                    $product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data, $get_response_default_language);
 
 	                    if (isset($product_data_to_store['not_synced_products']) && !empty($product_data_to_store['not_synced_products'])){
 	                    	$arrayReturn['products_not_synced'] = $product_data_to_store['not_synced_products'];
@@ -986,7 +988,7 @@ class Synchronize {
 
 	                        foreach ($products_to_sync as $product_to_sync) {
 
-	                            $item_data_to_insert = html_entity_decode(json_encode($product_to_sync));
+	                        	$item_data_to_insert = json_encode($product_to_sync); 
 	                            $sync_params_to_insert = json_encode($product_params);
 
 	                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
@@ -1031,8 +1033,8 @@ class Synchronize {
 
 	                    $arrayReturn['product_formats_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
-	                    
-	                    $product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data);
+
+	                    $product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data, $get_response_default_language);
 
 	                    if (isset($product_format_data_to_store['not_synced_formats']) && !empty($product_format_data_to_store['not_synced_formats'])){
 
@@ -1064,7 +1066,7 @@ class Synchronize {
 
 	                        foreach ($product_formats_to_sync as $product_format_to_sync) {
 	                            
-	                            $item_data_to_insert = html_entity_decode(json_encode($product_format_to_sync));
+	                            $item_data_to_insert = json_encode($product_format_to_sync);
 	                            $sync_params_to_insert = json_encode($product_format_params);
 	                            
 	                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";

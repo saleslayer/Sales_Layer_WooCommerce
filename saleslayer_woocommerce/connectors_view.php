@@ -18,11 +18,11 @@
 		<table class="wp-list-table widefat fixed striped posts">
 		<thead>
 			<tr>
-				<th>Connector ID</th>
-		        <th>Last Update</th>
-		        <th>Progress</th>
-		        <th>Auto-sync every</th>
-		        <th>Actions</th>
+				<th class="slyr_of">Connector ID</th>
+		        <th class="slyr_of">Last Update</th>
+		        <th class="slyr_of">Progress</th>
+		        <th class="slyr_of">Auto-sync every</th>
+		        <th class="slyr_of">Actions</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -33,31 +33,39 @@
         	foreach ($connectors as $connector) {
 		?>
 			<tr>
-				<td class="title column-title column-primary"><strong><?php echo $connector['conn_code']; ?></strong></td>
-				<td class="date column-date"><strong><?php echo $connector['last_update']; ?></strong></td>
+				<td class="slyr_of title column-title column-primary"><strong><?php echo $connector['conn_code']; ?></strong></td>
+				<td class="slyr_of date column-date"><strong><?php echo $connector['last_update']; ?></strong></td>
 				<td>
-					<div class="progress" id="progress_catalogue_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar progress-bar-success" id="sub_progress_catalogue_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_catalogue_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_catalogue_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-					    	Catalogue
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_catalogue_<?php echo $connector['conn_code']; ?>">
+					    		Catalogue
+					    	</span>
 						</div>
 					</div>
-					<div class="progress" id="progress_products_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar progress-bar-success" id="sub_progress_products_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_products_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_products_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-					    	Products
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_products_<?php echo $connector['conn_code']; ?>">
+					    		Products
+					    	</span>
 					  	</div>
 					</div>
-					<div class="progress" id="progress_product_formats_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar progress-bar-success" id="sub_progress_product_formats_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_product_formats_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_formats_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-					    	Product formats
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_formats_<?php echo $connector['conn_code']; ?>">
+					    		Product variants
+					    	</span>
 					  	</div>
 					</div>
-					<div class="progress" id="progress_product_links_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar progress-bar-success" id="sub_progress_product_links_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_product_links_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_links_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-					    	Product links
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_links_<?php echo $connector['conn_code']; ?>">
+					    		Product links
+					    	</span>
 					  	</div>
 					</div>
 				</td>
@@ -73,10 +81,10 @@
                     </select>
                 </td>
                 <td class="tags column-tags">
-					<button class="button button-primary button-sync" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
-					<form id="delconn_form" name="delconn_form" method="post" action="">
+					<button type="button" class="button button-primary button_block button-sync slyr_of" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
+					<form id="delconn_form_<?php echo $connector['conn_code']; ?>" name="delconn_form" method="post" action="">
 						<input name="delete_conn" type="hidden" value="<?php echo $connector['conn_code']; ?>" />
-						<input type="submit" class="button button-forget" value="Forget Me!">
+						<input type="submit" class="button button_block button-forget slyr_of" value="Forget Me!">
 					</form>
 				</td>
 			</tr>
@@ -92,8 +100,7 @@
 
 	jQuery(document).ready(function(){
 		
-		$('.progress').hide();
-	    $(":input").prop("disabled", true);
+		$('.progress').hide(); $(":input").prop("disabled", true);
 		start_check_process_status();
 
 	});
@@ -214,7 +221,7 @@
 						            progress_name = ' Products ';
 						            break;
 						        case 'product_formats':
-						            progress_name = ' Product formats ';
+						            progress_name = ' Product variants ';
 						            break;
 						        case 'product_links':
 						            progress_name = ' Product links ';
@@ -231,23 +238,24 @@
 			          		var data_total = $("#sub_progress_"+table+'_'+connector_id).attr('aria-valuemax');
 			          		
 			          		if (sl_data_total != data_total){
-							
-								$("#sub_progress_"+table+'_'+connector_id).attr('aria-valuemax', sl_data_total);          			
+
+								$("#sub_progress_"+table+'_'+connector_id).attr('aria-valuemax', sl_data_total); 
+			          			$("#sub_progress_span_"+table+'_'+connector_id).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');         			
 			          		
 			          		}
 
 			          		if (sl_data_processed != data_now){
 			          		
-			          			$("#sub_progress_"+table+'_'+connector_id).addClass('progress-bar-striped active');
+			          			$("#sub_progress_"+table+'_'+connector_id).addClass('progress-bar-striped progress-bar-animated');
 			          			$("#sub_progress_"+table+'_'+connector_id).attr('aria-valuenow', sl_data_processed);
 			          			$("#sub_progress_"+table+'_'+connector_id).width(((sl_data_processed * 100) / sl_data_total)+'%');
-			          			$("#sub_progress_"+table+'_'+connector_id).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');
+			          			$("#sub_progress_span_"+table+'_'+connector_id).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');
 			          		
 			          		}
 			          		
 			          		if (sl_data_processed == sl_data_total){
 			          			
-			          			$("#sub_progress_"+table+'_'+connector_id).removeClass('progress-bar-striped active');
+			          			$("#sub_progress_"+table+'_'+connector_id).removeClass('progress-bar-striped progress-bar-animated');
 			          		
 			          		}
 
@@ -260,7 +268,7 @@
 					
 					}
 
-					setTimeout(check_process_status, 1000);
+					setTimeout(check_process_status, 4000);
 				
 	          	}else if (data['status'] == 'stopped'){
 

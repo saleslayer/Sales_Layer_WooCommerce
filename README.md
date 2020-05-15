@@ -22,7 +22,7 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
     <h3>3. Add the connector credencials in WooCommerce</h3>
     <ul>
         <li>Go to Admin -> Sales Layer WooCommerce -> Add connector and add the connector id and secret key.</li>
-        <li>Finally, In Admin -> Sales Layer Woo -> Connectors, push Synchronize to import categories, products and product formats automatically.</li>
+        <li>Finally, In Admin -> Sales Layer Woo -> Connectors, push Synchronize to import categories, products and product variants automatically.</li>
     </ul>
 </p>
 

@@ -3,62 +3,21 @@
 
 class Category {
 
-	protected $category_field_name = 'section_name';
-	protected $category_field_description = 'section_description';
-	protected $category_field_description_short = 'section_description_short';
-	protected $category_field_image = 'section_image';
-	protected $category_field_order = 'section_order';
-	protected $category_images_sizes = array();
+	public $category_id_field 						= 'ID';
+	public $category_id_parent_field 				= 'ID_PARENT';
+	protected $category_field_name 					= 'section_name';
+	protected $category_field_description 			= 'section_description';
+	protected $category_field_description_short 	= 'section_description_short';
+	protected $category_field_image 				= 'section_image';
+	protected $category_field_order 				= 'section_order';
+	protected $category_images_sizes 				= array();
 
-	private $sl_data_schema = array();
+	private $sl_data_schema 						= array();
 	public $comp_id;
+	public $default_cat_id 							= 0;
 
-	/**
-	 * Function to order an array of images.
-	 * @return integer 			id from default root category
-	 */
-	public function get_default_cat_id(){
+	protected $media_class;
 
-		// if( $sl_category = sl_get_term_by( 'name', SLYR_WC_company_name, 'product_cat', 'ARRAY_A') ){
-
-		//     return $sl_category['term_id'];
-		
-		// }else{
-
-		// 	$sl_category = wp_insert_term(
-		// 		SLYR_WC_company_name,
-		// 		'product_cat',
-		// 		array(
-		// 			'description' => SLYR_WC_company_name.' default category.',
-		// 			'slug' => sanitize_title(SLYR_WC_company_name)
-		// 		)
-		// 	);
-
-		// 	$sl_category_id = isset( $sl_category['term_id'] ) ? $sl_category['term_id'] : 0;
-			
-		// 	$logo_slyr_path = 'images/'.SLYR_WC_logo;
-
-		// 	$thumb_id = get_thumbnail_id_by_title(SLYR_WC_logo);
-
-		// 	if ($thumb_id === 0){
-				
-		// 		if (fetch_media(SLYR_WC__PLUGIN_DIR.$logo_slyr_path, $sl_category_id)){
-
-		// 			$thumb_id = get_thumbnail_id_by_title(SLYR_WC_logo);
-				
-		// 		}
-
-		// 	}
-
-		// 	update_woocommerce_term_meta( $sl_category_id, 'thumbnail_id', absint( $thumb_id ) );
-			
-		// 	return $sl_category_id;
-			
-		// }
-		
-		return 0;
-
-	}
 
 	public function set_class_field_value($field_name, $field_value){
 
@@ -80,50 +39,23 @@ class Category {
 	/**
 	* Function to store Sales Layer categories data.
 	* @param  array $arrayCatalogue                 categories data to organize
+	* @param  array $sl_language 					Sales Layer connector language
 	* @return array $categories_data_to_store       categories data to store
 	*/
-	public function prepare_category_data_to_store ($arrayCatalogue) {
+	public function prepare_category_data_to_store ($arrayCatalogue, $sl_language) {
 
 		$connector = Connector::get_instance();
+
+	    $category_data_to_store = array();
 
 		$data_schema              = json_decode($this->sl_data_schema, 1);
 	    $schema                   = $data_schema['catalogue'];
 
-	    $category_data_to_store = array();
-
-	    if ($schema['fields'][$this->category_field_name]['has_multilingual']) {
-
-	    	$this->category_field_name        .= '_'.$connector->conn_data['languages'];
-
-	    }
-	    $category_data_to_store['category_fields']['category_field_name'] = $this->category_field_name;
-
-	    if ($schema['fields'][$this->category_field_description]['has_multilingual']) {
-
-	    	$this->category_field_description .= '_'.$connector->conn_data['languages'];
-
-	    }
-	    $category_data_to_store['category_fields']['category_field_description'] = $this->category_field_description;
-
-	    if ($schema['fields'][$this->category_field_order]['has_multilingual']) {
-
-	    	$this->category_field_order .= '_'.$connector->conn_data['languages'];
-
-	    }
-	    $category_data_to_store['category_fields']['category_field_order'] = $this->category_field_order;
-
-	    if ($schema['fields'][$this->category_field_image]['has_multilingual']) {
-
-	    	$this->category_field_image       .= '_'.$connector->conn_data['languages'];
-
-	    }
-	    $category_data_to_store['category_fields']['category_field_image'] = $this->category_field_image;
-
 	    $this->category_images_sizes = array();
 
-	    if (!empty($schema['fields']['section_image']['image_sizes'])) {
+	    if (!empty($schema['fields'][$this->category_field_image]['image_sizes'])) {
 
-	        $category_field_images_sizes = $schema['fields']['section_image']['image_sizes'];
+	        $category_field_images_sizes = $schema['fields'][$this->category_field_image]['image_sizes'];
 	        $ordered_image_sizes = order_array_img($category_field_images_sizes);
 
 	        foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
@@ -153,6 +85,24 @@ class Category {
 
 	    $category_data_to_store['category_fields']['category_images_sizes'] = $this->category_images_sizes;
 
+        $field_names = ['category_field_name',
+    					'category_field_description',
+    					'category_field_order',
+    					'category_field_image',
+    				];
+
+		foreach ($field_names as $field_name){
+
+    	    if (isset($schema['fields'][$this->$field_name]) && $schema['fields'][$this->$field_name]['has_multilingual']) {
+
+    	        $this->$field_name .= '_'.$sl_language;
+
+    	    }
+
+            $category_data_to_store['category_fields'][$field_name] = $this->$field_name;
+        
+        }
+
 	    if (!empty($arrayCatalogue)){
 
 	        $time_ini_reorganize_categories = microtime(1);
@@ -175,9 +125,9 @@ class Category {
 	public function sync_stored_category($category){
 
 		$time_ini_category_core_data = microtime(1);
-	
-		$sl_category_id        = $category['id'];
-		$sl_category_parent_id = $category['catalogue_parent_id'];
+
+		$sl_category_id        = $category[$this->category_id_field];
+		$sl_category_parent_id = $category[$this->category_id_parent_field];
 		$category_data         = $category['data'];
 
 		if ($sl_category_parent_id != '0') {
@@ -194,7 +144,7 @@ class Category {
 
 		}else{
 
-			$category_parent_id = $this->get_default_cat_id();
+			$category_parent_id = $this->default_cat_id;
 
 		}
 
@@ -259,13 +209,16 @@ class Category {
 		sl_debbug('## time_category_core_data: '.(microtime(1) - $time_ini_category_core_data).' seconds.', 'timer');
 
 		$time_ini_category_images = microtime(1);
+		
 		if (!empty($category_data[$this->category_field_image])) {
+
+			if (is_null($this->media_class)) $this->media_class = Media_class::get_instance();
 
 			$sl_category_images = $category_data[$this->category_field_image];
 
 			if(count($sl_category_images) > 0) {
 
-				$wp_thumbnail_id = $wp_category_image_name = $wp_category_image_md5 = '';
+				$wp_thumbnail_id = $wp_category_image_name = $wp_category_image_size = '';
 
                 if (SLYR_WP_DEPRECATE_WOOCOMMERCE_TERM_META){
                     $wp_thumbnail_id = get_term_meta($wp_category['term_id'], 'thumbnail_id', true);
@@ -278,7 +231,7 @@ class Category {
 					$wp_category_image_url = wp_get_attachment_url($wp_thumbnail_id);
 					$wp_parse_category_image_url = pathinfo($wp_category_image_url);
 					$wp_category_image_name = $wp_parse_category_image_url['basename'];
-					$wp_category_image_md5 = verify_md5_image_url($wp_category_image_url);
+					$wp_category_image_size = $this->media_class->read_image_file_size($wp_category_image_url);
 				
 				}
 
@@ -289,17 +242,17 @@ class Category {
 						if (!empty($sl_category_image[$img_format])) {
 
 							$image_url = $sl_category_image[$img_format];
-							$md5_image = verify_md5_image_url($image_url);
-							if (!$md5_image){ continue; }
+							$filesize_image = $this->media_class->read_image_file_size($image_url);
+							if (!$filesize_image){ continue; }
 
 							$parse_url_image = pathinfo($image_url);
 							$parse_url_image_basename = urldecode($parse_url_image['basename']);
 							
 							if ($parse_url_image_basename == $wp_category_image_name){
 								
-								if (!$wp_category_image_md5 || ($wp_category_image_md5 !== false && $wp_category_image_md5 !== $md5_image)){
+								if (!$wp_category_image_size || ($wp_category_image_size !== false && $wp_category_image_size !== $filesize_image)){
 
-									if (!update_media($image_url, $wp_thumbnail_id)){
+									if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
 								
 										continue;
 								
@@ -309,21 +262,21 @@ class Category {
 							
 							}else{
 
-								$thumb_id = get_thumbnail_id_by_title($parse_url_image_basename);
+								$thumb_id = $this->media_class->get_thumbnail_id_by_title($parse_url_image_basename);
 								
 								if ($thumb_id === 0){
 								
-									$new_wp_thumbnail_id = fetch_media($image_url, $wp_category['term_id']);
+									$new_wp_thumbnail_id = $this->media_class->fetch_media($image_url, $wp_category['term_id'], true);
 									sl_update_woocommerce_term_meta($wp_category['term_id'], 'thumbnail_id', $new_wp_thumbnail_id);
 
 								}else{
 
 									$wp_category_image_url = wp_get_attachment_url($thumb_id);
-									$wp_category_image_md5 = verify_md5_image_url($wp_category_image_url);
+									$wp_category_image_size = $this->media_class->read_image_file_size($wp_category_image_url);
+
+									if (!$wp_category_image_size || ($wp_category_image_size !== false && $wp_category_image_size !== $filesize_image)){
 								
-									if (!$wp_category_image_md5 || ($wp_category_image_md5 !== false && $wp_category_image_md5 !== $md5_image)){
-								
-										if (!update_media($image_url, $thumb_id)){
+										if (!$this->media_class->update_media($image_url, $thumb_id, true)){
 
 											continue;
 								
@@ -335,7 +288,7 @@ class Category {
 
 								}
 
-								if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ delete_media($wp_thumbnail_id); }
+								if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ $this->media_class->delete_media($wp_thumbnail_id); }
 
 							}
 
@@ -445,30 +398,14 @@ class Category {
 	 */
 	public function find_category_by_name($category_name, $category_id, $comp_id){
 
-		$wp_category = sl_get_term_by( 'name', $category_name, 'product_cat', ARRAY_A);
-		
+		$wp_category = sl_find_unassigned_product_cat_terms_by_name($category_name, ARRAY_A);
+
 		if (!empty($wp_category)){
 
-			if (SLYR_WP_DEPRECATE_WOOCOMMERCE_TERM_META){
-                $wp_saleslayerid = get_term_meta( $wp_category['term_id'], 'saleslayerid', true );
-                $wp_saleslayercompid = get_term_meta( $wp_category['term_id'], 'saleslayercompid', true );
-            }else{
-                $wp_saleslayerid = get_woocommerce_term_meta( $wp_category['term_id'], 'saleslayerid', true );
-                $wp_saleslayercompid = get_woocommerce_term_meta( $wp_category['term_id'], 'saleslayercompid', true );
-            }
+			sl_update_woocommerce_term_meta($wp_category['term_id'], 'saleslayerid', $category_id);
+			sl_update_woocommerce_term_meta($wp_category['term_id'], 'saleslayercompid', $comp_id);
 
-			if (in_array($wp_saleslayerid, array(0,'',null)) && in_array($wp_saleslayercompid, array(0,'',null))){
-				
-				sl_update_woocommerce_term_meta($wp_category['term_id'], 'saleslayerid', $category_id);
-				sl_update_woocommerce_term_meta($wp_category['term_id'], 'saleslayercompid', $comp_id);
-
-				return true;
-
-			}else if ($wp_saleslayerid == $category_id && $wp_saleslayercompid == $comp_id){
-
-				return true;
-
-			}
+			return true;
 
 		}
 
@@ -499,7 +436,9 @@ class Category {
 
 				if ($wp_thumbnail_id != ''){
 
-					if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ delete_media($wp_thumbnail_id); }
+					if (is_null($this->media_class)) $this->media_class = Media_class::get_instance();
+
+					if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ $this->media_class->delete_media($wp_thumbnail_id); }
 
 				}
 
@@ -543,10 +482,10 @@ class Category {
 				
 					foreach ($categories as $keyCat => $category) {
 						
-						if (isset($level_categories[$category['id']])){
+						if (isset($level_categories[$category[$this->category_id_field]])){
 							
 							array_push($new_categories, $category);
-							$categories_loaded[$category['id']] = 0;
+							$categories_loaded[$category[$this->category_id_field]] = 0;
 							unset($categories[$keyCat]);
 				
 						}
@@ -563,17 +502,17 @@ class Category {
 			
 					if ($first_clean && !empty($categories)){
 
-						$categories_not_loaded_ids = array_flip(array_column($categories, 'id'));
+						$categories_not_loaded_ids = array_flip(array_column($categories, $this->category_id_field));
 			
 						foreach ($categories as $keyCat => $category) {
 							
-							if (!is_array($category['catalogue_parent_id'])){
+							if (!is_array($category[$this->category_id_parent_field])){
 							
-								$category_parent_ids = array($category['catalogue_parent_id']);
+								$category_parent_ids = array($category[$this->category_id_parent_field]);
 							
 							}else{
 							
-								$category_parent_ids = array($category['catalogue_parent_id']);
+								$category_parent_ids = array($category[$this->category_id_parent_field]);
 							
 							}
 
@@ -592,10 +531,10 @@ class Category {
 
 							if (!$has_any_parent){
 
-								$category['catalogue_parent_id'] = 0;
+								$category[$this->category_id_parent_field] = 0;
 
 								array_push($new_categories, $category);
-								$categories_loaded[$category['id']] = 0;
+								$categories_loaded[$category[$this->category_id_field]] = 0;
 								unset($categories[$keyCat]);
 							
 								$counter = 0;
@@ -635,9 +574,9 @@ class Category {
 
 			foreach ($categories as $category) {
 				
-				if (!is_array($category['catalogue_parent_id']) && $category['catalogue_parent_id'] == 0){
+				if (!is_array($category[$this->category_id_parent_field]) && $category[$this->category_id_parent_field] == 0){
 		
-					$level_categories[$category['id']] = 0;
+					$level_categories[$category[$this->category_id_field]] = 0;
 				
 				}
 
@@ -647,13 +586,13 @@ class Category {
 
 			foreach ($categories as $category) {
 				
-				if (!is_array($category['catalogue_parent_id'])){
+				if (!is_array($category[$this->category_id_parent_field])){
 				
-					$category_parent_ids = array($category['catalogue_parent_id']);
+					$category_parent_ids = array($category[$this->category_id_parent_field]);
 				
 				}else{
 				
-					$category_parent_ids = array($category['catalogue_parent_id']);
+					$category_parent_ids = array($category[$this->category_id_parent_field]);
 				
 				}
 
@@ -669,7 +608,7 @@ class Category {
 
 				if ($parents_loaded){
 
-					$level_categories[$category['id']] = 0;
+					$level_categories[$category[$this->category_id_field]] = 0;
 
 				}
 

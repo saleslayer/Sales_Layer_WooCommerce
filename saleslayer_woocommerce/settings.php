@@ -3,7 +3,7 @@
     ini_set('display_errors', 0);
     error_reporting(E_ALL ^ E_NOTICE);
     
-    define('SLYR_WC_version',       "2.2");
+    define('SLYR_WC_version',       "2.3");
 
     global $wp_version;
     if (version_compare($wp_version,'4.5','>=')) {
@@ -37,11 +37,13 @@
     define('SLYR_WC_connector_id',         'slyr_connector_id');
     define('SLYR_WC_connector_key',        'slyr_connector_key');
     define('SLYR_WC_auto_sync_minutes_start',                 15); //WC autosync cron start every (value) minutes
-    define('SLYR_WC_auto_sync_minutes_interval',              '15min'); //WC autosync cron start every (value) minutes
+    define('SLYR_WC_auto_sync_minutes_interval',              SLYR_WC_auto_sync_minutes_start.'min'); //WC autosync cron start every (value) minutes
     define('SLYR_WC_syncdata_minutes_start',                 5); //WC syncdata cron start every (value) minutes
-    define('SLYR_WC_syncdata_minutes_interval',              '5min'); //WC syncdata cron start every (value) minutes
+    define('SLYR_WC_syncdata_minutes_interval',              SLYR_WC_syncdata_minutes_start.'min'); //WC syncdata cron start every (value) minutes
+    define('SLYR_WC_media_meta_minutes_start',                 5); //WC media meta cron start every (value) minutes
+    define('SLYR_WC_media_meta_minutes_interval',              SLYR_WC_media_meta_minutes_start.'min'); //WC media meta cron start every (value) minutes
     define('SLYR_WC_url_API',              'api.saleslayer.com/');
-
+    
     // Avoids wordpress to ask for credentials when testing on localhost
     if (!defined('FS_METHOD')) define('FS_METHOD',                 'direct');
 
@@ -51,7 +53,17 @@
     if (!defined('SLYR_WC__LOGS_DIR')) define('SLYR_WC__LOGS_DIR', SLYR_WC__PLUGIN_DIR.'/logs/');
 
     if (!is_dir(SLYR_WC__LOGS_DIR)){
-        mkdir(SLYR_WC__LOGS_DIR, 0775, true);
+        
+        if (function_exists('wp_mkdir_p')){
+        
+            wp_mkdir_p(SLYR_WC__LOGS_DIR);
+
+        }else{
+
+            mkdir(SLYR_WC__LOGS_DIR, 0777, true);
+
+        }
+
     }
 
     // Constructs plugin dirname:

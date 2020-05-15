@@ -183,7 +183,7 @@ class Connector{
 
 		}
 
-		return $this->db->get_results('SELECT * FROM '.SLYR_WC_connector_table);
+		return $this->db->get_results('SELECT * FROM '.SLYR_WC_connector_table.' ORDER BY cnf_id');
 
 	}
 

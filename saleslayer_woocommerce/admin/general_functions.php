@@ -145,6 +145,74 @@ function sl_get_term_by($field, $value, $taxonomy = '', $output = OBJECT, $filte
 
 }
 
+function sl_find_unassigned_product_cat_terms_by_name($value, $output = OBJECT){
+
+	$meta_query = array(array('key' => 'saleslayerid', 'compare' => 'NOT EXISTS'), array('key' => 'saleslayercompid', 'compare' => 'NOT EXISTS'));
+	
+   	$terms = get_terms(
+   		array(
+   			'hide_empty' => false,
+			'taxonomy' => 'product_cat',
+			'meta_query' => $meta_query,
+			'name' => $value,
+		    'orderby' => 'term_id',
+		    'order'		=> 'asc',
+		)
+   	);
+
+   	if (!empty($terms)){
+
+   		$term = reset($terms);
+
+		if ($output == OBJECT){
+
+			$term_id = $term->term_id;
+
+		}else{
+
+			$term = $term->to_array();
+			$term_id = $term['term_id'];
+
+		}
+
+        if (SLYR_WP_DEPRECATE_WOOCOMMERCE_TERM_META){
+            $term_meta = get_term_meta( $term_id, '', true );
+        }else{
+            $term_meta = get_woocommerce_term_meta( $term_id, '', true );
+        }
+
+        if (!empty($term_meta)){
+
+			foreach ($term_meta as $field_name => $meta) {
+
+				if (is_array($meta) && count($meta) == 1){
+					$meta_value = $meta[0];
+				}else{
+					$meta_value = $meta;
+				}
+
+				if ($output == OBJECT){
+
+					$term->$field_name = $meta_value;
+
+				}else{
+
+					$term[$field_name] = $meta_value;
+				
+				}
+
+			}
+
+		}
+
+		return $term;
+
+   	}
+
+	return false;
+
+}
+
 /**
  * Function to find term by Sales Layer identifiers.
  * @param string $taxonomy 			taxonomy
@@ -312,12 +380,12 @@ function find_saleslayer_product($saleslayerid = null, $saleslayercompid = null,
 	// * 'private' - not visible to users who are not logged in
 	// * 'inherit' - a revision. see get_children.
 	// * 'trash' - post is in trashbin. added with Version 2.9. 
-	
+
 	$posts = get_posts(
 		array(
 		    'post_type' => 'product',
 		    'meta_query' => $meta_query,
-		    'post_status' => 'any'
+		    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
     	));
 
 	if( is_wp_error( $posts ) ) {
@@ -406,6 +474,27 @@ function sl_update_post_meta($post_id, $meta_key, $meta_value, $prev_value = '')
 	if( is_wp_error( $resultado ) ) {
 
 		sl_debbug('## Error. sl_update_post_meta: '.$resultado->get_error_message());
+
+	}
+
+	unset($resultado);
+
+}
+
+/**
+ * Function to delete meta to a post.
+ * @param  string $post_id    term id
+ * @param  string $meta_key   meta key
+ * @param  string $meta_value meta value
+ * @return void
+ */
+function sl_delete_post_meta($post_id, $meta_key, $meta_value = ''){
+
+	$resultado = delete_post_meta($post_id, $meta_key, $meta_value, $prev_value);
+
+	if( is_wp_error( $resultado ) ) {
+
+		sl_debbug('## Error. sl_delete_post_meta: '.$resultado->get_error_message());
 
 	}
 
@@ -565,8 +654,7 @@ function find_saleslayer_format($saleslayerid = null, $saleslayercompid = null, 
 		array(
 		    'post_type' => 'product_variation',
 		    'meta_query' => $meta_query,
-		    'post_status' => 'any'
-		    // 'post_status' => array('publish', 'pending', 'draft', 'auto-draft', 'future', 'private', 'inherit'),
+		    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
     	)
 	);
 
@@ -605,7 +693,7 @@ function get_all_products_and_variations(){
 	$wp_posts = get_posts(
 		array(
 		    'post_type' => array('product', 'product_variation' ),
-		    'post_status' => 'any',
+		    'post_status' => array('publish', 'pending', 'draft', 'private', 'trash'),
 		    'orderby' => 'post_type',
 		    'order'		=> 'asc',
 		    'numberposts' => -1,
@@ -743,8 +831,8 @@ function pre_process_by_skus($type, $comp_id, $items){
 				$item_sku = $item['data'][$form_class->format_field_sku];
 			}
 
-			$item_id = $item['products_id'];
-			$item_format_id = $item['id'];
+			$item_id = $item[$form_class->format_id_products_field];
+			$item_format_id = $item[$form_class->format_id_field];
 	
 		}else{
 
@@ -757,7 +845,7 @@ function pre_process_by_skus($type, $comp_id, $items){
 				$item_sku = $item['data'][$prod_class->product_field_sku];
 			}
 
-			$item_id = $item['id'];
+			$item_id = $item[$prod_class->product_id_field];
 			$item_format_id = 0;
 
 		}
