@@ -805,15 +805,33 @@ class Synchronize {
 		
 		$get_response_table_data  = $slconn->get_response_table_data();
 		
-		$get_response_default_language = '';
+		$language_to_sync = '';
 
-		if ($slconn->get_response_languages_used()){
+		$get_response_default_language = $slconn->get_response_default_language();
 
-		    $get_response_default_language = $slconn->get_response_default_language();
-		    $get_response_languages_used   = $slconn->get_response_languages_used();
-		    $get_response_languages_used   = implode(',', $get_response_languages_used);
+		if (!is_null($get_response_default_language)){
+			
+			$conn_data['default_language'] = $get_response_default_language;
+			$language_to_sync = $get_response_default_language;
 
-		    $conn_data['default_language'] = $get_response_default_language;
+		}
+
+		$get_response_languages_used   = $slconn->get_response_languages_used();
+		
+		if (!is_null($get_response_languages_used)){
+
+			if (is_array($get_response_languages_used)){
+
+				$language_to_sync = reset($get_response_languages_used);
+
+			}else{
+
+				$language_to_sync = $get_response_languages_used;				
+
+			}
+
+		    $get_response_languages_used = implode(',', $get_response_languages_used);
+
 		    $conn_data['languages'] = $get_response_languages_used;
 
 		}
@@ -942,7 +960,7 @@ class Synchronize {
 	                    $arrayReturn['categories_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
 
-	                    $category_data_to_store = $this->cat_class->prepare_category_data_to_store($modified_data, $get_response_default_language);
+	                    $category_data_to_store = $this->cat_class->prepare_category_data_to_store($modified_data, $language_to_sync);
 	                    if (isset($category_data_to_store['category_data']) && !empty($category_data_to_store['category_data'])){
 
 	                        $categories_to_sync = $category_data_to_store['category_data'];
@@ -972,7 +990,7 @@ class Synchronize {
 	                   	$arrayReturn['products_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
 
-	                    $product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data, $get_response_default_language);
+	                    $product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data, $language_to_sync);
 
 	                    if (isset($product_data_to_store['not_synced_products']) && !empty($product_data_to_store['not_synced_products'])){
 	                    	$arrayReturn['products_not_synced'] = $product_data_to_store['not_synced_products'];
@@ -1034,7 +1052,7 @@ class Synchronize {
 	                    $arrayReturn['product_formats_to_sync'] = count($modified_data);
 	                    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
 
-	                    $product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data, $get_response_default_language);
+	                    $product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data, $language_to_sync);
 
 	                    if (isset($product_format_data_to_store['not_synced_formats']) && !empty($product_format_data_to_store['not_synced_formats'])){
 
