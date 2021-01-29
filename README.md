@@ -4,6 +4,11 @@ Sales Layer plugin allows you to easily synchronize your catalogue information w
 <h2>Download <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip" title="Title">latest plugin version</a></h2>
 <h2>Check out the latest changes at our <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/master/CHANGELOG.md">Changelog</a>
 
+<p>
+    <h2>Important Notes</h2>
+    Please check the important notes for the installation available at https://support.saleslayer.com/woocommerce/important-notes-about-connector (In some cases, a Sales Layer account might be needed to access the documentation).
+</p>
+
 <h2>How To Start</h2>
 
 <p>
