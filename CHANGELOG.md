@@ -25,3 +25,10 @@
 - Improved format status field.
 - Products and formats now will be disabled instead of deleted.
 - 'post_status' filter modified on get_posts calls.
+
+## [2.3.2] - 2021-07-21
+
+### Changed
+
+- Image process improved.
+- Minor code fixes.

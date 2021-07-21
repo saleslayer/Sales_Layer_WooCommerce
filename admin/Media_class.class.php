@@ -38,13 +38,13 @@ class Media_class{
 	 * @param string $image_url 	url
 	 * @return string || boolean 	file name from url
 	 */
-	protected function get_image_url_filename($image_url){
+	public function get_image_url_filename($image_url){
 
 		// $time_ini_get_image_url_filename = microtime(1);
 
 		$image_url_info = pathinfo($image_url);
-
-		$filename = urldecode($image_url_info['basename']);
+		$filename = rawurldecode($image_url_info['basename']);
+		$filename = str_replace(["#", "%"], ["_U23_", "_U25_"], $filename);
 
 		// sl_debbug('# time_get_image_url_filename: '.(microtime(1) - $time_ini_get_image_url_filename).' seconds.', 'timer');
 
@@ -62,7 +62,8 @@ class Media_class{
 		// $time_ini_get_encoded_url = microtime(1);
 
 		$image_url_info = pathinfo($url);
-		$filename_encoded = urlencode($image_url_info['basename']);
+		$filename_encoded = $image_url_info['basename'];            
+		$filename_encoded = rawurlencode(rawurldecode($filename_encoded));
 		
 		// sl_debbug('# time_get_encoded_url: '.(microtime(1) - $time_ini_get_encoded_url).' seconds.', 'timer');
 
@@ -147,7 +148,7 @@ class Media_class{
 
 			if (!$process_meta){
 				
-				$meta_required_data = array('save_path' => $save_path, 'n_try' => 0);
+				$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => 0);
 				$result_add = add_post_meta( $attach_id, '_meta_required', json_encode($meta_required_data));
 				
 				if (!$result_add){
@@ -196,7 +197,7 @@ class Media_class{
 	 * @param  boolean $process_meta  		process media or store for media process cron
 	 * @return boolean						result of update
 	 */
-	public function update_media($file_url, $attachment_id, $process_meta){
+	public function update_media($file_url, $attachment_id, $process_meta = false){
 
 		$time_ini_update_media = microtime(1);
 		
@@ -291,7 +292,7 @@ class Media_class{
 
 		    if (!$process_meta){
 
-		    	$meta_required_data = array('save_path' => $save_path, 'n_try' => 0);
+		    	$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => 0);
 		    	$result_add = add_post_meta( $attachment_id, '_meta_required', json_encode($meta_required_data));
 		    	
 		    	if (!$result_add){
@@ -532,7 +533,8 @@ class Media_class{
 		        }else{
 		            
 		            $image_url_info = pathinfo($url);
-		            $filename_encoded = urlencode($image_url_info['basename']);
+		            $filename_encoded = $image_url_info['basename'];	            
+		            $filename_encoded = rawurlencode(rawurldecode($filename_encoded));
 		            $image_url_encoded = $image_url_info['dirname'].'/'.$filename_encoded;
 
 		            $headers = get_headers($image_url_encoded, TRUE);
@@ -632,12 +634,12 @@ class Media_class{
 		            	$meta_id = $meta_required_to_process[0]['meta_id'];
 		                $attach_id = $meta_required_to_process[0]['post_id'];
 		            	$meta_data_required_to_process = json_decode(stripslashes($meta_required_to_process[0]['meta_value']),1);
-		            	$save_path = $meta_data_required_to_process['save_path'];
+		            	$save_path = rawurldecode($meta_data_required_to_process['save_path']);
 		            	$n_try = $meta_data_required_to_process['n_try'];
 
 		            	sl_debbug('File to process media meta: '.$save_path.' - Try: '.$n_try, 'mediameta');
 
-		            	$meta_required_data = array('save_path' => $save_path, 'n_try' => $n_try, 'start_meta_process' => strtotime('now'));
+		            	$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => $n_try, 'start_meta_process' => strtotime('now'));
 			            if (!$result_update = update_metadata_by_mid( 'post', $meta_id, json_encode($meta_required_data))){
 
 							sl_debbug('## Error. Updating start meta process to item with meta_id: '.$meta_id, 'mediameta');
@@ -664,7 +666,7 @@ class Media_class{
 
 			            		if ($n_try <= 2){
 
-				            		$meta_required_data = array('save_path' => $save_path, 'n_try' => $n_try);
+				            		$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => $n_try);
 	            					if (!$result_update = update_metadata_by_mid( 'post', $meta_id, json_encode($meta_required_data))){
 			            			
 	            						sl_debbug('## Error. Updating process tries to item with meta_id: '.$meta_id, 'mediameta');

@@ -230,8 +230,18 @@ class Product {
 
                 	}
 
-                	$product_data_to_store['not_synced_products'][$product[$this->product_id_field]] = 'Product '.$product['data'][$this->product_field_name].' with SL ID '.$product[$this->product_id_field].' has no categories.';
-                    unset($products[$keyProd]);
+	            	if (isset($product_data_to_store['product_fields'][$this->product_field_name])){
+
+	            		$prod_field_name = $product_data_to_store['product_fields'][$this->product_field_name];
+
+	            	}else{
+
+	            		$prod_field_name = $this->product_field_name;
+
+	            	}
+		    		
+	            	$product_data_to_store['not_synced_products'][$product[$this->product_id_field]] = 'Product '.$product['data'][$prod_field_name].' with SL ID '.$product[$this->product_id_field].' has no categories.';
+                	unset($products[$keyProd]);
 
                 }
 
@@ -1101,8 +1111,7 @@ class Product {
 							$filesize_image = $this->media_class->read_image_file_size($image_url);
 							if (!$filesize_image){ continue; }
 							
-							$parse_url_image = pathinfo($image_url);
-							$parse_url_image_basename = urldecode($parse_url_image['basename']);
+							$parse_url_image_basename = $this->media_class->get_image_url_filename($image_url);
 							
 							if ($sl_product_image == $main_image){
 							
@@ -1420,7 +1429,7 @@ class Product {
 					        
 					            foreach ($hash as $file) {
 					        
-					        		$attribute_values[] = urldecode($file);
+					        		$attribute_values[] = rawurldecode($file);
 					        
 					            }
 					        
@@ -1514,11 +1523,11 @@ class Product {
 					        
 					                if ($attribute_value == ''){
 					        
-					                	$attribute_value = urldecode($file);
+					                	$attribute_value = rawurldecode($file);
 					        
 					                }else{
 					        
-					                	$attribute_value.= '|'.urldecode($file);
+					                	$attribute_value.= '|'.rawurldecode($file);
 					        
 					                }
 					        
