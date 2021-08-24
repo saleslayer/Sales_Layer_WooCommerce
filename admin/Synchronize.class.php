@@ -795,7 +795,6 @@ class Synchronize {
 		$slconn->set_group_multicategory(true);
 		$slconn->set_parents_category_tree(true);
 		$slconn->set_same_parent_variants_modifications(true);
-		$slconn->set_first_level_parent_modifications(true);
 		
 		if (is_null($last_update)){
 			$slconn->get_info();

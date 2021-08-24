@@ -32,3 +32,9 @@
 
 - Image process improved.
 - Minor code fixes.
+
+## [2.3.3] - 2021-08-24
+
+### Changed
+
+- SalesLayer-Conn class version updated.

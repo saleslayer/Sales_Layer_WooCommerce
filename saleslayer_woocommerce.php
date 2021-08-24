@@ -3,7 +3,7 @@
 Plugin Name:    SalesLayer WooCommerce
 Plugin URI:     http://support.saleslayer.com/
 Description:    Plugin que permite sincronizar tu catalogo desde SalesLayer a WooCommerce.
-Version:        2.3
+Version:        2.3.3
 Author:         Sales Layer
 Author URI:     http://saleslayer.com/
 License:        GPL2
@@ -246,7 +246,6 @@ function slyr_wc_add_connector(){
                     $slconn->set_group_multicategory(true);
                     $slconn->set_parents_category_tree(true);
                     $slconn->set_same_parent_variants_modifications(true);
-                    $slconn->set_first_level_parent_modifications(true);
                     $slconn->get_info();
 
                     if (!$slconn->has_response_error()) {
