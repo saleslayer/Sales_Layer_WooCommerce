@@ -160,7 +160,7 @@ function sl_find_unassigned_product_cat_terms_by_name($value, $output = OBJECT){
 		)
    	);
 
-   	if (!empty($terms)){
+   	if (!is_wp_error($terms) && !empty($terms)){
 
    		$term = reset($terms);
 
