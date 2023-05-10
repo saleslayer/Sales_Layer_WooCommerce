@@ -38,3 +38,11 @@
 ### Changed
 
 - SalesLayer-Conn class version updated.
+
+## [2.4] - 2023-05-09
+
+### Changed
+
+- SalesLayer-Conn class version updated.
+
+

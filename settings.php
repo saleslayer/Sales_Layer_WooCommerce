@@ -3,7 +3,7 @@
     ini_set('display_errors', 0);
     error_reporting(E_ALL ^ E_NOTICE);
     
-    define('SLYR_WC_version',       "2.3.3");
+    define('SLYR_WC_version',       "2.4");
 
     global $wp_version;
     if (version_compare($wp_version,'4.5','>=')) {

@@ -98,7 +98,7 @@ class SalesLayer_Conn_Woo
      */
     public function __construct($codeConn = null, $secretKey = null, $SSL = null, $url = null, $forceuft8 = true)
     {
-        if ($this->__has_system_requirements()) {
+        if ($this->has_system_requirements()) { 
             if (true == $forceuft8) {
                 ini_set('default_charset', 'utf-8');
             }
@@ -117,10 +117,10 @@ class SalesLayer_Conn_Woo
      *
      * @return bool
      */
-    private function __has_system_requirements()
+    private function has_system_requirements() 
     {
         if (!extension_loaded('curl')) {
-            $this->__trigger_error('Missing PHP curl extension', 100);
+            $this->trigger_error('Missing PHP curl extension', 100);     
 
             return false;
         }
@@ -135,7 +135,7 @@ class SalesLayer_Conn_Woo
      *
      * @return string
      */
-    private function __get_api_url($last_update = false)
+    private function get_api_url($last_update = false)    
     {
         if (null != $this->__secretKey) {
             $time    = time();
@@ -173,7 +173,7 @@ class SalesLayer_Conn_Woo
     /**
      * Clean previous error code.
      */
-    private function __clean_error()
+    private function clean_error()    
     {
         $this->response_error         = 0;
         $this->response_error_message = '';
@@ -190,7 +190,7 @@ class SalesLayer_Conn_Woo
         $this->__codeConn  = $codeConn;
         $this->__secretKey = $secretKey;
 
-        $this->__clean_error();
+        $this->clean_error();    
     }
 
     /**
@@ -334,7 +334,7 @@ class SalesLayer_Conn_Woo
                 $params['pagination'] = $this->output_pagination;
             }
 
-            $stat = $this->call($this->__get_api_url($last_update), $params);
+            $stat = $this->call($this->get_api_url($last_update), $params);   
 
             if ($stat) {
                     
@@ -342,13 +342,13 @@ class SalesLayer_Conn_Woo
                     && isset($this->data_returned['schema']['connector_type'])
                     &&       $this->data_returned['schema']['connector_type'] != $connector_type) {
 
-                    $this->__trigger_error('Wrong connector type: '.$this->data_returned['schema']['connector_type'], 105);
+                    $this->trigger_error('Wrong connector type: '.$this->data_returned['schema']['connector_type'], 105);    
 
                 } else {
 
-                    $this->__clean_error();
+                    $this->clean_error();    
 
-                    return $this->__parsing_json_returned();
+                    return $this->parsing_json_returned();
                 }
             } 
         }
@@ -397,9 +397,9 @@ class SalesLayer_Conn_Woo
 
             if ($stat) {
                
-                $this->__clean_error();
+                $this->clean_error();    
 
-                return $this->__parsing_json_returned();
+                return $this->parsing_json_returned();
             }
         }
 
@@ -484,11 +484,11 @@ class SalesLayer_Conn_Woo
                     $params['compression'] = 1;
                 }
 
-                $stat = $this->call($this->__get_api_url(), $params);
+                $stat = $this->call($this->get_api_url(), $params);   
 
                 if ($stat && is_array($this->data_returned)) {
 
-                    $stat = $this->__parsing_json_returned();
+                    $stat = $this->parsing_json_returned(); 
 
                     return (floatval($this->connect_API_version) > 1.17 ? $stat : $this->data_returned['input_response']);
                 }
@@ -584,8 +584,8 @@ class SalesLayer_Conn_Woo
 
             if ($stat) {
             
-                $this->__clean_error();
-                $this->__parsing_json_returned();
+                $this->clean_error();    
+                $this->parsing_json_returned(); 
 
                 if (!$this->response_input_tracking_status) {
 
@@ -703,16 +703,16 @@ class SalesLayer_Conn_Woo
                     return true;
 
                 } else {
-                    $this->__trigger_error('Void response or malformed: '.$response, 101);
+                    $this->trigger_error('Void response or malformed: '.$response, 101);     
                 }
             } else {
-                $this->__trigger_error('Error connection: '.curl_error($ch), 102);
+                $this->trigger_error('Error connection: '.curl_error($ch), 102);     
             }
             
             curl_close($ch);
 
         } else {
-            $this->__trigger_error('Incorrect URL call: '.$url, 100);
+            $this->trigger_error('Incorrect URL call: '.$url, 100);  
         }
 
         return false;
@@ -733,7 +733,7 @@ class SalesLayer_Conn_Woo
       *
       * @return bool
       */
-     private function __parsing_json_returned()
+     private function parsing_json_returned()   
      {
 
         if (null !== $this->data_returned) {
@@ -759,7 +759,7 @@ class SalesLayer_Conn_Woo
                      $message_error = 'API error';
                  }
  
-                 $this->__trigger_error($message_error, $this->data_returned['error']);
+                 $this->trigger_error($message_error, $this->data_returned['error']);    
 
             } else {
                 
@@ -986,7 +986,7 @@ class SalesLayer_Conn_Woo
      * @param string $message error text
      * @param int    $errnum  error identificator
      */
-    public function __trigger_error($message, $errnum)
+    public function trigger_error($message, $errnum)     
     {
         if (0 === $this->response_error) {
             $this->response_error         = $errnum;
