@@ -1,50 +1,57 @@
-<h1><a href="https://saleslayer.com/" title="Title">Sales Layer</a> WooCommerce plugin</h1>
-Sales Layer plugin allows you to easily synchronize your catalogue information with WooCommerce.
+<a href="https://support.saleslayer.com"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer WooCommerce" width="460"></a>
 
-<h2>Download <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip" title="Title">latest plugin version</a></h2>
-<h2>Check out the latest changes at our <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/master/CHANGELOG.md">Changelog</a>
+# Sales Layer WooCommerce plugin
 
-<p>
-    <h2>Important Notes</h2>
-    Please check the important notes for the installation available at https://support.saleslayer.com/woocommerce/important-notes-about-connector (In some cases, a Sales Layer account might be needed to access the documentation).
-</p>
+[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%207.3-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%207.0-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/github/v/release/saleslayer/Sales_Layer_WooCommerce)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
 
-<h2>How To Start</h2>
+Wordpress plugin that allows you to easily synchronize your Sales Layer catalogue information with WooCommerce.
+[Sales Layer - Global Leading PIM][saleslayer-home]
 
-<p>
-    <h3>1. Install the package in WooCommerce</h3>
-    <ul>
-        <li>Go to Plugins -> Add new -> Upload plugin</li>
-        <li>Select and upload our plugin zip file.</li>
-    </ul>
-</p>
+## Download
 
-<p>
-    <h3>2. Create a Sales Layer WooCommerce connector and map the fields</h3>
-    <ul>
-        <li>The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.</li>
-    </ul>
-</p>
+[Download latest plugin version][latest-release-download]
+Check out the latest changes at our [Changelog][changelog-md]
+
+## Important Notes
+
+Please check the [important notes for the installation][sc-important-notes] available at our [support center][sl-sc]. In some cases, a Sales Layer account might be needed to access the documentation.
+
+## How To Start
+
+1. Install the package in a Wordpress site instance.
+
+* Go to *Plugins > Add new > Upload plugin*.
+* Select and upload our plugin zip file.
+
+2. Create a Sales Layer WooCommerce connector and map the fields
+
+* The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.
     
-<p>
-    <h3>3. Add the connector credencials in WooCommerce</h3>
-    <ul>
-        <li>Go to Admin -> Sales Layer WooCommerce -> Add connector and add the connector id and secret key.</li>
-        <li>Finally, In Admin -> Sales Layer Woo -> Connectors, push Synchronize to import categories, products and product variants automatically.</li>
-    </ul>
-</p>
+3. Add the connector credencials in WooCommerce
 
-<p>
-    <h2>Requirements for synchronization</h2>
-    <ul>
-        <li>cUrl extension installed; In order to call and obtain the information from Sales Layer.</li>
-        <li>Define the fields relationship in the Sales Layer WooCommerce connector:
-            <ul>
-                <li>One size for image fields.</li>
-                <li>Most WooCommerce fields are already defined in each section, extra fields for products or variants will be Admin-> Product attributes and they must have been created in WooCommerce in order to synchronize.</li>
-                <li>When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and variants will be combined and assigned to the parnet product. Variations must have only one value for each attribute.</li>
-            </ul>
-        </li>
-    </ul>
-</p>
+* Go to *Admin > Sales Layer WooCommerce > Add connector*. Add the connector id and secret key.
+* Finally, In *Admin > Sales Layer Woo > Connectors*, push Synchronize to import categories, products and product variants automatically.
 
+## Requirements for synchronization
+
+- Working WooCommerce plugin installed on Wordpress site (see version guidance).
+
+- PHP cUrl extension installed and enabled; In order to call and obtain the information from Sales Layer.
+
+- Define the fields relationship in the Sales Layer WooCommerce connector:
+	- One size for image fields.
+	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be<br/> *Admin > Product > Attributes* and they must have been created in WooCommerce in order to synchronize.
+	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and variants will be combined and assigned to the parnet product. Variations must have only one value for each attribute.
+	
+## Version Guidance
+
+| Version | Status         | WooCommerce Plugin version | PHP Version  |
+|---------|----------------|----------------------------|--------------|
+| 2.3.x   | EOL            | >= 4.1.0, < 7.6            | 7.X          |
+| 2.4.0   | Latest         | 7.6.x                      | >=7.0,<=8.2  |	
+
+[saleslayer-home]: https://www.saleslayer.com
+[latest-release-download]: https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip
+[changelog-md]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/master/CHANGELOG.md
+[sc-important-notes]: https://support.saleslayer.com/woocommerce/important-notes-about-connector
+[sl-sc]: https://support.saleslayer.com
