@@ -52,7 +52,11 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | 2.3.x   | EOL    | >= 4.1.0, <= 5.4.4           | WooCommerce 5.4.0 / PHP 7.3                 |
 | 2.4.0   | Latest | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
 
-> :warning: WooCommerce releases frequently new plugin versions fixing bugs and adding new functionallity. Some of this versions could be in conflict with this plugin. We highly encourage you to set the WooCommerce plugin configuration recommended in the guidance table for running correctly this plugin. See also [WooCommerce Server Recommendations][woo-server-recomm] for more info on version requirements.
+> **Warning**.
+> WooCommerce releases frequently new plugin versions fixing bugs and adding new functionallity. Some of this versions could be in conflict with this plugin. We highly encourage you to set the WooCommerce plugin configuration recommended in the guidance table for running correctly this plugin. 
+
+> **Note**. 
+> See also [WooCommerce Server Recommendations][woo-server-recomm] for more info on version requirements.
 
 [saleslayer-home]: https://www.saleslayer.com
 [latest-release-download]: https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip
