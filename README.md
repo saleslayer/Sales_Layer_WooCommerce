@@ -1,3 +1,4 @@
+
 <a href="https://support.saleslayer.com"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer WooCommerce" width="460"></a>
 
 # Sales Layer WooCommerce plugin
@@ -45,10 +46,12 @@ Please check the [important notes for the installation][sc-important-notes] avai
 	
 ## Version Guidance
 
-| Version | Status         | WooCommerce Plugin version | PHP Version  |
-|---------|----------------|----------------------------|--------------|
-| 2.3.x   | EOL            | >= 4.1.0, < 7.6            | 7.X          |
-| 2.4.0   | Latest         | 7.6.x                      | >=7.0,<=8.2  |	
+| Version | Status | WooCommerce Compatibility    | Recommended WooCommerce | Recommended PHP |
+|---------|--------|------------------------------|-------------------------|-----------------|
+| 2.3.x   | EOL    | >= 4.1.0, <= 5.4.4           | 5.4.0                   | 7.3             |
+| 2.4.0   | Latest | >= 5.5.0, <= 7.6.1           | 7.6.0 / WordPress 6.2   | 8.1             |
+
+> :warning: WooCommerce releases frequently new plugin versions fixing bugs and adding new functionallity. Some of this versions could be in conflict with this plugin. We highly encourage you to set the WooCommerce plugin configuration recommended in the guidance table for running correctly this plugin.
 
 [saleslayer-home]: https://www.saleslayer.com
 [latest-release-download]: https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip
