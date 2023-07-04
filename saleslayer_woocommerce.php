@@ -464,8 +464,22 @@ function update_conn_field_action(){
     $connector_id = $_GET['connector_id'];
     $field_name = $_GET['field_name'];
     $field_value = $_GET['field_value'];
-    $field_names = array('cnf_id' => 'Configuration ID', 'conn_code' => 'Connector code', 'conn_secret' => 'Connector secret', 'root_category' => 'Default Category', 'comp_id' => 'Company ID', 'last_update' => 'Last update', 'default_language' => 'Default language', 'languages' => 'Languages', 'conn_extra' => 'Connector extra information', 'updater_version' => 'Updater version',  'avoid_stock_update' => 'Avoid stock update', 'auto_sync' => 'Auto Sync');
-    $array_return = array();
+    $field_names = [
+        'cnf_id' => 'Configuration ID',
+        'conn_code' => 'Connector code',
+        'conn_secret' => 'Connector secret',
+        'root_category' => 'Default Category',
+        'comp_id' => 'Company ID',
+        'last_update' => 'Last update',
+        'default_language' => 'Default language',
+        'languages' => 'Languages',
+        'conn_extra' => 'Connector extra information',
+        'updater_version' => 'Updater version',
+        'pagination' => 'Pagination',
+        'avoid_stock_update' => 'Avoid stock update',
+        'auto_sync' => 'Auto Sync'
+    ];
+    $array_return = [];
 
     $connector = new Connector();
     $result_update = $connector->update_conn_field($connector_id, $field_name, $field_value);

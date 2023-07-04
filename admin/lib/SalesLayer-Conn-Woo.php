@@ -25,12 +25,13 @@ class SalesLayer_Conn_Woo
     public $SSL_Key    = null;
     public $SSL_CACert = null;
 
-    public $connect_API_version = '1.17';
+    public $connect_API_version = '1.18';
+    public $output_pagination      = 5000;
 
     public $connection_timeout     = 1800;  // 30 minutes * 60 seconds
     public $response_error         = 0;
     public $response_error_message = '';
-    public $output_pagination      = 5000;
+    
 
     public $time_unlimit = true;
     public $memory_limit = ''; // <-- examples: 512M or 1024M

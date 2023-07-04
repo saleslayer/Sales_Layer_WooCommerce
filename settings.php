@@ -47,7 +47,7 @@
     // Avoids wordpress to ask for credentials when testing on localhost
     if (!defined('FS_METHOD')) define('FS_METHOD',                 'direct');
 
-    define('SLYR_WC_DEBBUG',                0);
+    define('SLYR_WC_DEBBUG',                3); //Modificar a 0 al terminar
 
     if (!defined('SLYR_WC__PLUGIN_DIR')) define('SLYR_WC__PLUGIN_DIR', plugin_dir_path(__FILE__));
     if (!defined('SLYR_WC__LOGS_DIR')) define('SLYR_WC__LOGS_DIR', SLYR_WC__PLUGIN_DIR.'/logs/');
