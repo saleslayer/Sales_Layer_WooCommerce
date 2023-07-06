@@ -879,20 +879,16 @@ class Synchronize {
 	        $time_ini_all_store_process = microtime(1);
 	        $synchronization_messages['success'][] = "Connector ID: ".$connector_id." - Synchronization executed successfully!";
 
-			//@todo bloque foreach dentro de un do-while (slconn->have_next_page() && $slconn->get_next_page_info()).
-
-			//Desde aquí hasta el foreach se mopdifica tomando como ejemplo el sistema del conector de magento.
-
+			//Desde aquí hasta el foreach se modificado tomando como ejemplo el sistema del conector de magento.
 			$page = 0;
 
 			do {				
 				$page++;	
 				$pagination_response_data = $slconn->get_response_table_data();	
 				$is_next_page = false;
-				if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;
+				if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;				
 				
-				//foreach ($get_response_table_data as $nombre_tabla => $data_tabla) {	//Codigo anterior. - eliminar al terminar.
-				foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {	//Con este cambio funciona y aunque pagine a 500 sincroniza por encima de 500, pero en la barra de progreso solo muestra hasta 22 productos
+				foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {	//Con este cambio funciona y aunque pagine X sincroniza la totalidad, pero en la barra de progreso los valores no son correctos.
 
 					if (count($data_tabla['deleted']) > 0) {
 	
