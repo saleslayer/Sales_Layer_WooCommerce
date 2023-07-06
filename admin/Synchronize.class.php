@@ -881,46 +881,50 @@ class Synchronize {
 
 			//@todo bloque foreach dentro de un do-while (slconn->have_next_page() && $slconn->get_next_page_info()).
 
-			do {
+			//Desde aquí hasta el foreach se mopdifica tomando como ejemplo el sistema del conector de magento.
 
-				//condición para verificar si hay datos en la variable $get_response_table_data y si la función have_next_page() devuelve true. En caso afirmativo, se ejecutará el bucle foreach. De lo contrario, el bucle se omitirá.
-				// if (!$get_response_table_data || !$slconn->have_next_page()) {
-				// 	break;
-				// }
+			$page = 0;
 
-				foreach ($get_response_table_data as $nombre_tabla => $data_tabla) {
+			do {				
+				$page++;	
+				$pagination_response_data = $slconn->get_response_table_data();	
+				$is_next_page = false;
+				if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;
+				
+				//foreach ($get_response_table_data as $nombre_tabla => $data_tabla) {	//Codigo anterior. - eliminar al terminar.
+				foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {	//Con este cambio funciona y aunque pagine a 500 sincroniza por encima de 500, pero en la barra de progreso solo muestra hasta 22 productos
 
 					if (count($data_tabla['deleted']) > 0) {
-
+	
 						$deleted_data = $data_tabla['deleted'];
-
+	
 						if (count($deleted_data) > 0) {
-
+	
 							$sync_type = 'delete';
 							$time_ini_store_items_delete = microtime(1);
-
+	
 							switch ($nombre_tabla) {
 								case 'catalogue':
 									
 									$item_type = 'category';
-
+	
 									$arrayReturn['categories_to_delete'] = count($deleted_data);
 									sl_debbug('Total count of delete categories to store: '.count($deleted_data));
 									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
-
+	
 									foreach ($deleted_data as $delete_category_id) {
 										
 										$item_data['sl_id'] = $delete_category_id;
 										$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($item_data))."', '".addslashes(json_encode($sync_params))."')";
 										$this->insert_syncdata_sql();
-
+	
 									}
-
+	
 									break;
 								case 'products':
-
+	
 									$item_type = 'product';
-
+	
 									$arrayReturn['products_to_delete'] = count($deleted_data);
 									sl_debbug('Total count of delete products to store: '.count($deleted_data));
 									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
@@ -930,152 +934,152 @@ class Synchronize {
 										$item_data['sl_id'] = $delete_product_id;
 										$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($item_data))."', '".addslashes(json_encode($sync_params))."')";
 										$this->insert_syncdata_sql();
-
+	
 									}
-
+	
 									break;
 								case 'product_formats':
-
+	
 									$item_type = 'product_format';
 									
 									$arrayReturn['product_formats_to_delete'] = count($deleted_data);
 									sl_debbug('Total count of delete product formats to store: '.count($deleted_data));
 									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
-
+	
 									foreach ($deleted_data as $delete_product_format_id) {
-										
+										 
 										$item_data['sl_id'] = $delete_product_format_id;
 										$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($item_data))."', '".addslashes(json_encode($sync_params))."')";
 										$this->insert_syncdata_sql();
-
+	
 									}
-
+	
 									break;
 								default:
-
+	
 									sl_debbug('## Error. Deleting, table '.$nombre_tabla.' not recognized.');
-
+	
 									break;
 							}
-
+	
 							sl_debbug('#### time_store_items_delete - '.$item_type.': '.(microtime(1) - $time_ini_store_items_delete).' seconds.');
-
+	
 						}
-
+	
 						$this->insert_syncdata_sql(true);
-
+	
 					}
-
+	
 					$modified_data = $data_tabla['modified'];
 					$sync_type = 'update';
 					$time_ini_store_items_update = microtime(1);
-
+	
 					switch ($nombre_tabla) {
 						case 'catalogue':
-
+	
 							$item_type = 'category';
 							
 							$arrayReturn['categories_to_sync'] = count($modified_data);
 							if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
-
+	
 							$category_data_to_store = $this->cat_class->prepare_category_data_to_store($modified_data, $language_to_sync);
 							if (isset($category_data_to_store['category_data']) && !empty($category_data_to_store['category_data'])){
-
+	
 								$categories_to_sync = $category_data_to_store['category_data'];
 								unset($category_data_to_store['category_data']);
-
+	
 								$category_params = array_merge($category_data_to_store, $sync_params);
-
+	
 								foreach ($categories_to_sync as $category_to_sync) {
 									
 									$item_data_to_insert = json_encode($category_to_sync);
 									$sync_params_to_insert = json_encode($category_params);
-
+	
 									$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
 									$this->insert_syncdata_sql();
-
+	
 								}
 								
 							}
-
+	
 							sl_debbug('Total count of sync categories to store: '.$arrayReturn['categories_to_sync']);
-
+	
 							break;
 						case 'products':
-
+	
 							$item_type = 'product';
-
-							$arrayReturn['products_to_sync'] = count($modified_data);
+	
+							   $arrayReturn['products_to_sync'] = count($modified_data);
 							if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
-
+	
 							$product_data_to_store = $this->prod_class->prepare_product_data_to_store($modified_data, $language_to_sync);
-
+	
 							if (isset($product_data_to_store['not_synced_products']) && !empty($product_data_to_store['not_synced_products'])){
 								$arrayReturn['products_not_synced'] = $product_data_to_store['not_synced_products'];
 								unset($product_data_to_store['not_synced_products']);
 							}
-
+	
 							if (isset($product_data_to_store['product_data']) && !empty($product_data_to_store['product_data'])){
-
+	
 								$arrayReturn['products_to_sync'] = count($product_data_to_store['product_data']);
 								$products_to_sync = $product_data_to_store['product_data'];
 								unset($product_data_to_store['product_data']);
 								$product_params = array_merge($product_data_to_store, $sync_params);
-
+	
 								foreach ($products_to_sync as $product_to_sync) {
-
+	
 									$item_data_to_insert = json_encode($product_to_sync); 
 									$sync_params_to_insert = json_encode($product_params);
-
+	
 									$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
 									$this->insert_syncdata_sql();
 									
 								}
 								
 							}else{
-
+	
 								$arrayReturn['products_to_sync'] = 0;
-
+	
 							}
-
+	
 							sl_debbug('Total count of sync products to store: '.$arrayReturn['products_to_sync']);
-
+	
 							break;
 						case 'product_formats':
 							
 							$item_type = 'product_format';
-
+	
 							if (!empty($arrayReturn) && isset($arrayReturn['products_not_synced'])){
-
+	
 								foreach ($modified_data as $keyForm => $format) {
 							
 									if (isset($arrayReturn['products_not_synced'][$format['products_id']])){
-
+	
 										if (!isset($arrayReturn['product_formats_not_synced'])){
-
+	
 											$arrayReturn['product_formats_not_synced'] = array();
-
+	
 										}
-
+	
 										$arrayReturn['product_formats_not_synced'][$format['id']] = 'The Format with SL ID '.$format['id'].' has no product parent to synchronize.';
 										sl_debbug('## Error. The Format with SL ID '.$format['id'].' has no product parent to synchronize.');
 										unset($modified_data[$keyForm]);
-
+	
 									}
-
+	
 								}
-
+	
 							}
-
+	
 							$arrayReturn['product_formats_to_sync'] = count($modified_data);
 							if (SLYR_WC_DEBBUG > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
-
+	
 							$product_format_data_to_store = $this->form_class->prepare_product_format_data_to_store($modified_data, $language_to_sync);
-
+	
 							if (isset($product_format_data_to_store['not_synced_formats']) && !empty($product_format_data_to_store['not_synced_formats'])){
-
+	
 								if (isset($arrayReturn['product_formats_not_synced'])){
-
+	
 									foreach ($product_format_data_to_store['not_synced_formats'] as $error_format_id => $error_format_message) {
 										
 										$arrayReturn['product_formats_not_synced'][$error_format_id] = $error_format_message;
@@ -1083,23 +1087,23 @@ class Synchronize {
 									}
 									
 								}else{
-
+	
 									$arrayReturn['product_formats_not_synced'] = $product_format_data_to_store['not_synced_formats'];
-
+	
 								}
-
+	
 								unset($product_format_data_to_store['not_synced_formats']);
-
+	
 							}
-
+	
 							if (isset($product_format_data_to_store['product_format_data']) && !empty($product_format_data_to_store['product_format_data'])){
-
+	
 								$product_formats_to_sync = $product_format_data_to_store['product_format_data'];
 								unset($product_format_data_to_store['product_format_data']);
 								$arrayReturn['product_formats_to_sync'] = count($product_formats_to_sync);
-
+	
 								$product_format_params = array_merge($product_format_data_to_store, $sync_params);
-
+	
 								foreach ($product_formats_to_sync as $product_format_to_sync) {
 									
 									$item_data_to_insert = json_encode($product_format_to_sync);
@@ -1107,174 +1111,176 @@ class Synchronize {
 									
 									$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
 									$this->insert_syncdata_sql();
-
+	
 								}
 								
 							}else{
-
+	
 								$arrayReturn['product_formats_to_sync'] = 0;
-
+	
 							}
-
+	
 							sl_debbug('Total count of sync product formats to store: '.$arrayReturn['product_formats_to_sync']);
-
+	
 							break;
 						default:
-
+	
 							$item_type = '';
 							sl_debbug('## Error. Synchronizing, table '.$nombre_tabla.' not recognized.');
-
+	
 							break;
 					}
-
+	
 					
 					$this->insert_syncdata_sql(true);
-
+	
 					sl_debbug('#### time_store_items_update - '.$item_type.': '.(microtime(1) - $time_ini_store_items_update).' seconds.');
-
+	
 				}
-			} while ($slconn->have_next_page() && $slconn->get_next_page_info());
-
-	        $error_data = '';
-
-	        $table_indexes = array('categories', 'products', 'product_formats');
-	        $sync_indexes = array('_to_delete', '_to_sync', '_not_synced');
-
-	        $counters_info = array();
-	        
-	        foreach ($sync_indexes as $sync_index) {
-	        	
-	        	$sync_index_name = str_replace('_', ' ', $sync_index);
-
-		        foreach($table_indexes as $table_index){
-		            
-		            $table_index_name = str_replace('_', ' ', $table_index);
-
-		        	if ($sync_index != '_not_synced'){
-
-		        		if (isset($arrayReturn[$table_index.$sync_index]) && $arrayReturn[$table_index.$sync_index] != 0){
-
-		        			$new_table_index = $table_index;
-		        			if ($table_index == 'categories'){ $new_table_index = 'catalogue'; }
-		        			$counters_info[$new_table_index][trim(str_replace('_to_', '', $sync_index))]['total'] = $arrayReturn[$table_index.$sync_index];
-		        		
-		        		}
-
-			        	if (isset($arrayReturn[$table_index.$sync_index])){
-			        	    
-			        	    $synchronization_messages['success'][] = 'Total '.$table_index_name.' stored '.$sync_index_name.': '.$arrayReturn[$table_index.$sync_index];
-			        	    
-			        	}
-
-			        }else{
-
-    		            if (isset($arrayReturn[$table_index.$sync_index]) && !empty($arrayReturn[$table_index.$sync_index])){
-
-    		            	$synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored to synchronize by errors: '.count($arrayReturn[$table_index.$sync_index]);
-    		                
-    	        	    	foreach ($arrayReturn[$table_index.$sync_index] as $not_synced_message) {
-    	            	        
-    	            	        if ($error_data == ''){ 
-    	            	        
-    	            	            $error_data = $not_synced_message."\n";
-    	            	        
-    	            	        }else{
-    	            	        
-    	            	            $error_data .= $not_synced_message."\n";
-    	            	        
-    	            	        }
-
-    	        	    	}    		                
-    		                
-    		            }
-
-			        }
-		            
-		        }
-
-	        }
-
-	        if (!empty($counters_info)){
-
-	        	$this->sql_to_insert[] = "('info', 'counters', '".addslashes(json_encode($counters_info))."', '".addslashes(json_encode($sync_params))."')";
-		        $this->insert_syncdata_sql(true);
-
-	        }
-
-	        if ($error_data != ''){
-
-		    	$error_data = 'Synchronization date: '.date('Y-m-d H:i:s', strtotime('now'))."\n".$error_data;
-		        $error_file = SLYR_WC__LOGS_DIR.'/_error_debbug_log_saleslayer_'.date('Y-m-d').'.dat';
-		        
-    	    	$new_file = false;
-    	    	if (!file_exists($error_file)){ $new_file = true; }
-
-		        file_put_contents($error_file, $error_data, FILE_APPEND);
-		        if ($new_file){ chmod($error_file, 0777); }
-
-		        $synchronization_messages['warning'][] = 'Errors can be found in '.$error_file;
-		       
-		    }
-
-	    }else{	    	
-
-	    	$synchronization_messages['warning'][] = "Connector ID: ".$connector_id." - No information to synchronize!";
-
-	    }
-	    
-	    if (!empty($synchronization_messages)){
-
-	    	foreach ($synchronization_messages as $wp_message_type => $wp_messages) {
-	    	    
-    	        if (!empty($wp_messages)){
-
-    	            $type_messages = '';
-
-    	            foreach ($wp_messages as $wp_message) {
-
-    	                if ($wp_message != ''){ 
-    	        
-    	                    if ($type_messages == ''){
-
-    	                        $type_messages = $wp_message."<br>";
-    	                        
-    	                    }else{
-
-    	                        $type_messages .= $wp_message."<br>";
-    	                    
-    	                    }
-
-    	                }
-
-    	            }
-
-    	            if ($type_messages != ''){
-
-    	                if ($div_messages == ''){
-
-    	                    $div_messages = '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
-    	                    
-    	                }else{
-
-    	                    $div_messages .= '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
-    	                
-    	                }
-
-    	            }
-
-    	        }
-
-	    	}
-
-	    }
-
-	    sl_debbug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
-
-	    sl_debbug("==== Store Sync Data END ====");
-
-	    return $div_messages;
-
-	}
+			
+			}
+			while ($is_next_page);	//Final de bucle do-while , se ejecuta siempre que se cumpla condición : if ($slconn->have_next_page() && $slconn->get_next_page_info())
+	
+				$error_data = '';
+	
+				$table_indexes = array('categories', 'products', 'product_formats');
+				$sync_indexes = array('_to_delete', '_to_sync', '_not_synced');
+	
+				$counters_info = array();
+				
+				foreach ($sync_indexes as $sync_index) {
+					
+					$sync_index_name = str_replace('_', ' ', $sync_index);
+	
+					foreach($table_indexes as $table_index){
+						
+						$table_index_name = str_replace('_', ' ', $table_index);
+	
+						if ($sync_index != '_not_synced'){
+	
+							if (isset($arrayReturn[$table_index.$sync_index]) && $arrayReturn[$table_index.$sync_index] != 0){
+	
+								$new_table_index = $table_index;
+								if ($table_index == 'categories'){ $new_table_index = 'catalogue'; }
+								$counters_info[$new_table_index][trim(str_replace('_to_', '', $sync_index))]['total'] = $arrayReturn[$table_index.$sync_index];
+							
+							}
+	
+							if (isset($arrayReturn[$table_index.$sync_index])){
+								
+								$synchronization_messages['success'][] = 'Total '.$table_index_name.' stored '.$sync_index_name.': '.$arrayReturn[$table_index.$sync_index];
+								
+							}
+	
+						}else{
+	
+							if (isset($arrayReturn[$table_index.$sync_index]) && !empty($arrayReturn[$table_index.$sync_index])){
+	
+								$synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored to synchronize by errors: '.count($arrayReturn[$table_index.$sync_index]);
+								
+								foreach ($arrayReturn[$table_index.$sync_index] as $not_synced_message) {
+									
+									if ($error_data == ''){ 
+									
+										$error_data = $not_synced_message."\n";
+									
+									}else{
+									
+										$error_data .= $not_synced_message."\n";
+									
+									}
+	
+								}    		                
+								
+							}
+	
+						}
+						
+					}
+	
+				}
+	
+				if (!empty($counters_info)){
+	
+					$this->sql_to_insert[] = "('info', 'counters', '".addslashes(json_encode($counters_info))."', '".addslashes(json_encode($sync_params))."')";
+					$this->insert_syncdata_sql(true);
+	
+				}
+	
+				if ($error_data != ''){
+	
+					$error_data = 'Synchronization date: '.date('Y-m-d H:i:s', strtotime('now'))."\n".$error_data;
+					$error_file = SLYR_WC__LOGS_DIR.'/_error_debbug_log_saleslayer_'.date('Y-m-d').'.dat';
+					
+					$new_file = false;
+					if (!file_exists($error_file)){ $new_file = true; }
+	
+					file_put_contents($error_file, $error_data, FILE_APPEND);
+					if ($new_file){ chmod($error_file, 0777); }
+	
+					$synchronization_messages['warning'][] = 'Errors can be found in '.$error_file;
+				   
+				}
+	
+			}else{	    	
+	
+				$synchronization_messages['warning'][] = "Connector ID: ".$connector_id." - No information to synchronize!";
+	
+			}
+			
+			if (!empty($synchronization_messages)){
+	
+				foreach ($synchronization_messages as $wp_message_type => $wp_messages) {
+					
+					if (!empty($wp_messages)){
+	
+						$type_messages = '';
+	
+						foreach ($wp_messages as $wp_message) {
+	
+							if ($wp_message != ''){ 
+					
+								if ($type_messages == ''){
+	
+									$type_messages = $wp_message."<br>";
+									
+								}else{
+	
+									$type_messages .= $wp_message."<br>";
+								
+								}
+	
+							}
+	
+						}
+	
+						if ($type_messages != ''){
+	
+							if ($div_messages == ''){
+	
+								$div_messages = '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
+								
+							}else{
+	
+								$div_messages .= '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
+							
+							}
+	
+						}
+	
+					}
+	
+				}
+	
+			}
+	
+			sl_debbug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
+	
+			sl_debbug("==== Store Sync Data END ====");
+	
+			return $div_messages;
+	
+		}
 
 	/**
 	 * Function to insert sync data into the database.
