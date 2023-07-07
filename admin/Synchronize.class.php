@@ -880,15 +880,16 @@ class Synchronize {
 	        $synchronization_messages['success'][] = "Connector ID: ".$connector_id." - Synchronization executed successfully!";
 
 			//Desde aquí hasta el foreach se modificado tomando como ejemplo el sistema del conector de magento.
-			$page = 0;
+			//$page = 0;	//variable page creada inicialmente para llevar un control de la cantidad de paginaciones realizadas, pero sin uso final.
 
 			do {				
-				$page++;	
+				//$page++;	//contador que incrementa el valor de page en cada iteración, sin uso actual.
 				$pagination_response_data = $slconn->get_response_table_data();	
 				$is_next_page = false;
 				if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;				
 				
-				foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {	//Con este cambio funciona y aunque pagine X sincroniza la totalidad, pero en la barra de progreso los valores no son correctos.
+				foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {	//Con esta línea cambiada, funciona y aunque pagine X sincroniza la totalidad, pero en la barra de progreso los valores no son correctos.
+				//foreach ($get_response_table_data as $nombre_tabla => $data_tabla) {	//con este línea (la original) cambio solo procesa tantos items como paginación se asigne.
 
 					if (count($data_tabla['deleted']) > 0) {
 	
@@ -904,7 +905,7 @@ class Synchronize {
 									
 									$item_type = 'category';
 	
-									$arrayReturn['categories_to_delete'] = count($deleted_data);
+									$arrayReturn['categories_to_delete'] = count($deleted_data);	//He probado en todos los $arrayReturn['x'] = count($x); a cambiar el = por += pero no he obtenido resultados.
 									sl_debbug('Total count of delete categories to store: '.count($deleted_data));
 									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
 	
