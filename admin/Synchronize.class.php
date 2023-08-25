@@ -1374,8 +1374,6 @@ class Synchronize {
 
 		return false;
 
-	}
-
 	/**
 	 * Function to insert sync data into the database.
 	 * @param  boolean $force_insert             forces sql to be inserted

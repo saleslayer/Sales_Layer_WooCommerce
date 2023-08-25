@@ -14,7 +14,7 @@
 	<div id="slyr_catalogue_admin">
 		<div id="messages">
 			<?php show_session_messages(); ?>
-		</div>
+		</div>		
 		<table class="wp-list-table widefat fixed striped posts">
 		<thead>
 			<tr>
@@ -22,13 +22,17 @@
 		        <th class="slyr_of">Last Update</th>
 		        <th class="slyr_of">Progress</th>
 		        <th class="slyr_of">Auto-sync every</th>
+				<th class="slyr_of">Api Version</th>
+				<th class="slyr_of hidden" id="pagination_th">Pagination</th>
 		        <th class="slyr_of">Actions</th>
 			</tr>
 		</thead>
-		<tbody>
+		<tbody>		
 		<?php
         	
         	$auto_sync_options = array('0'=>'','1'=>'1H','3'=>'3H','6'=>'6H','8'=>'8H','12'=>'12H','15'=>'15H','24'=>'24H','48'=>'48H','72'=>'72H');
+			$api_versions = array('1.18', '1.17');
+			$paginations = array('500', '1000', '2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000','10000','20000','30000','40000','50000','60000','70000','80000','90000','100000');
 
         	foreach ($connectors as $connector) {
 		?>
@@ -80,6 +84,27 @@
                         ?>
                     </select>
                 </td>
+				<td> <!-- Nueva columna con desplegable donde seleccionar la versión de la API -->
+					<select class="select" name="updater_version" id="updater_version_<?php echo $connector['conn_code']; ?>" onchange="update_api_version(this);">
+						<?php
+						foreach ($api_versions as $version) {
+							$selected = ($connector['updater_version'] == $version) ? 'selected="selected"' : '';
+							echo '<option value="' . $version . '" ' . $selected . '>' . $version . '</option>';
+						}
+						?>
+					</select>
+				</td>	
+				<td id="pagination_td" class="hidden">
+					<select class="select" name="pagination" id="pagination_<?php echo $connector['conn_code']; ?>" onchange="update_conn_field(this);" >
+					<?php 
+					foreach ($paginations as $paginations){
+						?>
+						<option value="<?php echo $paginations; ?>" <?php echo ($connector['pagination'] == $paginations ? 'selected' : '5000'); ?> ><?php echo $paginations; ?></option>
+						<?php
+					}
+					?>
+				</td>	
+
                 <td class="tags column-tags">
 					<button type="button" class="button button-primary button_block button-sync slyr_of" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
 					<form id="delconn_form_<?php echo $connector['conn_code']; ?>" name="delconn_form" method="post" action="">
@@ -92,18 +117,44 @@
 			}
 		?>
 		</tbody>
-		</table>
+		</table>		
 	</div>
+
 <script type="text/javascript">
 	var plugin_name_dir = '<?php echo SLYR_WC_PLUGIN_NAME_DIR ?>';
 	var ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>';
 
 	jQuery(document).ready(function(){
 		
-		$('.progress').hide(); $(":input").prop("disabled", true);
+		$('.progress').hide();
+		$(":input").prop("disabled", true);
+
+		update_pagination_view();
+
 		start_check_process_status();
 
 	});
+
+	function update_pagination_view()
+	{		
+		var api_version = document.querySelector('#updater_version_<?php echo $connector['conn_code']; ?>');
+			pagination_td = document.querySelector('#pagination_td'),
+			pagination_th = document.querySelector('#pagination_th');
+
+		if (api_version.value == '1.18') {
+			pagination_td.classList.remove('hidden');
+			pagination_th.classList.remove('hidden');
+		} else {
+			pagination_td.classList.add('hidden');
+			pagination_th.classList.add('hidden');
+		}
+	}
+
+	function update_api_version(data)
+	{	
+		update_pagination_view();
+		update_conn_field(data);
+	}
 
     function update_conn_field(data){
 
@@ -158,12 +209,12 @@
 	    $('#messages').html('');
 		setTimeout(check_process_status, 3000);
 	}
-
-	var sync_conn = function(param){
+	
+	var sync_conn = function(param){		
 
 		var registro = new Date;
 		var conn_id = param.getAttribute('connectorid');
-		var sec_key = param.getAttribute('secretkey');
+		var sec_key = param.getAttribute('secretkey');		
 
 	    $(":input").prop("disabled", true);
 		start_check_process_status();
@@ -184,6 +235,7 @@
 		});
 		
 	}
+
 
 	function check_process_status(){
 

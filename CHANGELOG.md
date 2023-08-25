@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.5] - 2023-05-09
+
+### Changed
+
+- Added Api v1.18 integration
+- SalesLayer-Conn class version updated, api version set to 1.18
+- connectors_view updated, Added API selection, Added pagination selection (only visible if API 1.18 is selected)
+- Connector class version updated.
+- Synchronize class version updated.
+
+### Tested
+
+- Tested on WooCommerce 7.6.0 / Wordpress 6.2 / PHP 7.3, 8.2 
+
 ## [2.4] - 2023-05-09
 
 ### Changed

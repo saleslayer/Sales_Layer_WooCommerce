@@ -32,8 +32,7 @@ class Connector{
 	 * Function to create Sales Layer table.
 	 * @return void
 	 */
-	public function create_table(){
-
+	public function create_table(){		
 		$this->db->query("CREATE TABLE `".SLYR_WC_connector_table."` (".
                          "`cnf_id` int(11) NOT NULL AUTO_INCREMENT, ".
                          "`conn_code` varchar(32) NOT NULL, ".
@@ -45,6 +44,7 @@ class Connector{
                          "`languages` mediumtext NOT NULL, ".
                          "`conn_extra` mediumtext, ".
                          "`updater_version` varchar(10) NOT NULL, ".
+						 "`pagination` int(11) NOT NULL, ".
                          "`auto_sync` int(3) DEFAULT '0', ".
                          "`last_sync` datetime DEFAULT NULL, ".
                          "PRIMARY KEY (`cnf_id`)".
