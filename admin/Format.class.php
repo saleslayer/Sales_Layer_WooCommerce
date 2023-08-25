@@ -33,6 +33,14 @@ class Format {
 
 	protected $media_class;
 
+	protected $debugg_level;
+
+	public function __construct()
+	{
+		global $debbug_level;
+		$this->debbug_level = $debbug_level ?? 0;
+	}
+
 	/**
 	 * Function set connector's data schema.
 	 * @param array $sl_data_schema 		connector's data schema
@@ -155,7 +163,7 @@ class Format {
 		
 		}
 		
-		if (SLYR_WC_DEBBUG > 1 &&
+		if ($this->debbug_level > 1 &&
 			isset($format_params['format_additional_fields']) &&
 			count($format_params['format_additional_fields']) > 0) {
             
@@ -524,9 +532,9 @@ class Format {
 		
 		}
 
-		if (SLYR_WC_DEBBUG) sl_debbug(" > Updating product format ID: $sl_format_id (parent: $sl_parent_product_id)");
+		if ($this->debbug_level) sl_debbug(" > Updating product format ID: $sl_format_id (parent: $sl_parent_product_id)");
 
-		if (SLYR_WC_DEBBUG > 1) sl_debbug(" SKU ({$this->format_field_sku}): ".$format_data[$this->format_field_sku]);
+		if ($this->debbug_level > 1) sl_debbug(" SKU ({$this->format_field_sku}): ".$format_data[$this->format_field_sku]);
 
 		//Format attributes
 		foreach ($sl_format_attributes as $format_name => $format_value) {
@@ -1416,7 +1424,7 @@ class Format {
 			sl_update_post_meta($format_id, '_saleslayercompid', $comp_id);
 			sl_update_post_meta($format_id, '_saleslayerformatid', $sl_format_id);
 
-			if (SLYR_WC_DEBBUG) sl_debbug("Format created!");
+			if ($this->debbug_level) sl_debbug("Format created!");
 			return true;
 
 		}

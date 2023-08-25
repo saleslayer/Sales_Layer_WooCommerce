@@ -52,8 +52,9 @@ register_activation_hook( __FILE__, 'slyr_wc_activate' );
 add_action('init','slyr_wc_plugin_init');
 
 function sl_debbug($msg, $type = ''){
+    global $debbug_level;
 
-    if (SLYR_WC_DEBBUG > 0){
+    if ($debbug_level > 0){
 
         WP_Filesystem();
 
@@ -143,12 +144,16 @@ function slyr_wc_activate(){
 //    Init
 function slyr_wc_plugin_init(){
 
+    global $debbug_level;
+    
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Connector.class.php');
+    include_once(SLYR_WC__PLUGIN_DIR.'admin/GeneralParameters.class.php');
     
     $connector = new Connector();
+    $general_params = new GeneralParameters();
 
-    // $connector->check_table();
     $connector->check_version();
+    $debbug_level = $general_params->getInfo("debbug_level");
 
     // 1. Create menu options list and hook them to the stylesheets and scripts
     add_action( 'admin_menu', 'slyr_wc_menu' );
@@ -200,9 +205,10 @@ function slyr_wc_menu() {
                                   $icon_url=plugin_dir_url( __FILE__ ).'images/'.SLYR_WC_name_icon);
 
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How to Start?'),   __('How to Start?'),    'manage_options', 'slyr_wc_menu',           'slyr_wc_how_to_start');
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('General Parameters'),      __('General Parameters'),       'manage_options', 'slyr_wc_general_params',     'slyr_wc_general_params' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Add Connector'),   __('Add Connector'),    'manage_options', 'slyr_wc_add_connector',  'slyr_wc_add_connector' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Connectors'),      __('Connectors'),       'manage_options', 'slyr_wc_connectors',     'slyr_wc_connectors' );
-    
+        
     //  Adding style to each menu
     foreach($menu_pages as $page){
         add_action( 'admin_print_styles-' . $page, 'slyr_wc_enqueue_stylesheets');
@@ -287,6 +293,18 @@ function slyr_wc_add_connector(){
     
 }
 
+function slyr_wc_general_params() {
+    if ( !current_user_can( 'manage_options' ) )  {
+        wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+    } else {
+        
+        $general_param = new GeneralParameters();
+        $general_params = $general_param->getWPOptionsGeneralParameters();
+
+        include_once(SLYR_WC__PLUGIN_DIR.'general_params_view.php');
+    }    
+}
+
 function slyr_wc_connectors(){
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
@@ -323,7 +341,8 @@ function slyr_wc_plugin_uninstall() {
     global $wpdb;
 
     // Delete any options starting with slyr
-    $wpdb->query("DELETE FROM wp_options WHERE option_name LIKE 'slyr_wc%'");
+    $wpdb->query("DELETE FROM wp_options WHERE option_name LIKE 'slyr_wc%' OR option_name LIKE '" .
+                 SLYR_WC_general_params. "';");
 
     // Delete all saleslayer tables
     // $deleteTables = array('slyr_catalogue', 'slyr_locations', 'slyr_products', 'slyr_product_formats', 'slyr___api_config', 'slyr_filter');
@@ -458,6 +477,7 @@ function sl_wc_synchronize_connector(){
 }
 
 add_action('wp_ajax_sl_wc_update_conn_field', 'update_conn_field_action');
+add_action('wp_ajax_sl_wc_update_general_parameter_field', 'update_general_parameter_field_action');
 
 function update_conn_field_action(){
 
@@ -483,6 +503,44 @@ function update_conn_field_action(){
 
     $connector = new Connector();
     $result_update = $connector->update_conn_field($connector_id, $field_name, $field_value);
+
+    switch ($result_update) {
+        case 'error_forbidden':
+            
+            $array_return['message_type'] = 'warning';
+            $array_return['message'] = 'Forbidden field to update: '.$field_names[$field_name].'.';
+            break;
+        case 'error_update':
+            
+            $array_return['message_type'] = 'warning';
+            $array_return['message'] = 'Error updating field: '.$field_names[$field_name].'.';
+            break;
+        default:
+            
+            $array_return['message_type'] = 'success';
+            $array_return['message'] = 'Field '.$field_names[$field_name].' has been updated successfully.';
+            break;
+    }
+
+    echo json_encode($array_return);
+    wp_die();
+
+}
+
+function update_general_parameter_field_action()
+{
+
+    $field_name = $_GET['field_name'];
+    $field_value = $_GET['field_value'];
+    $field_names = [
+        'API_version' => 'API Version',
+        'pagination' => 'Pagination',
+        'debbug_level' => 'Debbug Level'
+    ];
+    $array_return = [];
+
+    $general_params = new GeneralParameters();
+    $result_update = $general_params->updateGeneralParameter($field_name, $field_value);
 
     switch ($result_update) {
         case 'error_forbidden':

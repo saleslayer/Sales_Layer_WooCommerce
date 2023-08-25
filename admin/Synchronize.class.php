@@ -1,6 +1,7 @@
 <?php 
 
 if (!class_exists('SalesLayer_Conn_Woo')) include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn-Woo.php');
+include_once(SLYR_WC__PLUGIN_DIR.'admin/GeneralParameters.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Connector.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Category.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Product.class.php');
@@ -36,10 +37,13 @@ class Synchronize {
 	protected 		$test_sync_all 						= false;
 	protected 		$stored_sl_data 					= [];
 
+	protected		$debbug_level;
+
 	public function __construct () {
 
-	    global $wpdb;
+	    global $wpdb, $debbug_level;
 		$this->db = $wpdb;
+		$this->debbug_level = $debbug_level;
 		
 	}
 
@@ -94,7 +98,7 @@ class Synchronize {
 
 		}
 		
-	    if (SLYR_WC_DEBBUG > 2) sl_debbug('Schema: '.print_r($schema, 1));
+	    if ($this->debbug_level > 2) sl_debbug('Schema: '.print_r($schema, 1));
 
 	    return $schema;
 	}
@@ -782,6 +786,7 @@ class Synchronize {
 
 		$sync_params = $arrayReturn = array();
 	
+		$general_params = GeneralParameters::get_instance_singleton();
 		$connector = Connector::get_instance();
 
 		$this->cat_class = new Category();
@@ -799,14 +804,14 @@ class Synchronize {
 		$slconn->set_parents_category_tree(true);
 		$slconn->set_same_parent_variants_modifications(true);
 
-		$updater_version = $connector->get_info($connector_id, 'updater_version');
-		if ($updater_version !== false) {
-			$slconn->set_API_version($updater_version);
+		$API_version = $general_params->getInfo('API_version');
+		if ($API_version !== false) {
+			$slconn->set_API_version($API_version);
 		}
 		
 		$debug_pagination_text = '';
-		$pagination = $connector->get_info($connector_id, 'pagination');
-		if ($updater_version == '1.18' && $pagination !== false) {
+		$pagination = $general_params->getInfo('pagination');
+		if ($API_version == '1.18' && $pagination !== false) {
 			$slconn->set_pagination($pagination);
 			$debug_pagination_text = ', Pagination: '.print_r($pagination,1);
 		}
@@ -817,7 +822,7 @@ class Synchronize {
 			$slconn->get_info($last_update);
 		}
 
-		sl_debbug('Connecting with API... (last update: '.$last_update.') API Version: '.$updater_version.$debug_pagination_text);
+		sl_debbug('Connecting with API... (last update: '.$last_update.') API Version: '.$API_version . $debug_pagination_text);
 		
 		$language_to_sync = '';
 
@@ -852,8 +857,7 @@ class Synchronize {
 		
 		$conn_data['comp_id'] = $slconn->get_response_company_ID();
 		
-		$conn_data['updater_version'] = $slconn->get_response_api_version();
-        $conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
+		$conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
 		$last_update = $slconn->get_response_time();
 
 		if (!is_null($last_update)){ $conn_data['last_update'] = $last_update; }
@@ -925,7 +929,7 @@ class Synchronize {
 									if (!isset($arrayReturn['categories_to_delete'])) $arrayReturn['categories_to_delete'] = 0;
 									$arrayReturn['categories_to_delete'] += count($deleted_data);
 									
-									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
+									if ($this->debbug_level > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
 
 									foreach ($deleted_data as $delete_category_id) {
 										
@@ -943,7 +947,7 @@ class Synchronize {
 									if (!isset($arrayReturn['products_to_delete'])) $arrayReturn['products_to_delete'] = 0;
 									$arrayReturn['products_to_delete'] += count($deleted_data);
 									
-									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
+									if ($this->debbug_level > 1) sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
 									
 									foreach ($deleted_data as $delete_product_id) {
 										
@@ -961,7 +965,7 @@ class Synchronize {
 									if (!isset($arrayReturn['product_formats_to_delete'])) $arrayReturn['products_to_delete'] = 0;
 									$arrayReturn['product_formats_to_delete'] += count($deleted_data);
 									
-									if (SLYR_WC_DEBBUG > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
+									if ($this->debbug_level > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
 
 									foreach ($deleted_data as $delete_product_format_id) {
 											
@@ -1004,7 +1008,7 @@ class Synchronize {
 
 								if (($modified_data = $this->storeCategoriesPaginated($pagination_response_data, $is_next_page)) !== false){
 		
-									if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
+									if ($this->debbug_level > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
 
 									$category_data_to_store = $this->cat_class->prepareCategoryDataToStore($modified_data);
 
@@ -1029,7 +1033,7 @@ class Synchronize {
 
 								$item_type = 'product';
 
-								if (SLYR_WC_DEBBUG > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
+								if ($this->debbug_level > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
 
 								$product_data_to_store = $this->prod_class->prepareProductDataToStore($modified_data, $product_params);
 
@@ -1084,7 +1088,7 @@ class Synchronize {
 
 								}
 
-								if (SLYR_WC_DEBBUG > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
+								if ($this->debbug_level > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
 
 								$product_format_data_to_store = $this->form_class->prepareProductFormatDataToStore($modified_data);
 
@@ -1153,7 +1157,7 @@ class Synchronize {
 			
 			$page++;
 		
-		}while ($is_next_page);
+		} while ($is_next_page);
 
 		$error_data = '';
 
@@ -1424,19 +1428,19 @@ class Synchronize {
 
 	            if (count($prc) > 0) { $i = 0; foreach ($prc as $a) { ++$i; }}
 
-	            if (SLYR_WC_DEBBUG > 2){ sl_debbug("Searching active process pid '$pid' by Windows. Is active? ".($i > 0 ? 'Yes' : 'No')); }
+	            if ($this->debbug_level > 2){ sl_debbug("Searching active process pid '$pid' by Windows. Is active? ".($i > 0 ? 'Yes' : 'No')); }
 
 	            return ($i > 0 ? true : false);
 
 	        } else if (function_exists('posix_getpgid')) {
 
-	            if (SLYR_WC_DEBBUG > 2) { sl_debbug("Searching active process pid '$pid' by posix_getpgid. Is active? ".(posix_getpgid($pid) ? 'Yes' : 'No')); }
+	            if ($this->debbug_level > 2) { sl_debbug("Searching active process pid '$pid' by posix_getpgid. Is active? ".(posix_getpgid($pid) ? 'Yes' : 'No')); }
 
 	            return (posix_getpgid($pid) ? true : false);
 
 	        } else {
 
-	            if (SLYR_WC_DEBBUG > 2) { sl_debbug("Searching active process pid '$pid' by ps -p. Is active? ".(shell_exec("ps -p $pid | wc -l") > 1 ? 'Yes' : 'No')); }
+	            if ($this->debbug_level > 2) { sl_debbug("Searching active process pid '$pid' by ps -p. Is active? ".(shell_exec("ps -p $pid | wc -l") > 1 ? 'Yes' : 'No')); }
 
 	            if (shell_exec("ps -p $pid | wc -l") > 1) { return true; }
 

@@ -18,6 +18,14 @@ class Category {
 
 	protected $media_class;
 
+	protected $debugg_level;
+
+	public function __construct()
+	{
+		global $debbug_level;
+		$this->debbug_level = $debbug_level ?? 0;
+	}
+
 
 	public function set_class_field_value($field_name, $field_value){
 
@@ -173,9 +181,9 @@ class Category {
 		
 		}
 
-		if (SLYR_WC_DEBBUG) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
+		if ($this->debbug_level) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
 
-		if (SLYR_WC_DEBBUG > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
+		if ($this->debbug_level > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
 
 		$category_modified = false;
 		$category_data_modified = array();
@@ -320,11 +328,11 @@ class Category {
 
 				}		
 				
-				if (SLYR_WC_DEBBUG) sl_debbug("Category updated!");
+				if ($this->debbug_level) sl_debbug("Category updated!");
 
 			} catch (\Exception $e) {
 
-				if (SLYR_WC_DEBBUG) sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
+				if ($this->debbug_level) sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
 	            return 'item_not_updated';
 
 			}
@@ -375,7 +383,7 @@ class Category {
 				sl_update_woocommerce_term_meta($category_id, 'saleslayerid', $sl_category_id);
 				sl_update_woocommerce_term_meta($category_id, 'saleslayercompid', $comp_id);
 
-				if (SLYR_WC_DEBBUG) sl_debbug("Category created!");
+				if ($this->debbug_level) sl_debbug("Category created!");
 
 				return true;
 
