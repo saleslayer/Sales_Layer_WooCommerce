@@ -51,29 +51,26 @@ class Format {
 	}
 
 	/**
-	* Function to store Sales Layer product formats data.
-	* @param  array $formats 						  product formats data to organize
-	* @param  array $sl_language 					  Sales Layer connector language
-	* @return array $product_format_data_to_store     product formats data to store
+	* Function to get Sales Layer format params data.
+	* @param  array $sl_language 					Sales Layer connector language
+	* @return array $format_params       			format params to store
 	*/
-	public function prepare_product_format_data_to_store($formats, $sl_language){
+	public function getProductFormatParamsToStore($sl_language){
 
 		$connector = Connector::get_instance();
-
-	    $product_format_data_to_store = array();
+		
+		$format_params = $format_images_sizes = [];
 
 	    $fixed_format_fields = array('ID', 'ID_products', $this->format_field_sku, $this->format_field_description, $this->format_field_regular_price, $this->format_field_sale_price, $this->format_field_stock, $this->format_field_manage_stock, $this->format_field_stock_status, $this->format_field_weight, $this->format_field_length, $this->format_field_width, $this->format_field_height, $this->format_field_enabled, $this->format_field_downloadable, $this->format_field_virtual, $this->format_field_image, $this->format_field_shipping_class);
 
 	    $data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['product_formats'];
 
-	    $this->format_images_sizes = array();
-
 	    if (!empty($schema['fields'][$this->format_field_image]['image_sizes'])) {
 	    	$format_field_images_sizes = $schema['fields'][$this->format_field_image]['image_sizes'];
 	    	$ordered_image_sizes = order_array_img($format_field_images_sizes);
 	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-	    		$this->format_images_sizes[] = $img_size;
+	    		$format_images_sizes[] = $img_size;
 	    	}
 
 	    } else if (!empty($schema['fields']['image_sizes'])) {
@@ -81,16 +78,16 @@ class Format {
 	    	$format_field_images_sizes = $schema['fields']['image_sizes'];
 	    	$ordered_image_sizes = order_array_img($format_field_images_sizes);
 	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-	    		$this->format_images_sizes[] = $img_size;
+	    		$format_images_sizes[] = $img_size;
 	    	}
 
 	    } else {
 
-	    	$this->format_images_sizes[] = 'IMD';
+	    	$format_images_sizes[] = 'IMD';
 
 	    }
 
-	    $product_format_data_to_store['format_fields']['format_images_sizes'] = $this->format_images_sizes;
+	    $format_params['format_fields']['format_images_sizes'] = $format_images_sizes;
 
         $field_names = ['format_field_sku',
         				'format_field_description',
@@ -118,7 +115,7 @@ class Format {
 
     	    }
 
-            $product_format_data_to_store['format_fields'][$field_name] = $this->$field_name;
+            $format_params['format_fields'][$field_name] = $this->$field_name;
         
         }
 		
@@ -126,26 +123,28 @@ class Format {
 			
 			if (!in_array($field_name, $fixed_format_fields)) {
 			
+				if (!isset($format_params['format_additional_fields'])) $format_params['format_additional_fields'] = [];
+
 				if ($field_props['has_multilingual']) {
 		
-					$product_format_data_to_store['format_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+					$format_params['format_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 					$this->format_additional_fields[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 					
 					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-						$product_format_data_to_store['product_formats_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+						$format_params['product_formats_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 						$this->media_field_names[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 
 					}
 
 				}else{
 				
-					$product_format_data_to_store['format_additional_fields'][$field_name] = $field_name;
+					$format_params['format_additional_fields'][$field_name] = $field_name;
 					$this->format_additional_fields[$field_name] = $field_name;
 				
 					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-						$product_format_data_to_store['product_formats_media_field_names'][$field_name] = $field_name;
+						$format_params['product_formats_media_field_names'][$field_name] = $field_name;
 						$this->media_field_names[$field_name] = $field_name;
 
 					}
@@ -156,11 +155,28 @@ class Format {
 		
 		}
 		
-		if (SLYR_WC_DEBBUG > 1 and count($product_format_data_to_store['format_additional_fields']) > 0) {
+		if (SLYR_WC_DEBBUG > 1 &&
+			isset($format_params['format_additional_fields']) &&
+			count($format_params['format_additional_fields']) > 0) {
             
-            sl_debbug("Format additional fields: ".print_r($product_format_data_to_store['format_additional_fields'], 1));
+            sl_debbug("Format additional fields: ".print_r($format_params['format_additional_fields'], 1));
 
 		}
+
+		return $format_params;
+
+	}
+
+	/**
+	* Function to prepare Sales Layer product formats data.
+	* @param  array $formats 						  product formats data to organize
+	* @return array $product_format_data_to_store     product formats data to store
+	*/
+	public function prepareProductFormatDataToStore($formats){
+
+		$connector = Connector::get_instance();
+
+		$product_format_data_to_store = [];
 
 		$time_ini_pre_process_formats = microtime(1);
 		
@@ -195,18 +211,24 @@ class Format {
 	    		$product_format_data_to_store['not_synced_formats'][$sl_format_id] = $error_message;
 
 	    	}
+
 	    	unset($formats['not_synced_formats']);
 
 	    }
 
 	    if (!empty($formats)){
 
-			$formats_to_store = array();
+			$formats_to_store = [];
+
 			foreach ($formats as $product_id => $formats_data) {
 					
 				foreach ($formats_data['formats'] as $format_data) {
 					
-					$formats_to_store[] = array('format_data' => $format_data, 'sl_attributes' => $formats_data['attributes'], 'parent_product_attributes' => $formats_data['parent_product_attributes']);
+					$formats_to_store[] = [
+						'format_data' => $format_data,
+						'sl_attributes' => $formats_data['attributes'],
+						'parent_product_attributes' => $formats_data['parent_product_attributes']
+					];
 
 				}
 

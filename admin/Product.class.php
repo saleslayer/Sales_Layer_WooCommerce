@@ -79,14 +79,15 @@ class Product {
 	}
 
 	/**
-	* Function to store Sales Layer products data.
-	* @param  array $products              		products data to organize
-	* @param  array $sl_language 				Sales Layer connector language
-	* @return array $products_data_to_store     products data to store
+	* Function to get Sales Layer product params data.
+	* @param  array $sl_language 					Sales Layer connector language
+	* @return array $product_params       			product params to store
 	*/
-	public function prepare_product_data_to_store($products, $sl_language){
+	public function getProductParamsToStore($sl_language){
 
 		$connector = Connector::get_instance();
+		
+		$product_params = $product_images_sizes = [];
 
 	    $product_data_to_store = array();
 
@@ -95,13 +96,11 @@ class Product {
 		$data_schema = json_decode($this->sl_data_schema, 1);
 	    $schema      = $data_schema['products'];
 
-	    $this->product_images_sizes = array();
-
 	    if (!empty($schema['fields'][$this->product_field_image]['image_sizes'])) {
 	    	$product_field_images_sizes = $schema['fields'][$this->product_field_image]['image_sizes'];
 	    	$ordered_image_sizes = order_array_img($product_field_images_sizes);
 	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-	    		$this->product_images_sizes[] = $img_size;
+	    		$product_images_sizes[] = $img_size;
 	    	}
 
 	    } else if (!empty($schema['fields']['image_sizes'])) {
@@ -109,18 +108,18 @@ class Product {
 	    	$product_field_images_sizes = $schema['fields']['image_sizes'];
 	    	$ordered_image_sizes = order_array_img($product_field_images_sizes);
 	    	foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
-	    		$this->product_images_sizes[] = $img_size;
+	    		$product_images_sizes[] = $img_size;
 	    	}
 
 	    } else {
 
-	    	$this->product_images_sizes[] = 'IMD';
+	    	$product_images_sizes[] = 'IMD';
 
 	    }
 
-	    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product image sizes: '.implode(', ', (array)$this->product_images_sizes));
+	    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product image sizes: '.implode(', ', $product_images_sizes));
 
-	    $product_data_to_store['product_fields']['product_images_sizes'] = $this->product_images_sizes;
+	    $product_params['product_fields']['product_images_sizes'] = $product_images_sizes;
 
 	    $field_names = ['product_field_name',
 						'product_field_description',
@@ -157,7 +156,7 @@ class Product {
 
 		    }
 
-	        $product_data_to_store['product_fields'][$field_name] = $this->$field_name;
+	        $product_params['product_fields'][$field_name] = $this->$field_name;
 	    
 	    }
 
@@ -165,23 +164,25 @@ class Product {
 			
 			if (!in_array($field_name, $fixed_product_fields)) {
 				
+				if (!isset($product_params['product_additional_fields'])) $product_params['product_additional_fields'] = [];
+
 				if (isset($field_props['has_multilingual']) && $field_props['has_multilingual']) {
 
-					$product_data_to_store['product_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+					$product_params['product_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 				
 					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-						$product_data_to_store['products_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+						$product_params['products_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
 
 					}
 
 				}else{
 				
-					$product_data_to_store['product_additional_fields'][$field_name] = $field_name;
+					$product_params['product_additional_fields'][$field_name] = $field_name;
 				
 					if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-						$product_data_to_store['products_media_field_names'][$field_name] = $field_name;
+						$product_params['products_media_field_names'][$field_name] = $field_name;
 
 					}
 
@@ -191,11 +192,29 @@ class Product {
 
 		}
 		
-		if (SLYR_WC_DEBBUG > 1 and count($product_data_to_store['product_additional_fields']) > 0) {
+		if (SLYR_WC_DEBBUG > 1 &&
+			isset($product_params['product_additional_fields']) &&
+			count($product_params['product_additional_fields']) > 0) {
 		    
-		    sl_debbug("Product additional fields: ".print_r($product_data_to_store['product_additional_fields'], 1));
+		    sl_debbug("Product additional fields: ".print_r($product_params['product_additional_fields'], 1));
 
-		}   
+		}
+
+		return $product_params;
+
+	}
+
+	/**
+	* Function to prepare Sales Layer products data.
+	* @param  array $products              		products data to organize
+	* @param  array $product_params 			product parameters
+	* @return array $products_data_to_store     products data to store
+	*/
+	public function prepareProductDataToStore($products, $product_params){
+
+		$connector = Connector::get_instance();
+
+		$product_data_to_store = [];
 
 		$time_ini_pre_process_products = microtime(1);
 		$result_pre_process = pre_process_by_skus('product', $connector->conn_data['comp_id'], $products);
@@ -204,11 +223,7 @@ class Product {
 
 			foreach ($result_pre_process as $result_row) {
 				
-				if (!isset($product_data_to_store['not_synced_products'])){ 
-
-					$product_data_to_store['not_synced_products'] = array();
-
-				}
+				if (!isset($product_data_to_store['not_synced_products'])) $product_data_to_store['not_synced_products'] = [];
 
 				$product_data_to_store['not_synced_products'][$products[$result_row['array_index']][$this->product_id_field]] = $result_row['error_message'];
 				unset($products[$result_row['array_index']]);
@@ -224,15 +239,11 @@ class Product {
 
                 if (empty($product[$this->product_id_catalogue_field])){
 
-                	if (!isset($product_data_to_store['not_synced_products'])){ 
+                	if (!isset($product_data_to_store['not_synced_products'])) $product_data_to_store['not_synced_products'] = [];
 
-                		$product_data_to_store['not_synced_products'] = array();
+	            	if (isset($product_params['product_fields'][$this->product_field_name])){
 
-                	}
-
-	            	if (isset($product_data_to_store['product_fields'][$this->product_field_name])){
-
-	            		$prod_field_name = $product_data_to_store['product_fields'][$this->product_field_name];
+	            		$prod_field_name = $product_params['product_fields'][$this->product_field_name];
 
 	            	}else{
 
@@ -247,11 +258,7 @@ class Product {
 
             }
 
-            if (!empty($products)){
-
-                $product_data_to_store['product_data'] = $products;
-
-            }
+            if (!empty($products)) $product_data_to_store['product_data'] = $products;
 
 	    }
 	    
