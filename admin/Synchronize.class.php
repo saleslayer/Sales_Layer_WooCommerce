@@ -819,8 +819,6 @@ class Synchronize {
 
 		sl_debbug('Connecting with API... (last update: '.$last_update.') API Version: '.$updater_version.$debug_pagination_text);
 		
-		sl_debbug('conn pagination: '.print_r($slconn->get_pagination(),1));
-
 		$language_to_sync = '';
 
 		$get_response_default_language = $slconn->get_response_default_language();
