@@ -436,7 +436,7 @@ class Synchronize {
 		                                    break;
 		                                default:
 		                                    
-		                                    sl_debbug('## Error. Incorrect item: '.print_R($item_to_delete,1), 'syncdata');
+		                                    sl_debbug('## Error. Incorrect item: '.print_r($item_to_delete,1), 'syncdata');
 		                                    break;
 		                            }
 		                            
@@ -585,7 +585,7 @@ class Synchronize {
 
         if ($item_data == ''){
         
-            sl_debbug("## Error. Decoding item's data: ".print_R($item_to_update['item_data'],1), 'syncdata');
+            sl_debbug("## Error. Decoding item's data: ".print_r($item_to_update['item_data'],1), 'syncdata');
             $result_update = '';
         
         }else{
@@ -704,7 +704,7 @@ class Synchronize {
 
                 default:
                     
-                    sl_debbug('## Error. Incorrect item: : '.print_R($item_to_update,1), 'syncdata');
+                    sl_debbug('## Error. Incorrect item: : '.print_r($item_to_update,1), 'syncdata');
                     break;
             }
 
@@ -808,7 +808,7 @@ class Synchronize {
 		$pagination = $connector->get_info($connector_id, 'pagination');
 		if ($updater_version == '1.18' && $pagination !== false) {
 			$slconn->set_pagination($pagination);
-			$debug_pagination_text = ', Pagination: '.print_R($pagination,1);
+			$debug_pagination_text = ', Pagination: '.print_r($pagination,1);
 		}
 		
 		if (is_null($last_update) || $this->test_sync_all){
@@ -1373,6 +1373,8 @@ class Synchronize {
         }
 
 		return false;
+
+	}
 
 	/**
 	 * Function to insert sync data into the database.
