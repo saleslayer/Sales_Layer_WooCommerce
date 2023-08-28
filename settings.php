@@ -29,6 +29,8 @@
         
     }
 
+    define('SLYR_WC_general_params', 'slyr_wooc_general_params');
+
     define('SLYR_WC_connector_table',      'slyr_wc_api_config');
     define('SLYR_WC_syncdata_table',       'slyr_wc_api_syncdata');
     define('SLYR_WC_syncdata_flag_table',  'slyr_wc_api_syncdata_flag');
@@ -47,7 +49,9 @@
     // Avoids wordpress to ask for credentials when testing on localhost
     if (!defined('FS_METHOD')) define('FS_METHOD',                 'direct');
 
+    // SLYR_WC_DEBBUG set as variable
     define('SLYR_WC_DEBBUG',                3); //Modificar a 0 al terminar
+    $debbug_level = 0;
 
     if (!defined('SLYR_WC__PLUGIN_DIR')) define('SLYR_WC__PLUGIN_DIR', plugin_dir_path(__FILE__));
     if (!defined('SLYR_WC__LOGS_DIR')) define('SLYR_WC__LOGS_DIR', SLYR_WC__PLUGIN_DIR.'/logs/');

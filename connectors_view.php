@@ -22,8 +22,6 @@
 		        <th class="slyr_of">Last Update</th>
 		        <th class="slyr_of">Progress</th>
 		        <th class="slyr_of">Auto-sync every</th>
-				<th class="slyr_of">Api Version</th>
-				<th class="slyr_of hidden" id="pagination_th">Pagination</th>
 		        <th class="slyr_of">Actions</th>
 			</tr>
 		</thead>
@@ -84,27 +82,6 @@
                         ?>
                     </select>
                 </td>
-				<td> <!-- Nueva columna con desplegable donde seleccionar la versión de la API -->
-					<select class="select" name="updater_version" id="updater_version_<?php echo $connector['conn_code']; ?>" onchange="update_api_version(this);">
-						<?php
-						foreach ($api_versions as $version) {
-							$selected = ($connector['updater_version'] == $version) ? 'selected="selected"' : '';
-							echo '<option value="' . $version . '" ' . $selected . '>' . $version . '</option>';
-						}
-						?>
-					</select>
-				</td>	
-				<td id="pagination_td" class="hidden">
-					<select class="select" name="pagination" id="pagination_<?php echo $connector['conn_code']; ?>" onchange="update_conn_field(this);" >
-					<?php 
-					foreach ($paginations as $paginations){
-						?>
-						<option value="<?php echo $paginations; ?>" <?php echo ($connector['pagination'] == $paginations ? 'selected' : '5000'); ?> ><?php echo $paginations; ?></option>
-						<?php
-					}
-					?>
-				</td>	
-
                 <td class="tags column-tags">
 					<button type="button" class="button button-primary button_block button-sync slyr_of" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
 					<form id="delconn_form_<?php echo $connector['conn_code']; ?>" name="delconn_form" method="post" action="">
@@ -129,32 +106,9 @@
 		$('.progress').hide();
 		$(":input").prop("disabled", true);
 
-		update_pagination_view();
-
 		start_check_process_status();
 
 	});
-
-	function update_pagination_view()
-	{		
-		var api_version = document.querySelector('#updater_version_<?php echo $connector['conn_code']; ?>');
-			pagination_td = document.querySelector('#pagination_td'),
-			pagination_th = document.querySelector('#pagination_th');
-
-		if (api_version.value == '1.18') {
-			pagination_td.classList.remove('hidden');
-			pagination_th.classList.remove('hidden');
-		} else {
-			pagination_td.classList.add('hidden');
-			pagination_th.classList.add('hidden');
-		}
-	}
-
-	function update_api_version(data)
-	{	
-		update_pagination_view();
-		update_conn_field(data);
-	}
 
     function update_conn_field(data){
 

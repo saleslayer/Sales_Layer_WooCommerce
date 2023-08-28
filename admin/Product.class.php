@@ -44,6 +44,14 @@ class Product {
 
 	protected $media_field_names = array();
 	protected $media_class;
+
+	protected $debugg_level;
+
+	public function __construct()
+	{
+		global $debbug_level;
+		$this->debbug_level = $debbug_level ?? 0;
+	}
 	
 	/**
 	 * Function to get instance of the class.
@@ -117,7 +125,7 @@ class Product {
 
 	    }
 
-	    if (SLYR_WC_DEBBUG > 1) sl_debbug('Product image sizes: '.implode(', ', $product_images_sizes));
+	    if ($this->debbug_level > 1) sl_debbug('Product image sizes: '.implode(', ', $product_images_sizes));
 
 	    $product_params['product_fields']['product_images_sizes'] = $product_images_sizes;
 
@@ -192,7 +200,7 @@ class Product {
 
 		}
 		
-		if (SLYR_WC_DEBBUG > 1 &&
+		if ($this->debbug_level > 1 &&
 			isset($product_params['product_additional_fields']) &&
 			count($product_params['product_additional_fields']) > 0) {
 		    
@@ -367,9 +375,9 @@ class Product {
 			$wp_product_type = $wp_product_type_term[0];
 		}
 		
-		if (SLYR_WC_DEBBUG) sl_debbug(" > Updating product ID: $sl_product_id (categories: ".print_r($wp_category_ids,1).")");
+		if ($this->debbug_level) sl_debbug(" > Updating product ID: $sl_product_id (categories: ".print_r($wp_category_ids,1).")");
 
-		if (SLYR_WC_DEBBUG > 1) sl_debbug(" Name ({$this->product_field_name}): ".$product_data[$this->product_field_name]);
+		if ($this->debbug_level > 1) sl_debbug(" Name ({$this->product_field_name}): ".$product_data[$this->product_field_name]);
 
 		$product_modified = false;
 		$product_data_modified = array('ID' => $wp_product['ID']);
@@ -1290,7 +1298,7 @@ class Product {
 		$this->sync_product_attributes($wp_product['ID'], $product_data, $sl_product_id);
 		sl_debbug('## time_product_attributes: '.(microtime(1) - $time_ini_product_attributes).' seconds.', 'timer');
 		
-		if (SLYR_WC_DEBBUG) sl_debbug("Product updated!");
+		if ($this->debbug_level) sl_debbug("Product updated!");
 
 		return 'item_updated';
 
@@ -1643,7 +1651,7 @@ class Product {
 			sl_update_post_meta($product_id, '_stock_status', 'outofstock');
 			sl_update_post_meta($product_id, '_manage_stock', 'no' );
 
-			if (SLYR_WC_DEBBUG) sl_debbug("Product created!");
+			if ($this->debbug_level) sl_debbug("Product created!");
 			return true;
 
 		}
