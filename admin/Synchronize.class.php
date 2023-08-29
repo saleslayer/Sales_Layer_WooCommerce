@@ -1006,26 +1006,29 @@ class Synchronize {
 								if (!isset($arrayReturn['categories_to_sync'])) $arrayReturn['categories_to_sync'] = 0;
 								$arrayReturn['categories_to_sync'] += count($modified_data);
 
-								if (($modified_data = $this->storeCategoriesPaginated($pagination_response_data, $is_next_page)) !== false){
+								if (($modified_data_paged =
+									 	$this->storeCategoriesPaginated($pagination_response_data, $is_next_page))
+										!== false)
+								{
+									$modified_data = $modified_data_paged;
+								}								
 		
-									if ($this->debbug_level > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
+								if ($this->debbug_level > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
 
-									$category_data_to_store = $this->cat_class->prepareCategoryDataToStore($modified_data);
+								$category_data_to_store = $this->cat_class->prepareCategoryDataToStore($modified_data);
 
-									if (!empty($category_data_to_store)){
+								if (!empty($category_data_to_store)){
 
-										foreach ($category_data_to_store as $category_to_sync) {
-											
-											$item_data_to_insert = json_encode($category_to_sync);
-											$sync_params_to_insert = json_encode($category_params);
+									foreach ($category_data_to_store as $category_to_sync) {
+										
+										$item_data_to_insert = json_encode($category_to_sync);
+										$sync_params_to_insert = json_encode($category_params);
 
-											$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
-											$this->insert_syncdata_sql();
-											
-										}
+										$this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
+										$this->insert_syncdata_sql();
 										
 									}
-
+									
 								}
 
 								break;
