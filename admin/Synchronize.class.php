@@ -962,7 +962,7 @@ class Synchronize {
 
 									$item_type = 'product_format';
 
-									if (!isset($arrayReturn['product_formats_to_delete'])) $arrayReturn['products_to_delete'] = 0;
+									if (!isset($arrayReturn['product_formats_to_delete'])) $arrayReturn['product_formats_to_delete'] = 0;
 									$arrayReturn['product_formats_to_delete'] += count($deleted_data);
 									
 									if ($this->debbug_level > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
