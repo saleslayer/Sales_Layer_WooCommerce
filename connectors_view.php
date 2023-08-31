@@ -14,7 +14,7 @@
 	<div id="slyr_catalogue_admin">
 		<div id="messages">
 			<?php show_session_messages(); ?>
-		</div>
+		</div>		
 		<table class="wp-list-table widefat fixed striped posts">
 		<thead>
 			<tr>
@@ -25,10 +25,12 @@
 		        <th class="slyr_of">Actions</th>
 			</tr>
 		</thead>
-		<tbody>
+		<tbody>		
 		<?php
         	
         	$auto_sync_options = array('0'=>'','1'=>'1H','3'=>'3H','6'=>'6H','8'=>'8H','12'=>'12H','15'=>'15H','24'=>'24H','48'=>'48H','72'=>'72H');
+			$api_versions = array('1.18', '1.17');
+			$paginations = array('500', '1000', '2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000','10000','20000','30000','40000','50000','60000','70000','80000','90000','100000');
 
         	foreach ($connectors as $connector) {
 		?>
@@ -92,15 +94,18 @@
 			}
 		?>
 		</tbody>
-		</table>
+		</table>		
 	</div>
+
 <script type="text/javascript">
 	var plugin_name_dir = '<?php echo SLYR_WC_PLUGIN_NAME_DIR ?>';
 	var ajaxurl = '<?php echo admin_url('admin-ajax.php') ?>';
 
 	jQuery(document).ready(function(){
 		
-		$('.progress').hide(); $(":input").prop("disabled", true);
+		$('.progress').hide();
+		$(":input").prop("disabled", true);
+
 		start_check_process_status();
 
 	});
@@ -158,12 +163,12 @@
 	    $('#messages').html('');
 		setTimeout(check_process_status, 3000);
 	}
-
-	var sync_conn = function(param){
+	
+	var sync_conn = function(param){		
 
 		var registro = new Date;
 		var conn_id = param.getAttribute('connectorid');
-		var sec_key = param.getAttribute('secretkey');
+		var sec_key = param.getAttribute('secretkey');		
 
 	    $(":input").prop("disabled", true);
 		start_check_process_status();
@@ -184,6 +189,7 @@
 		});
 		
 	}
+
 
 	function check_process_status(){
 

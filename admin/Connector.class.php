@@ -32,8 +32,7 @@ class Connector{
 	 * Function to create Sales Layer table.
 	 * @return void
 	 */
-	public function create_table(){
-
+	public function create_table(){		
 		$this->db->query("CREATE TABLE `".SLYR_WC_connector_table."` (".
                          "`cnf_id` int(11) NOT NULL AUTO_INCREMENT, ".
                          "`conn_code` varchar(32) NOT NULL, ".
@@ -44,7 +43,6 @@ class Connector{
                          "`default_language` varchar(6) NOT NULL, ".
                          "`languages` mediumtext NOT NULL, ".
                          "`conn_extra` mediumtext, ".
-                         "`updater_version` varchar(10) NOT NULL, ".
                          "`auto_sync` int(3) DEFAULT '0', ".
                          "`last_sync` datetime DEFAULT NULL, ".
                          "PRIMARY KEY (`cnf_id`)".
@@ -154,7 +152,7 @@ class Connector{
 			    
 			    	$conn_data = json_decode(json_encode($connector), true);
 			    	
-			        $this->db->query("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra, updater_version, auto_sync, last_sync) VALUES ('".$conn_data['conn_code']."', '".$conn_data['conn_secret']."', '".$conn_data['default_cat_id']."', '".$conn_data['comp_id']."', '".$conn_data['last_update']."', '".$conn_data['default_language']."', '".$conn_data['languages']."', '".$conn_data['conn_extra']."', '".$conn_data['updater_version']."','".(isset($conn_data['auto_sync']) ? $conn_data['auto_sync'] : '')."','".(isset($conn_data['last_sync']) ? $conn_data['last_sync'] : '')."')");
+			        $this->db->query("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra, auto_sync, last_sync) VALUES ('".$conn_data['conn_code']."', '".$conn_data['conn_secret']."', '".$conn_data['default_cat_id']."', '".$conn_data['comp_id']."', '".$conn_data['last_update']."', '".$conn_data['default_language']."', '".$conn_data['languages']."', '".$conn_data['conn_extra']."','".(isset($conn_data['auto_sync']) ? $conn_data['auto_sync'] : '')."','".(isset($conn_data['last_sync']) ? $conn_data['last_sync'] : '')."')");
 
 			    }
 			}
@@ -214,7 +212,7 @@ class Connector{
 	 */
 	public function add_connector($connector_id, $secret_key){	
 		
-		if (!$this->db->query("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra, updater_version) VALUES ('".$connector_id."', '".$secret_key."', '0', '0', null, '', '', '', '')")){
+		if (!$this->db->query("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES ('".$connector_id."', '".$secret_key."', '0', '0', null, '', '', '')")){
 			return false;
 		}
 

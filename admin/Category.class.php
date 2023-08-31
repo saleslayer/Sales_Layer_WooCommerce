@@ -18,6 +18,14 @@ class Category {
 
 	protected $media_class;
 
+	protected $debugg_level;
+
+	public function __construct()
+	{
+		global $debbug_level;
+		$this->debbug_level = $debbug_level ?? 0;
+	}
+
 
 	public function set_class_field_value($field_name, $field_value){
 
@@ -37,21 +45,16 @@ class Category {
 	}
 
 	/**
-	* Function to store Sales Layer categories data.
-	* @param  array $arrayCatalogue                 categories data to organize
+	* Function to get Sales Layer category params data.
 	* @param  array $sl_language 					Sales Layer connector language
-	* @return array $categories_data_to_store       categories data to store
+	* @return array $category_params       			category params to store
 	*/
-	public function prepare_category_data_to_store ($arrayCatalogue, $sl_language) {
+	public function getCategoryParamsToStore($sl_language){
 
-		$connector = Connector::get_instance();
+		$category_params = $category_images_sizes = [];
 
-	    $category_data_to_store = array();
-
-		$data_schema              = json_decode($this->sl_data_schema, 1);
-	    $schema                   = $data_schema['catalogue'];
-
-	    $this->category_images_sizes = array();
+		$data_schema = json_decode($this->sl_data_schema, 1);
+	    $schema = $data_schema['catalogue'];
 
 	    if (!empty($schema['fields'][$this->category_field_image]['image_sizes'])) {
 
@@ -60,7 +63,7 @@ class Category {
 
 	        foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
 
-	            $this->category_images_sizes[] = $img_size;
+	            $category_images_sizes[] = $img_size;
 
 	        }
 
@@ -71,19 +74,17 @@ class Category {
 
 	        foreach ($ordered_image_sizes as $img_size => $img_dimensions) {
 
-	            $this->category_images_sizes[] = $img_size;
+	            $category_images_sizes[] = $img_size;
 
 	        }
 
 	    } else {
 
-	        $this->category_images_sizes[] = 'IMD';
-	        $this->category_images_sizes[] = 'THM';
-	        $this->category_images_sizes[] = 'TH';
+	        $category_images_sizes = ['IMD', 'THM', 'TH'];
 
 	    }
 
-	    $category_data_to_store['category_fields']['category_images_sizes'] = $this->category_images_sizes;
+	    $category_params['category_fields']['category_images_sizes'] = $category_images_sizes;
 
         $field_names = ['category_field_name',
     					'category_field_description',
@@ -99,21 +100,30 @@ class Category {
 
     	    }
 
-            $category_data_to_store['category_fields'][$field_name] = $this->$field_name;
+            $category_params['category_fields'][$field_name] = $this->$field_name;
         
         }
 
-	    if (!empty($arrayCatalogue)){
+		return $category_params;
+
+	}
+
+	/**
+	* Function to prepare Sales Layer categories data.
+	* @param  array $category_data                 	categories data to organize
+	* @return array $category_data       			categories data to store
+	*/
+	public function prepareCategoryDataToStore($category_data) {
+
+		if (!empty($category_data)){
 
 	        $time_ini_reorganize_categories = microtime(1);
-	        $arrayCatalogue = $this->reorganize_categories($arrayCatalogue);
+	        $category_data = $this->reorganize_categories($category_data);
 	        sl_debbug('### reorganize_categories: '.(microtime(1) - $time_ini_reorganize_categories).' seconds.');
 	        
-	        $category_data_to_store['category_data'] = $arrayCatalogue;
-
 	    }
 
-	    return $category_data_to_store;
+	    return $category_data;
 
 	}
 
@@ -171,9 +181,9 @@ class Category {
 		
 		}
 
-		if (SLYR_WC_DEBBUG) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
+		if ($this->debbug_level) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
 
-		if (SLYR_WC_DEBBUG > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
+		if ($this->debbug_level > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
 
 		$category_modified = false;
 		$category_data_modified = array();
@@ -318,11 +328,11 @@ class Category {
 
 				}		
 				
-				if (SLYR_WC_DEBBUG) sl_debbug("Category updated!");
+				if ($this->debbug_level) sl_debbug("Category updated!");
 
 			} catch (\Exception $e) {
 
-				if (SLYR_WC_DEBBUG) sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
+				if ($this->debbug_level) sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
 	            return 'item_not_updated';
 
 			}
@@ -373,7 +383,7 @@ class Category {
 				sl_update_woocommerce_term_meta($category_id, 'saleslayerid', $sl_category_id);
 				sl_update_woocommerce_term_meta($category_id, 'saleslayercompid', $comp_id);
 
-				if (SLYR_WC_DEBBUG) sl_debbug("Category created!");
+				if ($this->debbug_level) sl_debbug("Category created!");
 
 				return true;
 
