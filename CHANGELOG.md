@@ -1,15 +1,15 @@
 # Changelog
 
-## [2.5] - 2023-05-09
+## [2.5] - 2023-09-04
+
+### Added
+
+- API v1.18 compatibility.
+- General Parameters configuration page, to manage API version, pagination and debug level parameters.
 
 ### Changed
 
-- Added Api v1.18 integration
-- SalesLayer-Conn class version updated, api version set to 1.18
-- Connector class version updated.
-- Synchronize class version updated.
-- Added General Parameters configuration page, to manage parameters below:
-- connectors_view updated, Added API selection, Added pagination selection (only visible if API 1.18 is selected) and Debbug Level to log.
+- SalesLayer-Conn class version updated, API default version set to 1.18.
 
 ### Tested
 
