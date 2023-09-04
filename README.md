@@ -51,7 +51,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 |---------|--------|------------------------------|---------------------------------------------|
 | 2.3.x   | EOL    | >= 4.1.0, <= 5.4.4           | WooCommerce 5.4.0 / PHP 7.3                 |
 | 2.4.0   | Stable | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
-| 2.5.0   | Latest | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
+| 2.5.0   | Latest | >= 5.5.0, <= 8.0.2           | WooCommerce 8.0.2 / WordPress 6.2 / PHP 8.1 |
 
 > **Warning**.
 > WooCommerce releases frequently new plugin versions fixing bugs and adding new functionallity. Some of this versions could be in conflict with this plugin. We highly encourage you to set the WooCommerce plugin configuration recommended in the guidance table for running correctly this plugin. 

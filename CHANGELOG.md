@@ -13,7 +13,7 @@
 
 ### Tested
 
-- Tested on WooCommerce 7.6.0 / Wordpress 6.2 / PHP 7.3, 8.2 
+- Tested on WooCommerce 8.0.2 / Wordpress 6.2, 6.3.1 / PHP 8.1, 8.2 
 
 ## [2.4] - 2023-05-09
 
