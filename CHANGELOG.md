@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5] - 2023-09-04
+
+### Added
+
+- API v1.18 compatibility.
+- General Parameters configuration page, to manage API version, pagination and debug level parameters.
+
+### Changed
+
+- SalesLayer-Conn class version updated, API default version set to 1.18.
+
+### Tested
+
+- Tested on WooCommerce 7.6.0 / Wordpress 6.2 / PHP 7.3, 8.2 
+
 ## [2.4] - 2023-05-09
 
 ### Changed
