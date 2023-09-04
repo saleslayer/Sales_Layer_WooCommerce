@@ -6,9 +6,10 @@
 
 - Added Api v1.18 integration
 - SalesLayer-Conn class version updated, api version set to 1.18
-- connectors_view updated, Added API selection, Added pagination selection (only visible if API 1.18 is selected)
 - Connector class version updated.
 - Synchronize class version updated.
+- Added General Parameters configuration page, to manage parameters below:
+- connectors_view updated, Added API selection, Added pagination selection (only visible if API 1.18 is selected) and Debbug Level to log.
 
 ### Tested
 
