@@ -50,7 +50,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | Version | Status | WooCommerce Compatibility    | Recommended Configuration                   |
 |---------|--------|------------------------------|---------------------------------------------|
 | 2.3.x   | EOL    | >= 4.1.0, <= 5.4.4           | WooCommerce 5.4.0 / PHP 7.3                 |
-| 2.4.0   | Latest | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
+| 2.4.0   | Stable | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
 | 2.5.0   | Latest | >= 5.5.0, <= 7.6.1           | WooCommerce 7.6.0 / WordPress 6.2 / PHP 8.1 |
 
 > **Warning**.
