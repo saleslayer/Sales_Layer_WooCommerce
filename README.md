@@ -1,16 +1,17 @@
-<a href="https://support.saleslayer.com"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer WooCommerce" width="460"></a>
+
+
+<a href="https://support.saleslayer.com"><p align="center"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer Wordpress plugin for WooCommerce" width="230"></p></a>
 
 # Sales Layer WooCommerce plugin
 
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%207.3-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%207.0-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/github/v/release/saleslayer/Sales_Layer_WooCommerce)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
+[![Minimum PHP Version](https://img.shields.io/badge/php-8.1-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-7.x-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0,%20%3C=%206.2-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/badge/release-v2.4.0-blue)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
 
-Wordpress plugin that allows you to easily synchronize your Sales Layer catalogue information with WooCommerce.
+WordPress plugin that allows you to easily synchronize your Sales Layer catalog information with WooCommerce.
 [Sales Layer - Global Leading PIM][saleslayer-home]
 
 ## Download
 
-[Download latest plugin version][latest-release-download]
-Check out the latest changes at our [Changelog][changelog-md]
+Download [Sales Layer WooCommerce plugin 2.4.0](https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/download/2.4.0/saleslayer_woocommerce.zip) compatible with WooCommerce 7 and WordPress 6.
 
 ## Important Notes
 
@@ -20,17 +21,17 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 1. Install the package in a Wordpress site instance.
 
-* Go to *Plugins > Add new > Upload plugin*.
-* Select and upload our plugin zip file.
+	* Go to *Plugins > Add new > Upload plugin*.
+	* Select and upload our plugin zip file.
 
 2. Create a Sales Layer WooCommerce connector and map the fields
 
-* The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.
+	* The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.
     
 3. Add the connector credencials in WooCommerce
 
-* Go to *Admin > Sales Layer WooCommerce > Add connector*. Add the connector id and secret key.
-* Finally, In *Admin > Sales Layer Woo > Connectors*, push Synchronize to import categories, products and product variants automatically.
+	* Go to *Admin > Sales Layer WooCommerce > Add connector*. Add the connector id and secret key.
+	* Finally, In *Admin > Sales Layer Woo > Connectors*, push Synchronize to import categories, products and product variants automatically.
 
 ## Requirements for synchronization
 
@@ -42,16 +43,26 @@ Please check the [important notes for the installation][sc-important-notes] avai
 	- One size for image fields.
 	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be<br/> *Admin > Product > Attributes* and they must have been created in WooCommerce in order to synchronize.
 	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and variants will be combined and assigned to the parnet product. Variations must have only one value for each attribute.
-	
-## Version Guidance
 
-| Version | Status         | WooCommerce Plugin version | PHP Version  |
-|---------|----------------|----------------------------|--------------|
-| 2.3.x   | EOL            | >= 4.1.0, < 7.6            | 7.X          |
-| 2.4.0   | Latest         | 7.6.x                      | >=7.0,<=8.2  |	
+## Branch 2.4.x Release recommended configuration
+
+| Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
+|----------------|---------------------|-------------------|----------------|------------|
+| [2.4.0][2.4.0] | WooCommerce 7.6.0   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
+
+
+> **Warning**.
+> WooCommerce frequently releases new plugin versions to fix bugs and introduce new functionality. Some of these versions may conflict with this plugin. We highly encourage you to configure the WooCommerce plugin according to the recommendations provided in the guidance table to ensure the correct functioning of this plugin. 
+
+> **Note**. 
+> Refer to [WooCommerce Server Recommendations][woo-server-recomm] for version requirement details. Refer to the [WooCommerce GitHub repository][woo-github] for additional information about the extension (recommended for developers).
 
 [saleslayer-home]: https://www.saleslayer.com
-[latest-release-download]: https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/latest/download/saleslayer_woocommerce.zip
-[changelog-md]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/master/CHANGELOG.md
+[changelog-2.3.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.3.x/CHANGELOG.md
+[changelog-2.4.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.4.x/CHANGELOG.md
+[changelog-2.5.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.5.x/CHANGELOG.md
 [sc-important-notes]: https://support.saleslayer.com/woocommerce/important-notes-about-connector
 [sl-sc]: https://support.saleslayer.com
+[woo-server-recomm]: https://woocommerce.com/document/server-requirements/
+[woo-github]: https://github.com/woocommerce/woocommerce
+[2.4.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.4.0
