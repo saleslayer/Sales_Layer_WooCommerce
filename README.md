@@ -44,7 +44,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be<br/> *Admin > Product > Attributes* and they must have been created in WooCommerce in order to synchronize.
 	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and variants will be combined and assigned to the parnet product. Variations must have only one value for each attribute.
 
-## Branch 2.4.x Release recommended configuration
+## Branch 2.3.x Release recommended configuration
 
 | Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
 |----------------|---------------------|-------------------|----------------|------------|
@@ -65,7 +65,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [sl-sc]: https://support.saleslayer.com
 [woo-server-recomm]: https://woocommerce.com/document/server-requirements/
 [woo-github]: https://github.com/woocommerce/woocommerce
-[2.3.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.3.0
+[2.3.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.3
 [2.3.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.3.1
 [2.3.2]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.3.2
 [2.3.3]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.3.3
