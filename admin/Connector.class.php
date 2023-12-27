@@ -212,12 +212,18 @@ class Connector{
 	 */
 	public function add_connector($connector_id, $secret_key){	
 		
-		if (!$this->db->query("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES ('".$connector_id."', '".$secret_key."', '0', '0', null, '', '', '')")){
+		// Prepare a statement to prevent SQL injection
+    	$stmt = $this->db->prepare("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES (?, ?, '0', '0', null, '', '', '')");
+
+		// Bind the parameters to the query
+		$stmt->bind_param("ss", $connector_id, $secret_key);
+
+		// Execute the query and check the result
+		if (!$stmt->execute()) {
 			return false;
 		}
 
 		return true;
-
 	}
 
 	/**
