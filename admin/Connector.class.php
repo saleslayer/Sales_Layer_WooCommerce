@@ -177,10 +177,9 @@ class Connector{
 
 		if (!is_null($connector_id) && $this->check_connector($connector_id)){
 		
-			$stmt = $this->db->prepare("SELECT * FROM ".SLYR_WC_connector_table." WHERE conn_code = ? ");
-			$stmt->bind_param("s", $connector_id);
+			$stmt = $this->db->prepare("SELECT * FROM ".SLYR_WC_connector_table." WHERE conn_code IN (%s) ", $connector_id);
 
-			return $stmt->get_result()[0] ?? [];
+			return $this->db->get_row($stmt);
 			
 		}
 
@@ -195,10 +194,9 @@ class Connector{
 	 */
 	public function check_connector($connector_id){
 
-		$stmt = $this->db->prepare("SELECT * FROM ".SLYR_WC_connector_table." WHERE conn_code = ?");
-		$stmt->bind_param("s", $connector_id);
+		$stmt = $this->db->prepare("SELECT * FROM ".SLYR_WC_connector_table." WHERE conn_code IN (%s)", $connector_id);		
 		
-		return (!empty($stmt->get_result()));
+		return (!empty($this->db->get_results($stmt)));
 
 	}
 
@@ -211,13 +209,11 @@ class Connector{
 	public function add_connector($connector_id, $secret_key){	
 		
 		// Prepare a statement to prevent SQL injection
-    	$stmt = $this->db->prepare("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES (?, ?, '0', '0', null, '', '', '')");
-
-		// Bind the parameters to the query
-		$stmt->bind_param("ss", $connector_id, $secret_key);
+    	$stmt = $this->db->prepare("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES (%s, %s, '0', '0', null, '', '', '')",
+								   [ $connector_id, $secret_key ]);
 
 		// Execute the query and check the result
-		return $stmt->execute();
+		return $this->db->query($stmt);
 	}
 
 	/**
@@ -229,10 +225,9 @@ class Connector{
 
 		if ($this->check_connector($connector_id)){
 			
-			$stmt = $this->db->prepare("DELETE FROM `".SLYR_WC_connector_table."` WHERE conn_code = ?");
-			$stmt->bind_param("s", $connector_id);
+			$stmt = $this->db->prepare("DELETE FROM `".SLYR_WC_connector_table."` WHERE conn_code IN (%s)", $connector_id);
 
-			return $stmt->execute();
+			return $this->db->query($stmt);
 		
 		}
 
