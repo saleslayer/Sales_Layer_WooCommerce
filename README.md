@@ -56,6 +56,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 | Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
 |----------------|---------------------|-------------------|----------------|------------|
+| [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 | [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 
 
@@ -77,3 +78,4 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [2.4.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.4.x
 [2.5.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.5.x
 [2.5.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.0
+[2.5.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.1
