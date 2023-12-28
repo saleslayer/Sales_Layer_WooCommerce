@@ -11,7 +11,7 @@ WordPress plugin that allows you to easily synchronize your Sales Layer catalog 
 
 ## Download
 
-Download [Sales Layer WooCommerce plugin 2.5.0](https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/download/2.5.0/saleslayer_woocommerce.zip) compatible with WooCommerce 8.x and WordPress 6.
+Download [Sales Layer WooCommerce plugin 2.5.1](https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/download/2.5.1/saleslayer_woocommerce.zip) compatible with WooCommerce 8.x and WordPress 6.
 
 ## Important Notes
 
@@ -56,7 +56,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 | Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
 |----------------|---------------------|-------------------|----------------|------------|
-| [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
+| [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 
 
 > **Warning**.
