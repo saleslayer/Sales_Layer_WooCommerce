@@ -301,6 +301,9 @@ function slyr_wc_general_params() {
         $general_param = new GeneralParameters();
         $general_params = $general_param->getWPOptionsGeneralParameters();
 
+        $allGeneralParametersValues = $general_param->getAllGeneralParametersValues();
+        extract($allGeneralParametersValues);
+
         include_once(SLYR_WC__PLUGIN_DIR.'general_params_view.php');
     }    
 }
@@ -494,9 +497,6 @@ function update_conn_field_action(){
         'default_language' => 'Default language',
         'languages' => 'Languages',
         'conn_extra' => 'Connector extra information',
-        'updater_version' => 'Updater version',
-        'pagination' => 'Pagination',
-        'avoid_stock_update' => 'Avoid stock update',
         'auto_sync' => 'Auto Sync'
     ];
     $array_return = [];
@@ -535,7 +535,8 @@ function update_general_parameter_field_action()
     $field_names = [
         'API_version' => 'API Version',
         'pagination' => 'Pagination',
-        'debbug_level' => 'Debbug Level'
+        'debbug_level' => 'Debbug Level',
+        'all_analytics_data' => 'All Analytics Data',
     ];
     $array_return = [];
 
@@ -724,5 +725,7 @@ function sl_wc_check_process_status(){
     wp_die(); // ajax call must die to avoid trailing 0 in your response
 
 }
+
+session_write_close();
 
 ?>

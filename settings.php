@@ -46,9 +46,16 @@
     define('SLYR_WC_media_meta_minutes_interval',              SLYR_WC_media_meta_minutes_start.'min'); //WC media meta cron start every (value) minutes
     define('SLYR_WC_url_API',              'api.saleslayer.com/');
     
+    define('SLYR_ANALYTICS_PUBLIC_KEY', 'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0NCk1JSUNJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBZzhBTUlJQ0NnS0NBZ0VBdXlpd2RZdFdFZksrWmdzSkV4d0INCjM5QXVSKzZhYVNqZEVTWFhUbDN6Ty9GeFF0cnJZWlNEVzVqdTdCZ1lxOFpzWitBTWRsQWUvNmd3YkJQOXBWRFYNCnVEUzRDS3Z3Tmp4OEFYdno5SjRQMW8xVTJuSUJ2aVl4aUE2aW1hak5TTkdRVExLMVgreUFoMHA2cEpuT25QU1ANCkJsNVdFQkpIbGVaSTBZbzJPRS9jS2FGeEJoQTlWV0VYUS83K0VEOVVkMVhzQWZLdjcrQmVwTThkc05zZkVCb0gNCkhTVGZwWVIvTnh3M3VkZ29zSWkrcGFzdkpQN1JSMEdyT1FkOGNlUkhOblhJNjlqL0N0WDd3YXZESFl3N0pCZzkNCjE3TmlpVFhka1hGRk1wSzkrdEFJQlJZb0NRUU93L2JsOWY2UE1MazN2Q05ITzdES1VrUmZPc2pNVkdZSUJ0MEYNCnpmMEZDUURvMnZxODVHeVpRejNnbklWUVcxNjNmdW1ZMWo4ZDhIVzBnWUFUUmN5OTU5VmJlZFdNcTRZY1BuZjINCk9uOTMyeHVmRlArSm5lanZnUW5BdjBIM1RWMWxrbkt1N3lvNjhHcVlIbzBYdU1XT2FGaWdaUjFNUjRmMGVBZ3ENCllwcVdGN2VCUzJTYTBySkRRd3NLMWVxVTVjakpjWnE3VmdLbi9wNjFCam9hTWFHQVJycGFBQlM3ZGczRWptSnANCllIbUQ0MnM2V3JocmRBM0VZZXNuZ3NtdGg4MVZTNkxCcDdVUm1VUGpGRStuL0tMMFBHSHZVQ0NrY1pua2Y1TVANCmtNb1NkOXZWZmdiVjhSMmtpMDM4RFNNcGRyREorZHRHeU1FZEsrWGpnaTVZN0JnSkFuejZzYkJBWjRTWWVwTysNClFnQ1hvYUZIRllxY0dhMUJES3lqREUwQ0F3RUFBUT09DQotLS0tLUVORCBQVUJMSUMgS0VZLS0tLS0=');
+
     // Avoids wordpress to ask for credentials when testing on localhost
     if (!defined('FS_METHOD')) define('FS_METHOD',                 'direct');
 
+    if (!defined('WPDB_PREFIX')){
+        global $wpdb;
+        define('WPDB_PREFIX', $wpdb->prefix);
+    }
+    
     // debbug_level set as variable
     $debbug_level = 0;
 

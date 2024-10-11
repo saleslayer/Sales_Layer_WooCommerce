@@ -5,16 +5,19 @@ class GeneralParameters {
 	private static $generalParameters;
 	private $options_values = [];
 
+	private $default_options = [
+		'API_version' => '1.18',
+		'pagination' => '500',
+		'debbug_level' => '0',
+		'all_analytics_data' => '1'
+	];
+
 	public function __construct ()
 	{
-
-	    global $wpdb;
-		$this->db = $wpdb;
 		
 		if (!defined("SLYR_WC_general_params")) {
 			define('SLYR_WC_general_params', 'slyr_wooc_general_params');
 		}
-
 		$this->checkWPOption();
 	}
 
@@ -26,13 +29,9 @@ class GeneralParameters {
 	{
 
 		if (is_null(self::$generalParameters )) {
-		
 			self::$generalParameters = new GeneralParameters();
-		
 		}
-		
 		return self::$generalParameters;
-
 	}
 
 	/**
@@ -41,16 +40,8 @@ class GeneralParameters {
 	 */
 	public function insertFirstTimeWPOption()
 	{
-		$default_options = [
-			'API_version' => '1.18',
-			'pagination' => '500',
-			'debbug_level' => '0'
-    	];
 
-		$option_values_insert_query = "INSERT INTO wp_options (option_name, option_value, autoload) " .
-						 			  "VALUES ('" . SLYR_WC_general_params . "', '" .
-									  json_encode($default_options) . "', 'no');";
-		$this->db->query($option_values_insert_query);
+		add_option(SLYR_WC_general_params, json_encode($this->default_options), '', 'no');
 	}
 
 	/**
@@ -60,17 +51,16 @@ class GeneralParameters {
 	public function checkWPOption()
 	{
 		
-		$option_values_query = "SELECT * FROM wp_options WHERE option_name = '" . SLYR_WC_general_params . "';";
-		$row_options_values_gp = json_decode(json_encode($this->db->get_row($option_values_query)), true);
-
+		$row_options_values_gp = get_option(SLYR_WC_general_params, []);
 		if ($row_options_values_gp) {
-
-			$this->options_values = json_decode($row_options_values_gp['option_value'], true);
-
-		} else {
-
+			$this->options_values = json_decode($row_options_values_gp, true);
+			foreach ($this->default_options as $default_option_name => $default_option_value){
+				if (!isset($this->options_values[$default_option_name])){
+					$this->updateGeneralParameter($default_option_name, $default_option_value);
+				}
+			}
+		}else{
 			$this->insertFirstTimeWPOption();
-
 		}
 	}
 
@@ -81,9 +71,10 @@ class GeneralParameters {
 	public function getWPOptionsGeneralParameters()
 	{
 
-		$this->checkWPOption();		
+		if (empty($this->options_values)){
+			$this->checkWPOption();
+		}
 		return $this->options_values;
-
 	}
 
 	/**
@@ -95,10 +86,14 @@ class GeneralParameters {
 	public function updateGeneralParameter($field_name, $field_value)
 	{
 
-		if (empty($field_name) || empty($field_value)) return 'error_update';
+		if (empty($field_name) || $field_value === ''){
+			return 'error_update';
+		}
 		
 		$this->options_values[$field_name] = $field_value;
-		if (!$this->updateWPOptionsGeneralParameters()) return 'error_update';
+		if (!$this->updateWPOptionsGeneralParameters()){
+			return 'error_update';
+		}
 
 		return 'success';
 
@@ -128,11 +123,8 @@ class GeneralParameters {
 	public function updateWPOptionsGeneralParameters()
 	{
 		
-		$result = $this->db->update('wp_options',
-									['option_value' => json_encode($this->options_values)],
-									['option_name' => SLYR_WC_general_params]);
+		$result = update_option(SLYR_WC_general_params, json_encode($this->options_values));									
 		return $result;
-
 	}
 
 	/**
@@ -146,14 +138,49 @@ class GeneralParameters {
 
 		$options = $this->getWPOptionsGeneralParameters();
 
-		if (isset($options[$field_name])){
-			
+		if (isset($options[$field_name])){			
 			return $options[$field_name];
-
 		}
 
 		return false;
 
+	}
+
+	/**
+	 * Function to get all general parameters values.
+	 * @return array 		all general parameters values
+	 */
+	public function getAllGeneralParametersValues()
+	{
+
+		$allGeneralParametersValues = [
+			'api_versions' => ['1.18', '1.17'],
+			'debbug_level' => [
+				'0' => 'None',
+				'1' => 'Error',
+				'2' => 'Warning',
+				'3' => 'Info',
+				'4' => 'Develop'
+			],
+			'all_analytics_data' => [
+				'0' => 'No',
+				'1' => 'Yes'
+			]
+		];
+
+		$base_10k = 2;
+        for ($n_item = 0; $n_item < 20; $n_item++){
+            if ($n_item == 0) {
+                $allGeneralParametersValues['paginations'][] = '500';
+            }elseif ($n_item <= 10) {
+                $allGeneralParametersValues['paginations'][] = strval($n_item * 1000);
+            }else{
+                $allGeneralParametersValues['paginations'][] = strval($base_10k * 10000);
+                $base_10k++;
+            }
+        }
+
+		return $allGeneralParametersValues;
 	}
 
 }

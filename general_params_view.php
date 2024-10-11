@@ -1,16 +1,3 @@
-<?php
-        	
-    $api_versions = ['1.18', '1.17'];
-    $paginations = ['500', '1000', '2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000','10000','20000','30000','40000','50000','60000','70000','80000','90000','100000'];
-    $debbug_level = [
-        '0' => 'None',
-        '1' => 'Error',
-        '2' => 'Warning',
-        '3' => 'Info',
-        '4' => 'Develop'
-    ];
-
-?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -78,6 +65,22 @@
                                         foreach ($debbug_level as $dbindex => $debbug){
                                             ?>
                                             <option value="<?php echo $dbindex; ?>" <?php echo (($general_params['debbug_level'] ?? '') == $dbindex ? 'selected' : '1'); ?> ><?php echo $dbindex . " - " . $debbug; ?></option>
+                                            <?php
+                                        }
+                                        ?>
+                                    </select>
+                                </td>
+							</tr>
+                            <tr>
+								<td width="35%">
+									<label class="login-field-icon fui-lock" for="all_analytics_data">All analytics data</label>									
+								</td>
+                                <td>
+                                    <select class="select" name="all_analytics_data" id="all_analytics_data" onchange="update_general_parameter_field(this);" >
+                                        <?php 
+                                        foreach ($all_analytics_data as $aadKey => $aadOption){
+                                            ?>
+                                            <option value="<?php echo $aadKey; ?>" <?php echo (($general_params['all_analytics_data'] ?? '') == $aadKey ? 'selected' : '1'); ?> ><?php echo $aadOption; ?></option>
                                             <?php
                                         }
                                         ?>

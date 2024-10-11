@@ -8,18 +8,10 @@ class Media_class{
 
 	private static $instance;
 
-	protected	$db;
 	protected	$stored_url_files_sizes             = array();
 	protected	$sl_time_ini_media_meta_process;
 	protected	$max_media_meta_execution_time		= 240;
 	protected	$end_media_meta_process;
-
-	function __construct () {
-
-		global $wpdb;
-		$this->db = $wpdb;
-
-	}
 
 	public static function &get_instance () {
 
@@ -357,7 +349,7 @@ class Media_class{
 
 		try{
 
-			$termmeta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".$this->db->prefix."termmeta WHERE meta_key = 'thumbnail_id' AND meta_value = ".$attachment_id);
+			$termmeta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."termmeta WHERE meta_key = 'thumbnail_id' AND meta_value = ".$attachment_id);
 		
 		}catch(\Exception $e){
 
@@ -373,7 +365,7 @@ class Media_class{
 
 		try{
 
-			$postmeta_thumbnail_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".$this->db->prefix."postmeta WHERE meta_key = '_thumbnail_id' AND meta_value = ".$attachment_id);
+			$postmeta_thumbnail_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_thumbnail_id' AND meta_value = ".$attachment_id);
 		
 		}catch(\Exception $e){
 
@@ -389,7 +381,7 @@ class Media_class{
 
 		try{
 
-			$postmeta_image_galleries = sl_connection_query('read', " SELECT * FROM ".$this->db->prefix."postmeta WHERE meta_key = '_product_image_gallery' AND meta_value like '%".$attachment_id."%'");
+			$postmeta_image_galleries = sl_connection_query('read', " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_product_image_gallery' AND meta_value like '%".$attachment_id."%'");
 
 		}catch(\Exception $e){
 
@@ -601,7 +593,7 @@ class Media_class{
 
 		try{
 
-			$sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".$this->db->prefix."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
+			$sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
 		
 		}catch(\Exception $e){
 
@@ -613,7 +605,7 @@ class Media_class{
 		
 			sl_debbug('Pending media meta items to process: '.$sql_meta_count['sl_cuenta_registros'], 'mediameta');
 
-			$sql_meta_required = " SELECT * FROM ".$this->db->prefix."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
+			$sql_meta_required = " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
 
 	        do{
 
@@ -745,7 +737,7 @@ class Media_class{
 	 */
 	private function check_pending_meta(){
 
-		$sql_pending_meta = " SELECT * FROM ".$this->db->prefix."postmeta WHERE meta_key = '_meta_required' AND meta_value LIKE '%start_meta_process%'";
+		$sql_pending_meta = " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value LIKE '%start_meta_process%'";
 
 		$all_pending_meta = sl_connection_query('read', $sql_pending_meta);
 	 

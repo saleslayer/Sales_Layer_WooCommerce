@@ -9,24 +9,25 @@ include_once(SLYR_WC__PLUGIN_DIR.'admin/Format.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/general_functions.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Media_class.class.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/Shipping_class.class.php');
+include_once(SLYR_WC__PLUGIN_DIR.'admin/slAnalytics.class.php');
 
 class Synchronize {
 	
 	protected       $sl_time_ini_sync_data_process;
-	protected       $max_execution_time                 = 240;//110;
+	protected       $max_execution_time = 240;//110;
 	protected       $sync_data_flag;
 	protected       $end_process;
-	protected       $initialized_vars                   = false;
-	protected       $sql_items_delete                   = array();
-	protected       $category_fields                    = array();
-	protected       $product_fields                     = array();
-	protected       $product_format_fields              = array();
+	protected       $initialized_vars = false;
+	protected       $sql_items_delete = [];
+	protected       $category_fields = [];
+	protected       $product_fields = [];
+	protected       $product_format_fields = [];
 
-    protected 		$sql_to_insert                      = array();
-    protected		$sql_to_insert_limit 				= 20;
+    protected 		$sql_to_insert = [];
+    protected		$sql_to_insert_limit = 20;
     protected       $syncdata_pid;
-    protected 		$processing_data					= false;
-    protected 		$counters_info 						= array();
+    protected 		$processing_data = false;
+    protected 		$counters_info = [];
 
     protected		$cat_class;
     protected		$prod_class;
@@ -34,15 +35,17 @@ class Synchronize {
 
     protected 		$db;
 
-	protected 		$test_sync_all 						= false;
-	protected 		$stored_sl_data 					= [];
+	protected 		$test_sync_all = false;
+	protected 		$stored_sl_data = [];
 
 	protected		$debbug_level;
 
+	protected 		$analyticsAPIItemCount = [];
+	protected 		$analyticsLastUpdate;
+
 	public function __construct () {
 
-	    global $wpdb, $debbug_level;
-		$this->db = $wpdb;
+	    global $debbug_level;
 		$this->debbug_level = $debbug_level;
 		
 	}
@@ -818,8 +821,10 @@ class Synchronize {
 		
 		if (is_null($last_update) || $this->test_sync_all){
 			$slconn->get_info();
+			$this->analyticsLastUpdate = null;
 		}else{
 			$slconn->get_info($last_update);
+			$this->analyticsLastUpdate = $last_update;
 		}
 
 		sl_debbug('Connecting with API... (last update: '.$last_update.') API Version: '.$API_version . $debug_pagination_text);
@@ -880,8 +885,6 @@ class Synchronize {
 
 		}
 		
-		$synchronization_messages = array();
-		$div_messages = '';
 
 	    $time_ini_all_store_process = microtime(1);
 		
@@ -892,8 +895,10 @@ class Synchronize {
 		
 		do {	
 
-			$pagination_response_data = $slconn->get_response_table_data();				
-		
+			$pagination_response_data = $slconn->get_response_table_data();			
+			
+			$this->loadAnalyticsAPIItemCount($pagination_response_data);
+			
 			$is_next_page = false;
 			if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;				
 			sl_debbug('Page: '.print_r($page, 1 ).' - Is_next_page:'.print_r($is_next_page,1));
@@ -1159,35 +1164,59 @@ class Synchronize {
 		
 		} while ($is_next_page);
 
-		$error_data = '';
-
-		$table_indexes = array('categories', 'products', 'product_formats');
-		$sync_indexes = array('_to_delete', '_to_sync', '_not_synced');
-
-		$counters_info = array();
+		$div_messages = $this->runStoredIndexes($arrayReturn, $sync_params, $connector_id);
 		
-		foreach ($sync_indexes as $sync_index) {
-			
-			$sync_index_name = str_replace('_', ' ', $sync_index);
+		sl_debbug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
 
-			foreach($table_indexes as $table_index){
+		$analyticsData = $this->getConnectorAnalyticsData($connector_id);
+
+		$slAnalytics = new slAnalytics();
+        if ($slAnalytics->loadAnalyticsData($analyticsData)){
+             $slAnalytics->sendAnalyticsData();
+        }
+
+		sl_debbug("==== Store Sync Data END ====");
+
+		return $div_messages;
+
+	}
+
+	/**
+	 * Function to run through stored indexes and return div messages to show after store data
+	 * @param array $arrayReturn	data returned after store data
+	 * @param array $sync_params 	synchronization parameters
+	 * @param string $connector_id 	SL connector ID
+	 * @return string messages to show in front
+	 */
+	private function runStoredIndexes($arrayReturn, $sync_params, $connector_id)
+	{
+	
+		$error_data = '';
+		$synchronization_messages = [];
+
+		$table_indexes = ['categories', 'products', 'product_formats'];
+		$sync_indexes = ['_to_delete', '_to_sync', '_not_synced'];
+
+		$counters_info = [];
+		
+		foreach ($table_indexes as $table_index){
+		
+			$table_index_name = str_replace('_', ' ', $table_index);
+			
+			foreach ($sync_indexes as $sync_index) {
 				
-				$table_index_name = str_replace('_', ' ', $table_index);
+				$sync_index_name = str_replace('_', ' ', $sync_index);
 
 				if (isset($arrayReturn[$table_index.$sync_index])){
-					
-					sl_debbug('Total count of sync '.$table_index_name.$sync_index_name.': '.print_r($arrayReturn[$table_index.$sync_index],1));
-				
+					sl_debbug('Total count of sync '.$table_index_name.$sync_index_name.': '.print_r($arrayReturn[$table_index.$sync_index], true));
 				}
 
 				if ($sync_index != '_not_synced'){
 
 					if (isset($arrayReturn[$table_index.$sync_index]) && $arrayReturn[$table_index.$sync_index] != 0){
 
-						$new_table_index = $table_index;
-						if ($table_index == 'categories'){ $new_table_index = 'catalogue'; }
-						$counters_info[$new_table_index][trim(str_replace('_to_', '', $sync_index))]['total'] = $arrayReturn[$table_index.$sync_index];
-					
+						$counters_info[($table_index == 'categories' ? 'catalogue' : $table_index)][trim(str_replace('_to_', '', $sync_index))]['total'] = $arrayReturn[$table_index.$sync_index];
+
 					}
 
 					if (isset($arrayReturn[$table_index.$sync_index])){
@@ -1198,7 +1227,6 @@ class Synchronize {
 
 				}else{
 
-					
 					if (isset($arrayReturn[$table_index.$sync_index]) && !empty($arrayReturn[$table_index.$sync_index])){
 						
 						$synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored to synchronize by errors: '.count($arrayReturn[$table_index.$sync_index]);
@@ -1206,7 +1234,7 @@ class Synchronize {
 						foreach ($arrayReturn[$table_index.$sync_index] as $not_synced_message) {
 							
 							if ($error_data == ''){ 
-							
+
 								$error_data = $not_synced_message."\n";
 							
 							}else{
@@ -1253,6 +1281,8 @@ class Synchronize {
 			
 		}
 	
+		$div_messages = '';
+
 		if (!empty($synchronization_messages)){
 
 			foreach ($synchronization_messages as $wp_message_type => $wp_messages) {
@@ -1298,10 +1328,6 @@ class Synchronize {
 			}
 
 		}
-
-		sl_debbug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
-
-		sl_debbug("==== Store Sync Data END ====");
 
 		return $div_messages;
 
@@ -1447,6 +1473,103 @@ class Synchronize {
 
 	    return false;
 	    
+	}
+
+	/**
+     * Function to get connector analytics data
+     * 
+     * @param string $connectorId connector ID
+     * @return array connector analytics data
+     */
+    private function getConnectorAnalyticsData($connectorId)
+    {
+
+		$connector = new Connector();
+		$connectorData = json_decode(json_encode($connector->get_connector($connectorId)),true);
+		
+		$generalParams = GeneralParameters::get_instance_singleton();
+		$generalParamsData = $generalParams->getWPOptionsGeneralParameters(); 
+		
+		$analyticsData = [
+            'conn_code' => $connectorId,
+            'comp_id' => $connectorData['comp_id'],
+            'secret_key' => $connectorData['conn_secret'],
+            'conn_type' => SLYR_WC_connector_type,
+            'last_update' => $this->analyticsLastUpdate,
+            'api_item_count' => json_encode($this->analyticsAPIItemCount),
+            'plugin_version' => SLYR_WC_version,
+            'plugin_config' => [
+                'api_version' => $generalParamsData['API_version'],
+                'pagination_n_items' => $generalParamsData['pagination'],
+                'all_analytics_data' => $generalParamsData['all_analytics_data']
+			]
+		];
+            
+		if ($generalParamsData['all_analytics_data'] == '1'){
+
+			$analyticsData['ecommerce_version'] = $this->getEcommerceVersion();
+			$analyticsData['plugin_config'] = array_merge(
+				$analyticsData['plugin_config'], 
+				[
+					'debug_level' => $this->debbug_level
+				]
+			);
+        }
+
+        return $analyticsData;
+    }
+
+    /**
+     * Function to load analytics API item count
+     *
+     * @param array $responseData              response data to check
+     * @return void   
+     */
+    private function loadAnalyticsAPIItemCount($responseData)
+    {
+        
+		if (!empty($responseData)){
+			
+			$counterTypes = ['deleted', 'modified'];
+			foreach ($responseData as $tableName => $tableInfo){
+	
+				if (!isset($this->analyticsAPIItemCount[$tableName])){
+					$this->analyticsAPIItemCount[$tableName] = [];
+				}
+	
+				foreach ($counterTypes as $counterType){
+					$counterKey = 'count_'.$counterType;
+					
+					if (isset($tableInfo[$counterKey])){
+						if (!isset($this->analyticsAPIItemCount[$tableName][$counterType])){
+							$this->analyticsAPIItemCount[$tableName][$counterType] = 0;
+						}
+						
+						$this->analyticsAPIItemCount[$tableName][$counterType] += $tableInfo[$counterKey];
+					}
+				}
+			}
+		}
+
+    }
+
+	/**
+     * Function to get ecommerce version
+     *
+     * @return string   
+     */
+	private function getEcommerceVersion(): string
+	{
+
+		$ecommerceVersion = 'WP: '.get_bloginfo('version');
+		
+		if (class_exists('WooCommerce')) {
+			$ecommerceVersion .= ' | Woo: '.WC()->version;
+		} else {
+			$ecommerceVersion .= ' | Woo: Not installed';
+		}	
+
+		return $ecommerceVersion;
 	}
 
 }
