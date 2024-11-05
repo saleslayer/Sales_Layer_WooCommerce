@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.5.1] - 2023-12-29
+
+### Added
+
+- Protection agaisnt SQL Injection attacks.
+
+### Tested
+
+- Tested on WooCommerce 8.0.2 / Wordpress 6.2 / PHP 8.1
+
 ## [2.5] - 2023-09-04
 
 ### Added
