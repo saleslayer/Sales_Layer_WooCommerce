@@ -14,8 +14,7 @@ include_once(SLYR_WC__PLUGIN_DIR.'admin/slAnalytics.class.php');
 class Synchronize {
 	
 	protected       $sl_time_ini_sync_data_process;
-	protected       $max_execution_time = 240;//110;
-	protected       $sync_data_flag;
+	protected       $max_execution_time = 240;
 	protected       $end_process;
 	protected       $initialized_vars = false;
 	protected       $sql_items_delete = [];
@@ -38,15 +37,15 @@ class Synchronize {
 	protected 		$test_sync_all = false;
 	protected 		$stored_sl_data = [];
 
-	protected		$debbug_level;
+	protected		$debug_level;
 
 	protected 		$analyticsAPIItemCount = [];
 	protected 		$analyticsLastUpdate;
 
 	public function __construct () {
 
-	    global $debbug_level;
-		$this->debbug_level = $debbug_level;
+	    global $debug_level;
+		$this->debug_level = $debug_level;
 		
 	}
 
@@ -101,7 +100,7 @@ class Synchronize {
 
 		}
 		
-	    if ($this->debbug_level > 2) sl_debbug('Schema: '.print_r($schema, 1));
+	    if ($this->debug_level > 2) sl_debug('Schema: '.print_r($schema, 1));
 
 	    return $schema;
 	}
@@ -114,10 +113,7 @@ class Synchronize {
 
 	    $current_process_time = microtime(1) - $this->sl_time_ini_sync_data_process;
 	    if ($current_process_time >= $this->max_execution_time){
-
-	    	if (file_exists($this->sync_data_flag)){
-		        unlink($this->sync_data_flag);
-		    }
+		$this->disable_sync_data_flag();
 	        $this->end_process = true;
 
 	    }
@@ -193,14 +189,14 @@ class Synchronize {
 	        
 	                if ($minutes < 10){
 	                
-	                    sl_debbug('Data is already being processed.', 'syncdata');
+	                    sl_debug('Data is already being processed.', 'syncdata');
 	                    $this->end_process = $this->processing_data = true;
 
 	                }else{
 	                    
 	                    if ($this->syncdata_pid === $current_flag['syncdata_pid']){
 	                    	
-	                        sl_debbug('Pid is the same as current.', 'syncdata');
+	                        sl_debug('Pid is the same as current.', 'syncdata');
 
 	                    }
 
@@ -210,12 +206,12 @@ class Synchronize {
 	                    
 	                        try{
 
-	                            sl_debbug('Killing pid: '.$current_flag['syncdata_pid'], 'syncdata');
+	                            sl_debug('Killing pid: '.$current_flag['syncdata_pid'], 'syncdata');
 	                            shell_exec("kill -9 ".$current_flag['syncdata_pid']);
 	                    
 	                        }catch(\Exception $e){
 	                    
-	                            sl_debbug('## Error. Exception killing pid '.$current_flag['syncdata_pid'].': '.print_r($e->getMessage(),1), 'syncdata');
+	                            sl_debug('## Error. Exception killing pid '.$current_flag['syncdata_pid'].': '.print_r($e->getMessage(),1), 'syncdata');
 	                    
 	                        }
 	                    }
@@ -355,7 +351,7 @@ class Synchronize {
 	    $this->syncdata_pid = getmypid();
 	    $this->sl_time_ini_sync_data_process = microtime(1);
 	    
-	    sl_debbug("==== Sync Data INIT ".date('Y-m-d H:i:s')." ====", 'syncdata');
+	    sl_debug("==== Sync Data INIT ".date('Y-m-d H:i:s')." ====", 'syncdata');
 	    
 	    try{
 
@@ -366,7 +362,7 @@ class Synchronize {
 
 	    }catch(\Exception $e){
 
-	        sl_debbug('## Error. Clearing exceeded attemps: '.$e->getMessage(), 'syncdata');
+	        sl_debug('## Error. Clearing exceeded attemps: '.$e->getMessage(), 'syncdata');
 
 	    }
 
@@ -409,7 +405,7 @@ class Synchronize {
 
 		                        if ($this->end_process){
 		                        	
-		                            sl_debbug('Breaking syncdata process due to time limit.', 'syncdata');
+		                            sl_debug('Breaking syncdata process due to time limit.', 'syncdata');
 		                            break;
 
 		                        }else{
@@ -443,7 +439,7 @@ class Synchronize {
 		                                    break;
 		                                default:
 		                                    
-		                                    sl_debbug('## Error. Incorrect item: '.print_r($item_to_delete,1), 'syncdata');
+		                                    sl_debug('## Error. Incorrect item: '.print_r($item_to_delete,1), 'syncdata');
 		                                    break;
 		                            }
 		                            
@@ -486,7 +482,7 @@ class Synchronize {
 
 	            } catch (\Exception $e) {
 
-	                sl_debbug('## Error. Deleting syncdata process: '.$e->getMessage(), 'syncdata');
+	                sl_debug('## Error. Deleting syncdata process: '.$e->getMessage(), 'syncdata');
 
 	            }
 
@@ -505,7 +501,7 @@ class Synchronize {
 
 	                    	if ($this->end_process){
 	                    	
-	                    	    sl_debbug('Breaking syncdata process due to time limit.', 'syncdata');
+	                    	    sl_debug('Breaking syncdata process due to time limit.', 'syncdata');
 								break 2;
 
 	                    	}
@@ -561,15 +557,15 @@ class Synchronize {
 
 		    }catch(\Exception $e){
 
-		        sl_debbug('## Error. Deleting sync_data_flag: '.$e->getMessage(), 'syncdata');
+		        sl_debug('## Error. Deleting sync_data_flag: '.$e->getMessage(), 'syncdata');
 
 		    }
 	    	
 	    }
 
-	    sl_debbug('### time_all_syncdata_process: '.(microtime(1) - $this->sl_time_ini_sync_data_process).' seconds.', 'syncdata');
+	    sl_debug('### time_all_syncdata_process: '.(microtime(1) - $this->sl_time_ini_sync_data_process).' seconds.', 'syncdata');
 	    
-	    sl_debbug("==== Sync Data END ====", 'syncdata');
+	    sl_debug("==== Sync Data END ====", 'syncdata');
 	    
 	}
 
@@ -592,7 +588,7 @@ class Synchronize {
 
         if ($item_data == ''){
         
-            sl_debbug("## Error. Decoding item's data: ".print_r($item_to_update['item_data'],1), 'syncdata');
+            sl_debug("## Error. Decoding item's data: ".print_r($item_to_update['item_data'],1), 'syncdata');
             $result_update = '';
         
         }else{
@@ -613,10 +609,10 @@ class Synchronize {
                     }
                     
                     $time_ini_sync_stored_category = microtime(1);
-                    sl_debbug(' >> Category synchronization initialized << ');
+                    sl_debug(' >> Category synchronization initialized << ');
                     $result_update = $this->cat_class->sync_stored_category($item_data);
-                    sl_debbug(' >> Category synchronization finished << ');
-                    sl_debbug('#### time_sync_stored_category: '.(microtime(1) - $time_ini_sync_stored_category).' seconds.', 'timer');
+                    sl_debug(' >> Category synchronization finished << ');
+                    sl_debug('#### time_sync_stored_category: '.(microtime(1) - $time_ini_sync_stored_category).' seconds.', 'timer');
                     break;
                 
                 case 'product':
@@ -653,10 +649,10 @@ class Synchronize {
                     }
                     
                     $time_ini_sync_stored_product = microtime(1);
-                    sl_debbug(' >> Product synchronization initialized << ');
+                    sl_debug(' >> Product synchronization initialized << ');
                     $result_update = $this->prod_class->sync_stored_product($item_data);
-                    sl_debbug(' >> Product synchronization finished << ');
-                    sl_debbug('#### time_sync_stored_product: '.(microtime(1) - $time_ini_sync_stored_product).' seconds.', 'timer');
+                    sl_debug(' >> Product synchronization finished << ');
+                    sl_debug('#### time_sync_stored_product: '.(microtime(1) - $time_ini_sync_stored_product).' seconds.', 'timer');
                     break;
 
                 case 'product_format':
@@ -693,25 +689,25 @@ class Synchronize {
                     }
 
                     $time_ini_sync_stored_product_format = microtime(1);
-                    sl_debbug(' >> Format synchronization initialized << ');
+                    sl_debug(' >> Format synchronization initialized << ');
                     $result_update = $this->form_class->sync_stored_product_format($item_data);
-                    sl_debbug(' >> Format synchronization finished << ');
-                    sl_debbug('#### time_sync_stored_product_format: '.(microtime(1) - $time_ini_sync_stored_product_format).' seconds.', 'timer');
+                    sl_debug(' >> Format synchronization finished << ');
+                    sl_debug('#### time_sync_stored_product_format: '.(microtime(1) - $time_ini_sync_stored_product_format).' seconds.', 'timer');
                     break;
 
                 case 'product_links':
                     
                     $time_ini_sync_stored_product_links = microtime(1);
-                    sl_debbug(' >> Product links synchronization initialized << ');
+                    sl_debug(' >> Product links synchronization initialized << ');
                     $this->prod_class->sync_stored_product_links($item_data);
-                    sl_debbug(' >> Product links synchronization finished << ');
+                    sl_debug(' >> Product links synchronization finished << ');
                     $result_update = 'item_updated';
-                    sl_debbug('#### time_sync_stored_product_links: '.(microtime(1) - $time_ini_sync_stored_product_links).' seconds.', 'timer');
+                    sl_debug('#### time_sync_stored_product_links: '.(microtime(1) - $time_ini_sync_stored_product_links).' seconds.', 'timer');
                     break;
 
                 default:
                     
-                    sl_debbug('## Error. Incorrect item: : '.print_r($item_to_update,1), 'syncdata');
+                    sl_debug('## Error. Incorrect item: : '.print_r($item_to_update,1), 'syncdata');
                     break;
             }
 
@@ -778,14 +774,14 @@ class Synchronize {
 
 		if (isset($items_processing['sl_cuenta_registros']) && $items_processing['sl_cuenta_registros'] > 0){
 	    
-	        sl_debbug("There are still ".$items_processing['sl_cuenta_registros']." items processing, wait until is finished and synchronize again.");
+	        sl_debug("There are still ".$items_processing['sl_cuenta_registros']." items processing, wait until is finished and synchronize again.");
 	        return '<div class="dialog dialog-warning">There are still '.$items_processing['sl_cuenta_registros'].' items processing, wait until is finished and synchronize again.</div>';
 
 	    }
 
 		$time_ini_all_process = microtime(1);
 
-		sl_debbug("==== Store Sync Data INIT ====");
+		sl_debug("==== Store Sync Data INIT ====");
 
 		$sync_params = $arrayReturn = array();
 	
@@ -827,7 +823,7 @@ class Synchronize {
 			$this->analyticsLastUpdate = $last_update;
 		}
 
-		sl_debbug('Connecting with API... (last update: '.$last_update.') API Version: '.$API_version . $debug_pagination_text);
+		sl_debug('Connecting with API... (last update: '.$last_update.') API Version: '.$API_version . $debug_pagination_text);
 		
 		$language_to_sync = '';
 
@@ -901,7 +897,7 @@ class Synchronize {
 			
 			$is_next_page = false;
 			if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;				
-			sl_debbug('Page: '.print_r($page, 1 ).' - Is_next_page:'.print_r($is_next_page,1));
+			sl_debug('Page: '.print_r($page, 1 ).' - Is_next_page:'.print_r($is_next_page,1));
 				
 			if ($this->checkIfResponseDataHasData($pagination_response_data)){
 
@@ -934,7 +930,7 @@ class Synchronize {
 									if (!isset($arrayReturn['categories_to_delete'])) $arrayReturn['categories_to_delete'] = 0;
 									$arrayReturn['categories_to_delete'] += count($deleted_data);
 									
-									if ($this->debbug_level > 1) sl_debbug('Delete categories data to store: '.print_r($deleted_data,1));
+									if ($this->debug_level > 1) sl_debug('Delete categories data to store: '.print_r($deleted_data,1));
 
 									foreach ($deleted_data as $delete_category_id) {
 										
@@ -952,7 +948,7 @@ class Synchronize {
 									if (!isset($arrayReturn['products_to_delete'])) $arrayReturn['products_to_delete'] = 0;
 									$arrayReturn['products_to_delete'] += count($deleted_data);
 									
-									if ($this->debbug_level > 1) sl_debbug('Delete products data to store: '.print_r($deleted_data,1));
+									if ($this->debug_level > 1) sl_debug('Delete products data to store: '.print_r($deleted_data,1));
 									
 									foreach ($deleted_data as $delete_product_id) {
 										
@@ -970,7 +966,7 @@ class Synchronize {
 									if (!isset($arrayReturn['product_formats_to_delete'])) $arrayReturn['product_formats_to_delete'] = 0;
 									$arrayReturn['product_formats_to_delete'] += count($deleted_data);
 									
-									if ($this->debbug_level > 1) sl_debbug('Delete product formats data to store: '.print_r($deleted_data,1));
+									if ($this->debug_level > 1) sl_debug('Delete product formats data to store: '.print_r($deleted_data,1));
 
 									foreach ($deleted_data as $delete_product_format_id) {
 											
@@ -983,12 +979,12 @@ class Synchronize {
 									break;
 								default:
 
-									sl_debbug('## Error. Deleting, table '.$nombre_tabla.' not recognized.');
+									sl_debug('## Error. Deleting, table '.$nombre_tabla.' not recognized.');
 
 									break;
 							}
 
-							sl_debbug('#### time_store_items_delete - '.$item_type.': '.(microtime(1) - $time_ini_store_items_delete).' seconds.');
+							sl_debug('#### time_store_items_delete - '.$item_type.': '.(microtime(1) - $time_ini_store_items_delete).' seconds.');
 
 						}
 
@@ -1013,7 +1009,7 @@ class Synchronize {
 
 								if (($modified_data = $this->storeCategoriesPaginated($pagination_response_data, $is_next_page)) !== false){
 		
-									if ($this->debbug_level > 1) sl_debbug('Sync categories data to store: '.print_r($modified_data,1));
+									if ($this->debug_level > 1) sl_debug('Sync categories data to store: '.print_r($modified_data,1));
 
 									$category_data_to_store = $this->cat_class->prepareCategoryDataToStore($modified_data);
 
@@ -1038,7 +1034,7 @@ class Synchronize {
 
 								$item_type = 'product';
 
-								if ($this->debbug_level > 1) sl_debbug('Sync products data to store: '.print_r($modified_data,1));
+								if ($this->debug_level > 1) sl_debug('Sync products data to store: '.print_r($modified_data,1));
 
 								$product_data_to_store = $this->prod_class->prepareProductDataToStore($modified_data, $product_params);
 
@@ -1084,7 +1080,7 @@ class Synchronize {
 											if (!isset($arrayReturn['product_formats_not_synced'])) $arrayReturn['product_formats_not_synced'] = [];
 
 											$arrayReturn['product_formats_not_synced'][$format['id']] = 'The Format with SL ID '.$format['id'].' has no product parent to synchronize.';
-											sl_debbug('## Error. The Format with SL ID '.$format['id'].' has no product parent to synchronize.');
+											sl_debug('## Error. The Format with SL ID '.$format['id'].' has no product parent to synchronize.');
 											unset($modified_data[$keyForm]);
 
 										}
@@ -1093,7 +1089,7 @@ class Synchronize {
 
 								}
 
-								if ($this->debbug_level > 1) sl_debbug('Product formats data: '.print_r($modified_data,1));
+								if ($this->debug_level > 1) sl_debug('Product formats data: '.print_r($modified_data,1));
 
 								$product_format_data_to_store = $this->form_class->prepareProductFormatDataToStore($modified_data);
 
@@ -1145,12 +1141,12 @@ class Synchronize {
 							default:
 
 								$item_type = '';
-								sl_debbug('## Error. Synchronizing, table '.$nombre_tabla.' not recognized.');
+								sl_debug('## Error. Synchronizing, table '.$nombre_tabla.' not recognized.');
 
 								break;
 						}
 
-						sl_debbug('#### time_store_items_update - '.$item_type.': '.(microtime(1) - $time_ini_store_items_update).' seconds.');
+						sl_debug('#### time_store_items_update - '.$item_type.': '.(microtime(1) - $time_ini_store_items_update).' seconds.');
 					
 					}
 					$this->insert_syncdata_sql(true);
@@ -1166,7 +1162,7 @@ class Synchronize {
 
 		$div_messages = $this->runStoredIndexes($arrayReturn, $sync_params, $connector_id);
 		
-		sl_debbug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
+		sl_debug('##### time_all_store_process: '.(microtime(1) - $time_ini_all_store_process).' seconds.');
 
 		$analyticsData = $this->getConnectorAnalyticsData($connector_id);
 
@@ -1175,7 +1171,7 @@ class Synchronize {
              $slAnalytics->sendAnalyticsData();
         }
 
-		sl_debbug("==== Store Sync Data END ====");
+		sl_debug("==== Store Sync Data END ====");
 
 		return $div_messages;
 
@@ -1208,7 +1204,7 @@ class Synchronize {
 				$sync_index_name = str_replace('_', ' ', $sync_index);
 
 				if (isset($arrayReturn[$table_index.$sync_index])){
-					sl_debbug('Total count of sync '.$table_index_name.$sync_index_name.': '.print_r($arrayReturn[$table_index.$sync_index], true));
+					sl_debug('Total count of sync '.$table_index_name.$sync_index_name.': '.print_r($arrayReturn[$table_index.$sync_index], true));
 				}
 
 				if ($sync_index != '_not_synced'){
@@ -1269,7 +1265,7 @@ class Synchronize {
 		if ($error_data != ''){
 
 			$error_data = 'Synchronization date: '.date('Y-m-d H:i:s', strtotime('now'))."\n".$error_data;
-			$error_file = SLYR_WC__LOGS_DIR.'/_error_debbug_log_saleslayer_'.date('Y-m-d').'.dat';
+			$error_file = SLYR_WC__LOGS_DIR.'_error_debug_log_saleslayer_'.date('Y-m-d').'.dat';
 			
 			$new_file = false;
 			if (!file_exists($error_file)){ $new_file = true; }
@@ -1343,7 +1339,7 @@ class Synchronize {
 		foreach ($response_data as $table_name => $table_info){
 			
 			if ((isset($table_info['count_deleted']) && $table_info['count_deleted'] > 0) ||
-			(isset($table_info['count_modified']) && $table_info['count_modified'] > 0)){
+				(isset($table_info['count_modified']) && $table_info['count_modified'] > 0)){
                 
 				return true;
 				
@@ -1425,8 +1421,8 @@ class Synchronize {
 	            
 	        }catch(\Exception $e){
 
-	            sl_debbug('## Error. Insert syncdata SQL query: '.$sql_query_to_insert);
-	            sl_debbug('## Error. Insert syncdata SQL message: '.$e->getMessage());
+	            sl_debug('## Error. Insert syncdata SQL query: '.$sql_query_to_insert);
+	            sl_debug('## Error. Insert syncdata SQL message: '.$e->getMessage());
 
 	        }
 
@@ -1452,19 +1448,19 @@ class Synchronize {
 
 	            if (count($prc) > 0) { $i = 0; foreach ($prc as $a) { ++$i; }}
 
-	            if ($this->debbug_level > 2){ sl_debbug("Searching active process pid '$pid' by Windows. Is active? ".($i > 0 ? 'Yes' : 'No')); }
+	            if ($this->debug_level > 2){ sl_debug("Searching active process pid '$pid' by Windows. Is active? ".($i > 0 ? 'Yes' : 'No')); }
 
 	            return ($i > 0 ? true : false);
 
 	        } else if (function_exists('posix_getpgid')) {
 
-	            if ($this->debbug_level > 2) { sl_debbug("Searching active process pid '$pid' by posix_getpgid. Is active? ".(posix_getpgid($pid) ? 'Yes' : 'No')); }
+	            if ($this->debug_level > 2) { sl_debug("Searching active process pid '$pid' by posix_getpgid. Is active? ".(posix_getpgid($pid) ? 'Yes' : 'No')); }
 
 	            return (posix_getpgid($pid) ? true : false);
 
 	        } else {
 
-	            if ($this->debbug_level > 2) { sl_debbug("Searching active process pid '$pid' by ps -p. Is active? ".(shell_exec("ps -p $pid | wc -l") > 1 ? 'Yes' : 'No')); }
+	            if ($this->debug_level > 2) { sl_debug("Searching active process pid '$pid' by ps -p. Is active? ".(shell_exec("ps -p $pid | wc -l") > 1 ? 'Yes' : 'No')); }
 
 	            if (shell_exec("ps -p $pid | wc -l") > 1) { return true; }
 
@@ -1511,7 +1507,7 @@ class Synchronize {
 			$analyticsData['plugin_config'] = array_merge(
 				$analyticsData['plugin_config'], 
 				[
-					'debug_level' => $this->debbug_level
+					'debug_level' => $this->debug_level
 				]
 			);
         }

@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.5.2] - 2024-11-05
+
+### Added
+
+- Tools tab.
+- FAQ tab.
+- Version update message.
+
+### Changed
+
+- General parameters small description.
+- Optimized view structure.
+- Fixed notices related to recent versions of PHP.
+- Optimized image process.
+- Fixed minor bugs.
+
+### Tested
+
+- Tested on WooCommerce 9.3.3 / Wordpress 6.6.2 / PHP 8.2 
+
 ## [2.5.1] - 2023-12-29
 
 ### Added

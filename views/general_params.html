@@ -1,0 +1,89 @@
+<div id="slyr_catalogue_admin">
+    <header>
+        <div id="logo-container">
+            <img alt="logo sales layer" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
+        </div>
+        <h3>General Parameters</h3>
+        <div id="version-message-container" style="display: none;"></div>
+    </header>
+    <main id="slyr-catalogue-main">
+        <div class="container login">
+            <div class="login-screen">
+                <div class="login-form">
+                    <form method="post" action="" id="config_form">
+                        <div id="messages"></div>
+                        <table class="form-table">
+                            <tr>
+                                <td width="35%">
+                                    <label class="login-field-icon fui-lock" for="API_version"><b>API version</b></label>									
+                                </td>
+                                <td>
+                                    <select class="select" name="API_version" id="API_version" onchange="update_api_version(this);">
+                                        <?php
+                                        foreach ($api_versions as $version) {
+                                            $selected = (($general_params['API_version'] ?? '') == $version) ? 'selected="selected"' : '';
+                                            echo '<option value="' . $version . '" ' . $selected . '>' . $version . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                    <p class="param-description" id="api-version-description">Pagination will only be usable with API Version 1.18.</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="35%">
+                                    <label class="login-field-icon fui-lock"><b>Pagination</b></label>									
+                                </td>
+                                <td>
+                                    <select class="select" name="pagination" id="pagination" onchange="update_general_parameter_field(this);" disabled>
+                                        <?php 
+                                        foreach ($paginations as $pagination){
+                                            ?>
+                                            <option value="<?php echo $pagination; ?>" <?php echo (($general_params['pagination'] ?? '') == $pagination ? 'selected' : '5000'); ?> ><?php echo $pagination; ?></option>
+                                            <?php
+                                        }
+                                        ?>
+                                    </select>
+                                    <p class="param-description" id="pagination-description">When reading data from SL API, máximum of items to read on each call. Data will be inserted into database, and then another call will be made until all data is stored.</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="35%">
+                                    <label class="login-field-icon fui-lock" for="debug_level"><b>Debug level</b></label>									
+                                </td>
+                                <td>
+                                    <select class="select" name="debug_level" id="debug_level" onchange="update_general_parameter_field(this);" >
+                                        <?php 
+                                        foreach ($debug_level as $dbindex => $debug){
+                                            ?>
+                                            <option value="<?php echo $dbindex; ?>" <?php echo (($general_params['debug_level'] ?? '') == $dbindex ? 'selected' : '1'); ?> ><?php echo $dbindex . " - " . $debug; ?></option>
+                                            <?php
+                                        }
+                                        ?>
+                                    </select>
+                                    <p class="param-description" id="debug-level-description">Sales Layer logs are stored at plugin folder logs.</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td width="35%">
+                                    <label class="login-field-icon fui-lock" for="all_analytics_data"><b>All analytics data</b></label>									
+                                </td>
+                                <td>
+                                    <select class="select" name="all_analytics_data" id="all_analytics_data" onchange="update_general_parameter_field(this);" >
+                                        <?php 
+                                        foreach ($all_analytics_data as $aadKey => $aadOption){
+                                            ?>
+                                            <option value="<?php echo $aadKey; ?>" <?php echo (($general_params['all_analytics_data'] ?? '') == $aadKey ? 'selected' : '1'); ?> ><?php echo $aadOption; ?></option>
+                                            <?php
+                                        }
+                                        ?>
+                                    </select>
+                                    <p class="param-description" id="all-analytics-data-description">This will help to have more information about the connector's execution in order to be able to help in case of doubts. If not checked, only the minimum essential data will be sent.</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>

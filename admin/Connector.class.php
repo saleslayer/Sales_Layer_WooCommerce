@@ -4,6 +4,7 @@ class Connector{
 
 	private static $connector;
 	public $conn_data = array();
+	protected $db;
 
 	public function __construct () {
 
@@ -208,11 +209,9 @@ class Connector{
 	 */
 	public function add_connector($connector_id, $secret_key){	
 		
-		// Prepare a statement to prevent SQL injection
-    	$stmt = $this->db->prepare("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES (%s, %s, '0', '0', null, '', '', '')",
+		$stmt = $this->db->prepare("INSERT INTO `".SLYR_WC_connector_table."` (conn_code, conn_secret, default_cat_id, comp_id, last_update, default_language, languages, conn_extra) VALUES (%s, %s, '0', '0', null, '', '', '')",
 								   [ $connector_id, $secret_key ]);
 
-		// Execute the query and check the result
 		return $this->db->query($stmt);
 	}
 
@@ -301,7 +300,7 @@ class Connector{
 	    		
 	    		}catch(\Exception $e){
 
-	    			sl_debbug('Error updating connector: '.$connector_id.' field: '.$field_name.' to: '.$field_value.' - '.$e->getMessage(), 'error');
+	    			sl_debug('Error updating connector: '.$connector_id.' field: '.$field_name.' to: '.$field_value.' - '.$e->getMessage(), 'error');
 	    			return 'error_update';
 
 	    		}

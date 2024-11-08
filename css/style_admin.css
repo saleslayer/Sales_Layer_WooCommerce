@@ -3,9 +3,6 @@
 
 #slyr_catalogue_admin, #slyr_catalogue_admin p, #slyr_catalogue_admin table {font-size: 15px; line-height: 20px}
 
-#slyr_catalogue_admin #logo     {}
-#slyr_catalogue_admin #logo img { height: 50px; }
-
 #slyr_catalogue_admin .container  {
     
     background-color: #fff;
@@ -121,4 +118,14 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 
+}
+
+#slyr_catalogue_admin #slyr-catalogue-main{
+    margin-top: 50px;
+}
+
+#slyr_catalogue_admin .param-description {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
 }

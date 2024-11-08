@@ -4,14 +4,10 @@
 
 # Sales Layer WooCommerce plugin
 
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%208.1-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%208.0-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/badge/release-v2.5.0-blue)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
+[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%208.1-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%208.0-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/github/v/release/saleslayer/Sales_Layer_WooCommerce)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
 
-WordPress plugin that allows you to easily synchronize your Sales Layer catalog information with WooCommerce.
+WordPress plugin that allows you to easily synchronize your Sales Layer catalogue information with WooCommerce.
 [Sales Layer - Global Leading PIM][saleslayer-home]
-
-## Download
-
-Download [Sales Layer WooCommerce plugin 2.5.1](https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/download/2.5.1/saleslayer_woocommerce.zip) compatible with WooCommerce 8.x and WordPress 6.
 
 ## Important Notes
 
@@ -46,7 +42,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 	
 ## Version Guidance
 
-| Branch         | Status     | WooCommerce Compatibility     | PHP compatibility | Changelog                             |
+| Branch         | Status     | WooCommerce version     | PHP compatibility | Changelog                             |
 |----------------|------------|-------------------------------|-------------------|---------------------------------------|
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4            | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
 | [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1            | \>= 7.3, <= 8.1   | [Changelog 2.4.x][changelog-2.4.x]    |
@@ -58,6 +54,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 |----------------|---------------------|-------------------|----------------|------------|
 | [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 | [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
+| [2.5.2][2.5.2] | WooCommerce 9.3.3   | WordPress 6.6.2   | PHP 8.2        | Apache2.4  |
 
 
 > **Warning**.
@@ -79,3 +76,4 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [2.5.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.5.x
 [2.5.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.0
 [2.5.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.1
+[2.5.2]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.2

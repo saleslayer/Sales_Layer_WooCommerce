@@ -8,7 +8,7 @@ class GeneralParameters {
 	private $default_options = [
 		'API_version' => '1.18',
 		'pagination' => '500',
-		'debbug_level' => '0',
+		'debug_level' => '0',
 		'all_analytics_data' => '1'
 	];
 
@@ -155,7 +155,7 @@ class GeneralParameters {
 
 		$allGeneralParametersValues = [
 			'api_versions' => ['1.18', '1.17'],
-			'debbug_level' => [
+			'debug_level' => [
 				'0' => 'None',
 				'1' => 'Error',
 				'2' => 'Warning',

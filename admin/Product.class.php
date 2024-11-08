@@ -45,12 +45,12 @@ class Product {
 	protected $media_field_names = array();
 	protected $media_class;
 
-	protected $debugg_level;
+	protected $debug_level;
 
 	public function __construct()
 	{
-		global $debbug_level;
-		$this->debbug_level = $debbug_level ?? 0;
+		global $debug_level;
+		$this->debug_level = $debug_level ?? 0;
 	}
 	
 	/**
@@ -125,7 +125,7 @@ class Product {
 
 	    }
 
-	    if ($this->debbug_level > 1) sl_debbug('Product image sizes: '.implode(', ', $product_images_sizes));
+	    if ($this->debug_level > 1) sl_debug('Product image sizes: '.implode(', ', $product_images_sizes));
 
 	    $product_params['product_fields']['product_images_sizes'] = $product_images_sizes;
 
@@ -200,11 +200,11 @@ class Product {
 
 		}
 		
-		if ($this->debbug_level > 1 &&
+		if ($this->debug_level > 1 &&
 			isset($product_params['product_additional_fields']) &&
 			count($product_params['product_additional_fields']) > 0) {
 		    
-		    sl_debbug("Product additional fields: ".print_r($product_params['product_additional_fields'], 1));
+		    sl_debug("Product additional fields: ".print_r($product_params['product_additional_fields'], 1));
 
 		}
 
@@ -239,7 +239,7 @@ class Product {
 			}
 
 		}
-	    sl_debbug('### pre_process_products: '.(microtime(1) - $time_ini_pre_process_products).' seconds.', 'timer');
+	    sl_debug('### pre_process_products: '.(microtime(1) - $time_ini_pre_process_products).' seconds.', 'timer');
 
 	    if (!empty($products)){
 
@@ -355,14 +355,14 @@ class Product {
 			if (!$wp_product){
 				$time_ini_product_create = microtime(1);
 				$this->create_product($sl_product_id, $this->comp_id, $wp_category_ids, $product_data);
-				sl_debbug('## time_product_create: '.(microtime(1) - $time_ini_product_create).' seconds.', 'timer');
+				sl_debug('## time_product_create: '.(microtime(1) - $time_ini_product_create).' seconds.', 'timer');
 			}
 			
 			$wp_product = find_saleslayer_product($sl_product_id, $this->comp_id);
 
 			if (!$wp_product){
 			
-				sl_debbug('## Error. SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not been created.");
+				sl_debug('## Error. SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not been created.");
 				return 'item_not_updated';
 			
 			}
@@ -375,9 +375,9 @@ class Product {
 			$wp_product_type = $wp_product_type_term[0];
 		}
 		
-		if ($this->debbug_level) sl_debbug(" > Updating product ID: $sl_product_id (categories: ".print_r($wp_category_ids,1).")");
+		if ($this->debug_level) sl_debug(" > Updating product ID: $sl_product_id (categories: ".print_r($wp_category_ids,1).")");
 
-		if ($this->debbug_level > 1) sl_debbug(" Name ({$this->product_field_name}): ".$product_data[$this->product_field_name]);
+		if ($this->debug_level > 1) sl_debug(" Name ({$this->product_field_name}): ".$product_data[$this->product_field_name]);
 
 		$product_modified = false;
 		$product_data_modified = array('ID' => $wp_product['ID']);
@@ -395,7 +395,7 @@ class Product {
 
 		if (!isset($wp_product['post_content']) || (isset($wp_product['post_content']) && $wp_product['post_content'] != $product_data[$this->product_field_description])){
 			
-			$product_data_modified['post_content'] = $product_data[$this->product_field_description];
+			$product_data_modified['post_content'] = wp_kses_post($product_data[$this->product_field_description]);
 			$product_modified = true;
 		
 		}
@@ -664,7 +664,7 @@ class Product {
 
 			}else{
 
-				sl_debbug('## Error. Product shipping class taxonomy does not exist.');
+				sl_debug('## Error. Product shipping class taxonomy does not exist.');
 
 			}
 
@@ -859,9 +859,16 @@ class Product {
 
 						$sl_product_stock_status = $product_data[$this->product_field_stock_status];
 
-						if (is_array($sl_product_stock_status) && !empty($sl_product_stock_status)){
+						if (is_array($sl_product_stock_status)){
+
+							if (!empty($sl_product_stock_status)){
 						
-							$sl_product_stock_status = trim(strtolower(reset($sl_product_stock_status)));
+								$sl_product_stock_status = trim(strtolower(reset($sl_product_stock_status)));
+							
+							}else{
+
+								$sl_product_stock_status = '';
+							}
 						
 						}else if (!is_array($sl_product_stock_status) && $sl_product_stock_status !== ''){
 
@@ -918,14 +925,12 @@ class Product {
 				if (!is_numeric($sl_stock)){
 
 					$sl_stock_not_num = true;
-					//wc_stock_amount to remove decimals as commas instead of dots 
 					$sl_stock = wc_stock_amount($sl_stock);
 
 				}
 
 				if (is_numeric($sl_stock) && (!$sl_stock_not_num || ($sl_stock_not_num && $sl_stock !== 0))){
 
-					//wc_stock_amount to delete decimals
 					$sl_stock = wc_stock_amount($sl_stock);
 
 					if (!isset($wp_product['_manage_stock']) || (isset($wp_product['_manage_stock']) && $wp_product['_manage_stock'] == 'no')){
@@ -1047,7 +1052,7 @@ class Product {
 
 		}
 
-		sl_debbug('## time_product_core_data: '.(microtime(1) - $time_ini_product_core_data).' seconds.', 'timer');
+		sl_debug('## time_product_core_data: '.(microtime(1) - $time_ini_product_core_data).' seconds.', 'timer');
 
 		$time_ini_product_images = microtime(1);
 		//Product images
@@ -1069,7 +1074,7 @@ class Product {
 						$old_wp_thumbnail_id = $wp_thumbnail_id = $wp_thumbnail_id[0];
 					
 					}
-					// sl_debbug('# time_read_thubmnail_id: '.(microtime(1) - $time_ini_read_thubmnail_id).' seconds.', 'timer');
+					// sl_debug('# time_read_thubmnail_id: '.(microtime(1) - $time_ini_read_thubmnail_id).' seconds.', 'timer');
 
 				}
 
@@ -1080,7 +1085,7 @@ class Product {
 					$wp_parse_product_thumbnail_url = pathinfo($wp_product_thumbnail_url);
 					$wp_product_thumbnail_name = $wp_parse_product_thumbnail_url['basename'];
 					$wp_product_thumbnail_filesize = $this->media_class->read_image_file_size($wp_product_thumbnail_url);
-					// sl_debbug('# time_read_thubmnail_data: '.(microtime(1) - $time_ini_read_thubmnail_data).' seconds.', 'timer');
+					// sl_debug('# time_read_thubmnail_data: '.(microtime(1) - $time_ini_read_thubmnail_data).' seconds.', 'timer');
 				
 				}
 
@@ -1106,7 +1111,7 @@ class Product {
 						}
 
 					}
-					// sl_debbug('# time_read_image_gallery_data: '.(microtime(1) - $time_ini_read_image_gallery_data).' seconds.', 'timer');
+					// sl_debug('# time_read_image_gallery_data: '.(microtime(1) - $time_ini_read_image_gallery_data).' seconds.', 'timer');
 					
 				}
 
@@ -1172,7 +1177,7 @@ class Product {
 								}
 
 								if ($wp_thumbnail_id === false){ $wp_thumbnail_id = ''; }
-								// sl_debbug('# time_process_main_image: '.(microtime(1) - $time_ini_process_main_image).' seconds.', 'timer');
+								// sl_debug('# time_process_main_image: '.(microtime(1) - $time_ini_process_main_image).' seconds.', 'timer');
 
 							}else{
 								
@@ -1230,16 +1235,16 @@ class Product {
 									}
 
 								}
-								// sl_debbug('# time_process_image_gallery: '.(microtime(1) - $time_ini_process_image_gallery).' seconds.', 'timer');
+								// sl_debug('# time_process_image_gallery: '.(microtime(1) - $time_ini_process_image_gallery).' seconds.', 'timer');
 
 							}
 
 						}
-						// sl_debbug('# time_product_image: '.(microtime(1) - $time_ini_product_image).' seconds.', 'timer');
+						// sl_debug('# time_product_image: '.(microtime(1) - $time_ini_product_image).' seconds.', 'timer');
 
 					}
 
-					// sl_debbug('# time_image_size '.$img_format.': '.(microtime(1) - $time_ini_image_size).' seconds.', 'timer');
+					// sl_debug('# time_image_size '.$img_format.': '.(microtime(1) - $time_ini_image_size).' seconds.', 'timer');
 				}
 
 				if (!empty($new_product_image_gallery_ids)){
@@ -1255,7 +1260,7 @@ class Product {
 
 				// $time_ini_update_thumbnail_id = microtime(1);
 				sl_update_post_meta( $wp_product['ID'], '_thumbnail_id', $wp_thumbnail_id );
-				// sl_debbug('# time_update_thumbnail_id: '.(microtime(1) - $time_ini_update_thumbnail_id).' seconds.', 'timer');
+				// sl_debug('# time_update_thumbnail_id: '.(microtime(1) - $time_ini_update_thumbnail_id).' seconds.', 'timer');
 
 			}
 
@@ -1263,7 +1268,7 @@ class Product {
 				
 				// $time_ini_update_product_image_gallery = microtime(1);
 				sl_update_post_meta( $wp_product['ID'], '_product_image_gallery', $wp_gallery_ids );
-				// sl_debbug('# time_update_product_image_gallery: '.(microtime(1) - $time_ini_update_product_image_gallery).' seconds.', 'timer');
+				// sl_debug('# time_update_product_image_gallery: '.(microtime(1) - $time_ini_update_product_image_gallery).' seconds.', 'timer');
 
 			}
 
@@ -1286,19 +1291,19 @@ class Product {
 					}
 
 				}
-				// sl_debbug('# time_delete_images: '.(microtime(1) - $time_ini_delete_images).' seconds.', 'timer');
+				// sl_debug('# time_delete_images: '.(microtime(1) - $time_ini_delete_images).' seconds.', 'timer');
 
 			}
 
 		}
-		sl_debbug('## time_product_images: '.(microtime(1) - $time_ini_product_images).' seconds.', 'timer');
+		sl_debug('## time_product_images: '.(microtime(1) - $time_ini_product_images).' seconds.', 'timer');
 
 		//Product attributes
 		$time_ini_product_attributes = microtime(1);
 		$this->sync_product_attributes($wp_product['ID'], $product_data, $sl_product_id);
-		sl_debbug('## time_product_attributes: '.(microtime(1) - $time_ini_product_attributes).' seconds.', 'timer');
+		sl_debug('## time_product_attributes: '.(microtime(1) - $time_ini_product_attributes).' seconds.', 'timer');
 		
-		if ($this->debbug_level) sl_debbug("Product updated!");
+		if ($this->debug_level) sl_debug("Product updated!");
 
 		return 'item_updated';
 
@@ -1311,7 +1316,7 @@ class Product {
 			$wp_product = wc_get_product($wp_product_id);
 		
 			if (!$wp_product){ 
-				sl_debbug('## Error. Product with WP ID does not exist: '.$wp_product_id);
+				sl_debug('## Error. Product with WP ID does not exist: '.$wp_product_id);
 				continue; 
 			}
 
@@ -1339,7 +1344,7 @@ class Product {
 
 		        	if ($linked_type == '_children' && $linked_reference == $wp_product_sku){
 
-		        	    sl_debbug('## Error. Grouping product reference is the same as the current product: '.$linked_reference);
+		        	    sl_debug('## Error. Grouping product reference is the same as the current product: '.$linked_reference);
 		        	    continue;
 
 		        	}
@@ -1639,7 +1644,7 @@ class Product {
 
 		if( is_wp_error( $product_id ) ) {
 
-			sl_debbug('## Error. create_product: '.$product_id->get_error_message());
+			sl_debug('## Error. create_product: '.$product_id->get_error_message());
 
 		}else if ($product_id){
 
@@ -1651,7 +1656,7 @@ class Product {
 			sl_update_post_meta($product_id, '_stock_status', 'outofstock');
 			sl_update_post_meta($product_id, '_manage_stock', 'no' );
 
-			if ($this->debbug_level) sl_debbug("Product created!");
+			if ($this->debug_level) sl_debug("Product created!");
 			return true;
 
 		}
@@ -1721,7 +1726,7 @@ class Product {
 
 		if( is_wp_error( $posts ) ) {
 
-			sl_debbug('## Error. find_product_by_sku: '.$posts->get_error_message());
+			sl_debug('## Error. find_product_by_sku: '.$posts->get_error_message());
 
 		}else{
 
@@ -1778,7 +1783,7 @@ class Product {
 
 		if( is_wp_error( $posts ) ) {
 
-			sl_debbug('## Error. sl_find_product_id_by_sku: '.$posts->get_error_message());
+			sl_debug('## Error. sl_find_product_id_by_sku: '.$posts->get_error_message());
 
 		}else{
 
@@ -1804,11 +1809,11 @@ class Product {
 	 */
 	public function find_product_by_name($product_name, $product_id, $comp_id){
 
-		$wp_product = sl_get_page_by_title($product_name, 'ARRAY_A', 'product');
+		$wp_product = sl_get_page_by_title($product_name, 'product', 'ARRAY_A');
 
 		if( is_wp_error( $wp_product ) ) {
 
-			sl_debbug('## Error. find_product_by_name: '.$wp_product->get_error_message());
+			sl_debug('## Error. find_product_by_name: '.$wp_product->get_error_message());
 
 		}else{
 
@@ -1847,7 +1852,7 @@ class Product {
 	 */
 	public function delete_stored_product ($product_to_delete) {
 
-		sl_debbug('Disabling product with SL id: '.$product_to_delete.' comp_id: '.$this->comp_id. '. Setting it to draft status.');
+		sl_debug('Disabling product with SL id: '.$product_to_delete.' comp_id: '.$this->comp_id. '. Setting it to draft status.');
 
 		$wp_product = find_saleslayer_product($product_to_delete, $this->comp_id);
 		if ($wp_product){
@@ -1859,7 +1864,7 @@ class Product {
 			
 		}else{
 
-			sl_debbug('## Error. The product with id: '.$product_to_delete.' does not exist.');
+			sl_debug('## Error. The product with id: '.$product_to_delete.' does not exist.');
 			return 'item_not_deleted';
 
 		}

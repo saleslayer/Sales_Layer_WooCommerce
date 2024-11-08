@@ -18,12 +18,12 @@ class Category {
 
 	protected $media_class;
 
-	protected $debugg_level;
+	protected $debug_level;
 
 	public function __construct()
 	{
-		global $debbug_level;
-		$this->debbug_level = $debbug_level ?? 0;
+		global $debug_level;
+		$this->debug_level = $debug_level ?? 0;
 	}
 
 
@@ -119,7 +119,7 @@ class Category {
 
 	        $time_ini_reorganize_categories = microtime(1);
 	        $category_data = $this->reorganize_categories($category_data);
-	        sl_debbug('### reorganize_categories: '.(microtime(1) - $time_ini_reorganize_categories).' seconds.');
+	        sl_debug('### reorganize_categories: '.(microtime(1) - $time_ini_reorganize_categories).' seconds.');
 	        
 	    }
 
@@ -146,7 +146,7 @@ class Category {
 
 			if(!$wp_parent_category) {
 				
-				sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - Error creating the category, category parent not found.');
+				sl_debug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - Error creating the category, category parent not found.');
 				return 'item_not_updated';
 			}
 
@@ -167,23 +167,23 @@ class Category {
 
 				$time_ini_create_category = microtime(1);
 				$this->create_category($sl_category_id, $this->comp_id, $category_parent_id, $category_data);
-				sl_debbug('## time_create_category: '.(microtime(1) - $time_ini_create_category).' seconds.', 'timer');
+				sl_debug('## time_create_category: '.(microtime(1) - $time_ini_create_category).' seconds.', 'timer');
 			
 			}
 			
 			$wp_category = find_saleslayer_term('product_cat' , $sl_category_id, $this->comp_id);
 
 			if (!$wp_category){
-				sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - Error while creating the category.');
+				sl_debug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - Error while creating the category.');
 				return 'item_not_updated';
 			
 			}
 		
 		}
 
-		if ($this->debbug_level) sl_debbug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
+		if ($this->debug_level) sl_debug(" > Updating category ID: $sl_category_id (parent: $sl_category_parent_id)");
 
-		if ($this->debbug_level > 1) sl_debbug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
+		if ($this->debug_level > 1) sl_debug(" Name ({$this->category_field_name}): ".$category_data[$this->category_field_name]);
 
 		$category_modified = false;
 		$category_data_modified = array();
@@ -216,7 +216,7 @@ class Category {
 			
 		};
 
-		sl_debbug('## time_category_core_data: '.(microtime(1) - $time_ini_category_core_data).' seconds.', 'timer');
+		sl_debug('## time_category_core_data: '.(microtime(1) - $time_ini_category_core_data).' seconds.', 'timer');
 
 		$time_ini_category_images = microtime(1);
 		
@@ -313,7 +313,7 @@ class Category {
 			}
 
 		}
-		sl_debbug('## time_category_images: '.(microtime(1) - $time_ini_category_images).' seconds.', 'timer');
+		sl_debug('## time_category_images: '.(microtime(1) - $time_ini_category_images).' seconds.', 'timer');
 		
 		$time_ini_category_save = microtime(1);
 		if ($category_modified){
@@ -324,22 +324,22 @@ class Category {
 
 				if( is_wp_error( $resultado ) ) {
 
-					sl_debbug('## Error. sync_category category_modified: '.$resultado->get_error_message());
+					sl_debug('## Error. sync_category category_modified: '.$resultado->get_error_message());
 
 				}		
 				
-				if ($this->debbug_level) sl_debbug("Category updated!");
+				if ($this->debug_level) sl_debug("Category updated!");
 
 			} catch (\Exception $e) {
 
-				if ($this->debbug_level) sl_debbug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
+				if ($this->debug_level) sl_debug('## Error. SL ID: '.$sl_category_id.' : '.$category_data[$this->category_field_name].' - '.$e->getMessage());
 	            return 'item_not_updated';
 
 			}
 			
 		}
 		
-		sl_debbug('## time_category_save: '.(microtime(1) - $time_ini_category_save).' seconds.', 'timer');
+		sl_debug('## time_category_save: '.(microtime(1) - $time_ini_category_save).' seconds.', 'timer');
 
 		return 'item_updated';
 		
@@ -383,7 +383,7 @@ class Category {
 				sl_update_woocommerce_term_meta($category_id, 'saleslayerid', $sl_category_id);
 				sl_update_woocommerce_term_meta($category_id, 'saleslayercompid', $comp_id);
 
-				if ($this->debbug_level) sl_debbug("Category created!");
+				if ($this->debug_level) sl_debug("Category created!");
 
 				return true;
 
@@ -391,7 +391,7 @@ class Category {
 
 		}else{
 
-			sl_debbug('## Error. create_category: '.$category->get_error_message());
+			sl_debug('## Error. create_category: '.$category->get_error_message());
 
 		}
 
@@ -430,7 +430,7 @@ class Category {
 	 */
 	public function delete_stored_category ($category_to_delete) {
 
-		sl_debbug('Deleting category with SL id: '.$category_to_delete.' comp_id: '.$this->comp_id);
+		sl_debug('Deleting category with SL id: '.$category_to_delete.' comp_id: '.$this->comp_id);
 		
 		$wp_category = find_saleslayer_term('product_cat' , $category_to_delete, $this->comp_id);
 		
@@ -456,7 +456,7 @@ class Category {
 
 		}else{
 
-			sl_debbug('## Error. The category with id: '.$category_to_delete.' does not exist.');
+			sl_debug('## Error. The category with id: '.$category_to_delete.' does not exist.');
 			return 'item_not_deleted';
 
 		}

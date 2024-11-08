@@ -1,27 +1,16 @@
-<!DOCTYPE html>
-<html lang="es">
-	
-<head>
-    <meta charset="utf-8">
-    <title>Add Connector</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style type="text/css">
-        body{
-            color: black;
-        }
-    </style>
-</head>
-
-<body>
-	<div id="slyr_catalogue_admin">
+<div id="slyr_catalogue_admin">
+	<header>
+		<div id="logo-container">
+			<img alt="logo sales layer" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
+		</div>
+		<h3>Add Connector</h3>
+		<div id="version-message-container" style="display: none;"></div>
+	</header>
+	<main id="slyr-catalogue-main">
 		<div class="container login">
 			<div class="login-screen">
-				<div class="login-icon">
-					<h1><?php echo SLYR_WC_name; ?> plugin <small>/ Add connector</small></h1>
-				</div>
 				<div class="login-form">
 					<form method="post" action="" id="config_form">
-					<?php show_session_messages(); ?>
 						<table class="form-table">
 							<tr>
 								<td>
@@ -36,17 +25,10 @@
 								</td>
 							</tr>
 						</table>
-
 						<input type="submit" class="button button-primary button_block" value="Add and Synchronize Connector!">
-
 					</form>
 				</div>
 			</div>
 		</div>
-	</div>
-<script type="text/javascript">
-	var plugin_name_dir = '<?php echo SLYR_WC_PLUGIN_NAME_DIR ?>';
-</script>
-
-</body>
-</html> 
+	</main>
+</div>

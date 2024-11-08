@@ -246,7 +246,7 @@ function find_saleslayer_term($taxonomy, $saleslayerid = null, $saleslayercompid
 
    	if( is_wp_error( $terms ) ) {
 
-   	    sl_debbug('## Error. find_saleslayer_term: '.$terms->get_error_message());
+   	    sl_debug('## Error. find_saleslayer_term: '.$terms->get_error_message());
  
    	}else if (!empty($terms)){
 
@@ -321,7 +321,7 @@ function sl_update_woocommerce_term_meta ($term_id, $meta_key, $meta_value, $pre
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_update_woocommerce_term_meta '.$tipo.': '.$resultado->get_error_message());
+		sl_debug('## Error. sl_update_woocommerce_term_meta '.$tipo.': '.$resultado->get_error_message());
 
 	}
 
@@ -330,23 +330,33 @@ function sl_update_woocommerce_term_meta ($term_id, $meta_key, $meta_value, $pre
 /**
  * Function to modify get_page_by_title and add page meta.
  * @param string $page_title 		title of page
- * @param string $output 			type of output
  * @param string $post_type 		type of post
+ * @param string $output 			type of output
  * @return array || boolean 		page found
  */
-function sl_get_page_by_title($page_title, $output = OBJECT, $post_type){
-	
+function sl_get_page_by_title($page_title, $post_type, $output = OBJECT){
+	$args = array(
+        'post_type' => $post_type,
+        'title'     => $page_title,
+        'post_status' => 'publish',
+        'posts_per_page' => 1
+    );
+    $query = new WP_Query($args);
 
-	if ($page = get_page_by_title($page_title, $output, $post_type)){
-
+    if ($query->have_posts()) {	
+        $page = $query->posts[0];
+        if ($output === OBJECT) {
+            $page = get_post($page->ID);
+        } elseif ($output === ARRAY_A) {
+            $page = get_post($page->ID, ARRAY_A);
+        } elseif ($output === ARRAY_N) {
+            $page = get_post($page->ID, ARRAY_N);
+        }
 		$page = add_meta_to_post($page, $output);
-		
-		return $page;
+        return $page;
+    }
 
-	}
-
-	return false;
-
+    return false;
 }
 
 /**
@@ -390,7 +400,7 @@ function find_saleslayer_product($saleslayerid = null, $saleslayercompid = null,
 
 	if( is_wp_error( $posts ) ) {
 
-		sl_debbug('## Error. find_saleslayer_product: '.$posts->get_error_message());
+		sl_debug('## Error. find_saleslayer_product: '.$posts->get_error_message());
 
 	}else if (!empty($posts)){
 
@@ -473,7 +483,7 @@ function sl_update_post_meta($post_id, $meta_key, $meta_value, $prev_value = '')
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_update_post_meta: '.$resultado->get_error_message());
+		sl_debug('## Error. sl_update_post_meta: '.$resultado->get_error_message());
 
 	}
 
@@ -494,7 +504,7 @@ function sl_delete_post_meta($post_id, $meta_key, $meta_value = ''){
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_delete_post_meta: '.$resultado->get_error_message());
+		sl_debug('## Error. sl_delete_post_meta: '.$resultado->get_error_message());
 
 	}
 
@@ -510,11 +520,17 @@ function sl_delete_post_meta($post_id, $meta_key, $meta_value = ''){
  */
 function sl_wp_update_post($postarr = array(), $wp_error = false ){
 
+	remove_filter('content_save_pre', 'wp_filter_post_kses');
+	remove_filter('content_filtered_save_pre', 'wp_filter_post_kses');
+
 	$resultado = wp_update_post($postarr, $wp_error);
+
+	add_filter('content_save_pre', 'wp_filter_post_kses');
+	add_filter('content_filtered_save_pre', 'wp_filter_post_kses');
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_wp_update_post: '.$resultado->get_error_message());
+		sl_debug('## Error. sl_wp_update_post: '.$resultado->get_error_message());
 
 	}
 
@@ -534,7 +550,7 @@ function sl_wp_set_object_terms( $object_id, $terms, $taxonomy, $append = false)
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_wp_set_object_terms: '.$resultado->get_error_message());
+		sl_debug('## Error. sl_wp_set_object_terms: '.$resultado->get_error_message());
 
 	}
 
@@ -554,7 +570,7 @@ function sl_wp_set_post_terms( $post_id = 0, $tags = '', $taxonomy = 'post_tag',
 
 	if( is_wp_error( $resultado ) ) {
 
-		sl_debbug('## Error. sl_wp_set_post_terms: '.$resultado->get_error_message());
+		sl_debug('## Error. sl_wp_set_post_terms: '.$resultado->get_error_message());
 
 	}
 
@@ -660,7 +676,7 @@ function find_saleslayer_format($saleslayerid = null, $saleslayercompid = null, 
 
 	if( is_wp_error( $posts ) ) {
 
-		sl_debbug('## Error. find_saleslayer_format: '.$posts->get_error_message());
+		sl_debug('## Error. find_saleslayer_format: '.$posts->get_error_message());
 
 	}else if (!empty($posts)){
     	
@@ -701,7 +717,7 @@ function get_all_products_and_variations(){
 
 	if( is_wp_error( $wp_posts ) ) {
 
-		sl_debbug('## Error. get_all_products_and_variations: '.$wp_posts->get_error_message());
+		sl_debug('## Error. get_all_products_and_variations: '.$wp_posts->get_error_message());
 
 	}
 
@@ -812,7 +828,7 @@ function pre_process_by_skus($type, $comp_id, $items){
 
 	if (!in_array($type, array('product', 'product_variation'))){
 
-		sl_debbug('## Error. pre_process_by_skus - Type '.$type.' inválido.');
+		sl_debug('## Error. pre_process_by_skus - Type '.$type.' inválido.');
 
 	}
 
@@ -1035,18 +1051,21 @@ function sl_connection_query($type, $query, $params = array()){
 			}
 
     	}else{
-
-    		if (!empty($params)){
+			
+			if (!empty($params)){
 
     			$resultado = $wpdb->query($query, $params);
 
     		}else{
-
-    			$resultado = $wpdb->query($query);
+				$resultado = $wpdb->query($query);
 
     		}
 
-    		$resultado = json_decode(json_encode($resultado), true);
+			$resultado = json_decode(json_encode($resultado), true);
+			
+			if ($type == 'delete' && $resultado === 0){
+				$resultado = true;
+			}
 
     	}
 
@@ -1054,15 +1073,15 @@ function sl_connection_query($type, $query, $params = array()){
         
         if (!empty($params)){
 
-            sl_debbug('## Error. SL SQL type: '.$type.' - query: '.$query.' - params: '.print_r($params,1));
+            sl_debug('## Error. SL SQL type: '.$type.' - query: '.$query.' - params: '.print_r($params,1));
             
         }else{
 
-            sl_debbug('## Error. SL SQL type: '.$type.' - query: '.$query);
+            sl_debug('## Error. SL SQL type: '.$type.' - query: '.$query);
             
         }
 
-        sl_debbug('## Error. SL SQL error message: '.$e->getMessage());
+        sl_debug('## Error. SL SQL error message: '.$e->getMessage());
 
     }
 

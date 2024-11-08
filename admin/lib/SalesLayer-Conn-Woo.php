@@ -71,6 +71,8 @@ class SalesLayer_Conn_Woo
     protected $__get_same_parent_variants_modifications = false;
     protected $__get_parents_category_tree              = false;
 
+    protected $response_tables_schema;
+
     private $__error_list = [
         '1'  => 'Validation error',
         '2'  => 'Invalid connector code',

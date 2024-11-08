@@ -38,7 +38,7 @@ class Media_class{
 		$filename = rawurldecode($image_url_info['basename']);
 		$filename = str_replace(["#", "%"], ["_U23_", "_U25_"], $filename);
 
-		// sl_debbug('# time_get_image_url_filename: '.(microtime(1) - $time_ini_get_image_url_filename).' seconds.', 'timer');
+		// sl_debug('# time_get_image_url_filename: '.(microtime(1) - $time_ini_get_image_url_filename).' seconds.', 'timer');
 
 		return $filename;
 
@@ -57,7 +57,7 @@ class Media_class{
 		$filename_encoded = $image_url_info['basename'];            
 		$filename_encoded = rawurlencode(rawurldecode($filename_encoded));
 		
-		// sl_debbug('# time_get_encoded_url: '.(microtime(1) - $time_ini_get_encoded_url).' seconds.', 'timer');
+		// sl_debug('# time_get_encoded_url: '.(microtime(1) - $time_ini_get_encoded_url).' seconds.', 'timer');
 
 		return $image_url_info['dirname'].'/'.$filename_encoded;
 
@@ -71,6 +71,8 @@ class Media_class{
 	 */
 	public function fetch_media($file_url, $post_id, $process_meta = false) {
 
+		set_time_limit(60);
+
 		$time_ini_fetch_media = microtime(1);
 		
 		// $time_ini_new_filename = microtime(1);
@@ -83,9 +85,9 @@ class Media_class{
 		
 		}
 
-		// sl_debbug('# fetch_media() - time_new_filename: '.(microtime(1) - $time_ini_new_filename).' seconds.', 'timer');
+		// sl_debug('# fetch_media() - time_new_filename: '.(microtime(1) - $time_ini_new_filename).' seconds.', 'timer');
 
-		sl_debbug(" > Importing media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
+		sl_debug(" > Importing media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
 
 		//directory to import to	
 		$artDir = 'wp-content/uploads/importedmedia/';
@@ -93,17 +95,20 @@ class Media_class{
 		// $time_ini_mkdir = microtime(1);
 		//if the directory doesn't exist, create it	
 		if(!file_exists(ABSPATH.$artDir)) {
-			mkdir(ABSPATH.$artDir);
+			mkdir(ABSPATH.$artDir, 0755, true);
 		}
-		// sl_debbug('# fetch_media() - time_mkdir: '.(microtime(1) - $time_ini_mkdir).' seconds.', 'timer');
+		// sl_debug('# fetch_media() - time_mkdir: '.(microtime(1) - $time_ini_mkdir).' seconds.', 'timer');
 
 		$file_url_encoded = $this->get_encoded_url($file_url);
 
-		// $time_ini_copy = microtime(1);
-		copy($file_url_encoded, ABSPATH.$artDir.$new_filename);
-		// sl_debbug('# fetch_media() - time_copy: '.(microtime(1) - $time_ini_copy).' seconds.', 'timer');
+		$temp_file = download_url($file_url_encoded);
+		if (is_wp_error($temp_file)) {
+			sl_debug('## Error. Downloading file: '.$file_url_encoded);
+			return false;
+		}
+		rename($temp_file, ABSPATH.$artDir.$new_filename);
+		
 
-		// $time_ini_prepare_data = microtime(1);
 		$siteurl = get_option('siteurl');
 		$file_info = getimagesize(ABSPATH.$artDir.$new_filename);
 
@@ -129,12 +134,12 @@ class Media_class{
 
 		$uploads = wp_upload_dir();
 		$save_path = $uploads['basedir'].'/importedmedia/'.$new_filename;
-		// sl_debbug('# fetch_media() - time_prepare_data: '.(microtime(1) - $time_ini_prepare_data).' seconds.', 'timer');
+		// sl_debug('# fetch_media() - time_prepare_data: '.(microtime(1) - $time_ini_prepare_data).' seconds.', 'timer');
 
 		// $time_ini_insert_attachment = microtime(1);
 		//insert the database record
 		$attach_id = wp_insert_attachment( $artdata, $save_path, $post_id );
-		// sl_debbug('# fetch_media() - time_insert_attachment: '.(microtime(1) - $time_ini_insert_attachment).' seconds.', 'timer');
+		// sl_debug('# fetch_media() - time_insert_attachment: '.(microtime(1) - $time_ini_insert_attachment).' seconds.', 'timer');
 
 		if ( !is_wp_error($attach_id) ) {
 
@@ -145,7 +150,7 @@ class Media_class{
 				
 				if (!$result_add){
 
-					sl_debbug('## Error. Adding media post meta: '.$save_path);
+					sl_debug('## Error. Adding media post meta: '.$save_path);
 					return false;
 
 				}
@@ -156,15 +161,15 @@ class Media_class{
 
 				if ($attach_data = wp_generate_attachment_metadata( $attach_id, $save_path)) {
 
-					// sl_debbug('# fetch_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
+					// sl_debug('# fetch_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
 					// $time_ini_update_attachment_metadata = microtime(1);
 					wp_update_attachment_metadata($attach_id, $attach_data);
-					// sl_debbug('# fetch_media() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'timer');
+					// sl_debug('# fetch_media() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'timer');
 				
 				}else{
 
-		    		// sl_debbug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
-		    		sl_debbug('## Error. Generating attachment metadata for file: '.$save_path);
+		    		// sl_debug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
+		    		sl_debug('## Error. Generating attachment metadata for file: '.$save_path);
 
 		    	}
 		    	
@@ -172,12 +177,12 @@ class Media_class{
 
 		}else{
 
-			sl_debbug('## Error. Inserting new media attachment: '.$save_path);
+			sl_debug('## Error. Inserting new media attachment: '.$save_path);
 			return false;
 
 		}
 
-		sl_debbug('# time_fetch_media: '.(microtime(1) - $time_ini_fetch_media).' seconds.', 'timer');
+		sl_debug('# time_fetch_media: '.(microtime(1) - $time_ini_fetch_media).' seconds.', 'timer');
 		return $attach_id;
 
 	}
@@ -201,7 +206,7 @@ class Media_class{
 		
 		}
 
-		sl_debbug(" > Updating media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
+		sl_debug(" > Updating media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
 
 		$uploads_path = 'wp-content/uploads/';
 		$importedmedia_path = $uploads_path.'importedmedia/';
@@ -220,7 +225,7 @@ class Media_class{
 		        
 			}catch(\Exception $e){
 		    
-		    	sl_debbug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
+		    	sl_debug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
 		    
 		    }
 
@@ -236,7 +241,7 @@ class Media_class{
 
 		        	}catch(\Exception $e){
 		            
-		            	sl_debbug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
+		            	sl_debug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
 		            
 		            }
 
@@ -245,7 +250,7 @@ class Media_class{
 		    }
 
 		}
-		// sl_debbug('# update_media() - time_check_existing_image: '.(microtime(1) - $time_ini_check_existing_image).' seconds.', 'timer');
+		// sl_debug('# update_media() - time_check_existing_image: '.(microtime(1) - $time_ini_check_existing_image).' seconds.', 'timer');
 
 		try{
 
@@ -256,13 +261,13 @@ class Media_class{
 		        mkdir(ABSPATH.$importedmedia_path);
 
 		    }
-		    // sl_debbug('# update_media() - time_mkdir: '.(microtime(1) - $time_ini_mkdir).' seconds.', 'timer');
+		    // sl_debug('# update_media() - time_mkdir: '.(microtime(1) - $time_ini_mkdir).' seconds.', 'timer');
 
 		    $file_url_encoded = $this->get_encoded_url($file_url);
 		    
 		    // $time_ini_copy_image = microtime(1);
 		    copy($file_url_encoded, ABSPATH.$importedmedia_path.$new_filename);
-		    // sl_debbug('# update_media() - time_copy_image: '.(microtime(1) - $time_ini_copy_image).' seconds.', 'timer');
+		    // sl_debug('# update_media() - time_copy_image: '.(microtime(1) - $time_ini_copy_image).' seconds.', 'timer');
 		    
 		    // $time_ini_update_post = microtime(1);
 
@@ -278,7 +283,7 @@ class Media_class{
 			);
 
 			wp_update_post($post_data);
-		    // sl_debbug('# update_media() - time_update_post: '.(microtime(1) - $time_ini_update_post).' seconds.', 'timer');
+		    // sl_debug('# update_media() - time_update_post: '.(microtime(1) - $time_ini_update_post).' seconds.', 'timer');
 
 		    $save_path = ABSPATH.$importedmedia_path.$new_filename;
 
@@ -289,7 +294,7 @@ class Media_class{
 		    	
 		    	if (!$result_add){
 
-		    		sl_debbug('## Error. Adding media post meta: '.$save_path);
+		    		sl_debug('## Error. Adding media post meta: '.$save_path);
 		    		return false;
 
 		    	}
@@ -300,18 +305,18 @@ class Media_class{
 		    		
 		    	if ($attach_data = wp_generate_attachment_metadata( $attachment_id, $save_path)) {
 		    	    
-		    	    // sl_debbug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
+		    	    // sl_debug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
 
 		    	    // $time_ini_update_attachment_metadata = microtime(1);
 
 		    	    wp_update_attachment_metadata($attachment_id, $attach_data);
 		    	
-		    		// sl_debbug('# update_media() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'timer');
+		    		// sl_debug('# update_media() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'timer');
 
 		    	}else{
 
-		    		// sl_debbug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
-		    		sl_debbug('## Error. Generating attachment metadata for file: '.$save_path);
+		    		// sl_debug('# update_media() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'timer');
+		    		sl_debug('## Error. Generating attachment metadata for file: '.$save_path);
 
 		    	}
 
@@ -319,16 +324,16 @@ class Media_class{
 
 		    // $time_ini_update_attached_file = microtime(1);
 			update_attached_file($attachment_id, $save_path);
-		    // sl_debbug('# update_media() - time_update_attached_file: '.(microtime(1) - $time_ini_update_attached_file).' seconds.', 'timer');
+		    // sl_debug('# update_media() - time_update_attached_file: '.(microtime(1) - $time_ini_update_attached_file).' seconds.', 'timer');
 
 		}catch(\Exception $e){
 
-		    sl_debbug('## Error. Updating media: '.$e->getMessage());
+		    sl_debug('## Error. Updating media: '.$e->getMessage());
 		    return false;
 
 		}
 
-		sl_debbug('# time_update_media: '.(microtime(1) - $time_ini_update_media).' seconds.', 'timer');
+		sl_debug('# time_update_media: '.(microtime(1) - $time_ini_update_media).' seconds.', 'timer');
 		return $attachment_id;
 
 	}
@@ -342,7 +347,7 @@ class Media_class{
 		
 		$time_ini_delete_media = microtime(1);
 
-		sl_debbug(" > Deleting media from attachment_id: $attachment_id");
+		sl_debug(" > Deleting media from attachment_id: $attachment_id");
 		
 		$uploads_path = 'wp-content/uploads/';
 		$importedmedia_path = $uploads_path.'importedmedia/';
@@ -353,7 +358,7 @@ class Media_class{
 		
 		}catch(\Exception $e){
 
-			sl_debbug('## Error. Reading termmeta_count: '.$e->getMessage());
+			sl_debug('## Error. Reading termmeta_count: '.$e->getMessage());
 
 		}
 
@@ -369,7 +374,7 @@ class Media_class{
 		
 		}catch(\Exception $e){
 
-			sl_debbug('## Error. Reading postmeta_thumbnail_count: '.$e->getMessage());
+			sl_debug('## Error. Reading postmeta_thumbnail_count: '.$e->getMessage());
 
 		}
 
@@ -385,7 +390,7 @@ class Media_class{
 
 		}catch(\Exception $e){
 
-			sl_debbug('## Error. Reading postmeta_image_galleries: '.$e->getMessage());
+			sl_debug('## Error. Reading postmeta_image_galleries: '.$e->getMessage());
 
 		}
 
@@ -427,7 +432,7 @@ class Media_class{
 
 		}catch(\Exception $e){
 
-			sl_debbug('## Error. Deleting attachment: '.$e->getMessage());
+			sl_debug('## Error. Deleting attachment: '.$e->getMessage());
 
 		}
 
@@ -443,7 +448,7 @@ class Media_class{
 		        
 			}catch(\Exception $e){
 		    
-		    	sl_debbug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
+		    	sl_debug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
 		    
 		    }
 
@@ -459,7 +464,7 @@ class Media_class{
 
 		        	}catch(\Exception $e){
 		            
-		            	sl_debbug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
+		            	sl_debug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
 		            
 		            }
 
@@ -469,7 +474,7 @@ class Media_class{
 
 		}
 
-		sl_debbug('# time_delete_media: '.(microtime(1) - $time_ini_delete_media).' seconds.', 'timer');
+		sl_debug('# time_delete_media: '.(microtime(1) - $time_ini_delete_media).' seconds.', 'timer');
 		return true;
 
 	}
@@ -499,7 +504,7 @@ class Media_class{
 
 		}
 
-		// sl_debbug('# time_get_thumbnail_id_by_title: '.(microtime(1) - $time_ini_get_thumbnail_id_by_title).' seconds.', 'timer');
+		// sl_debug('# time_get_thumbnail_id_by_title: '.(microtime(1) - $time_ini_get_thumbnail_id_by_title).' seconds.', 'timer');
 		return 0;
 
 	}
@@ -519,7 +524,7 @@ class Media_class{
 		        
 		        if (isset($this->stored_url_files_sizes[$url])){
 
-		            // sl_debbug('# time_check_size_url stored: '.(microtime(1) - $time_ini_check_url_size).' seconds.', 'timer');
+		            // sl_debug('# time_check_size_url stored: '.(microtime(1) - $time_ini_check_url_size).' seconds.', 'timer');
 		            return $this->stored_url_files_sizes[$url];
 
 		        }else{
@@ -530,13 +535,13 @@ class Media_class{
 		            $image_url_encoded = $image_url_info['dirname'].'/'.$filename_encoded;
 
 		            $headers = get_headers($image_url_encoded, TRUE);
-		            // sl_debbug('# time_check_size_url: '.(microtime(1) - $time_ini_check_url_size).' seconds.', 'timer');
+		            // sl_debug('# time_check_size_url: '.(microtime(1) - $time_ini_check_url_size).' seconds.', 'timer');
 
 		        }
 
 		    }catch(\Exception $e){
 
-		        sl_debbug("## Error. Remote image with URL ".$url." couldn't been synchronized: ".$e->getMessage());
+		        sl_debug("## Error. Remote image with URL ".$url." couldn't been synchronized: ".$e->getMessage());
 		        return false;
 
 		    }
@@ -562,12 +567,12 @@ class Media_class{
 		        // $time_ini_check_local_size = microtime(1);
 		        $url_filesize = filesize($url);
 		        clearstatcache();
-		        // sl_debbug('# time_check_size_local: '.(microtime(1) - $time_ini_check_local_size).' seconds.', 'timer');
+		        // sl_debug('# time_check_size_local: '.(microtime(1) - $time_ini_check_local_size).' seconds.', 'timer');
 		        return $url_filesize; 
 
 		    }catch(\Exception $e){
 
-		        sl_debbug("## Notice. Could not read local image with URL ".$url." : ".$e->getMessage());
+		        sl_debug("## Notice. Could not read local image with URL ".$url." : ".$e->getMessage());
 
 		    }
 		    
@@ -583,7 +588,7 @@ class Media_class{
 	 */
 	public function process_pending_meta(){
 		
-		sl_debbug("==== Media meta process INIT ".date('Y-m-d H:i:s')." ====", 'mediameta');
+		sl_debug("==== Media meta process INIT ".date('Y-m-d H:i:s')." ====", 'mediameta');
 
 		$this->sl_time_ini_media_meta_process = microtime(1);
         $this->end_media_meta_process = false;
@@ -597,13 +602,13 @@ class Media_class{
 		
 		}catch(\Exception $e){
 
-			sl_debbug('## Error. Reading sql_meta_count: '.$e->getMessage(), 'mediameta');
+			sl_debug('## Error. Reading sql_meta_count: '.$e->getMessage(), 'mediameta');
 
 		}
 
 		if (isset($sql_meta_count['sl_cuenta_registros']) && $sql_meta_count['sl_cuenta_registros'] > 0){
 		
-			sl_debbug('Pending media meta items to process: '.$sql_meta_count['sl_cuenta_registros'], 'mediameta');
+			sl_debug('Pending media meta items to process: '.$sql_meta_count['sl_cuenta_registros'], 'mediameta');
 
 			$sql_meta_required = " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
 
@@ -613,7 +618,7 @@ class Media_class{
 
 	        	if ($this->end_media_meta_process){
 	        		
-	        	    sl_debbug('Breaking media meta process due to time limit.', 'mediameta');
+	        	    sl_debug('Breaking media meta process due to time limit.', 'mediameta');
 	        	    $return_message = 'Breaking media meta process due to time limit.';
 	        	    break;
 
@@ -629,12 +634,12 @@ class Media_class{
 		            	$save_path = rawurldecode($meta_data_required_to_process['save_path']);
 		            	$n_try = $meta_data_required_to_process['n_try'];
 
-		            	sl_debbug('File to process media meta: '.$save_path.' - Try: '.$n_try, 'mediameta');
+		            	sl_debug('File to process media meta: '.$save_path.' - Try: '.$n_try, 'mediameta');
 
 		            	$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => $n_try, 'start_meta_process' => strtotime('now'));
 			            if (!$result_update = update_metadata_by_mid( 'post', $meta_id, json_encode($meta_required_data))){
 
-							sl_debbug('## Error. Updating start meta process to item with meta_id: '.$meta_id, 'mediameta');
+							sl_debug('## Error. Updating start meta process to item with meta_id: '.$meta_id, 'mediameta');
 							
 							$this->sl_delete_metadata_by_mid($meta_id);
 
@@ -643,16 +648,16 @@ class Media_class{
 							// $time_ini_generate_attachment_metadata = microtime(1);
 			            	if ($attach_data = wp_generate_attachment_metadata( $attach_id, $save_path)) {
 
-			            		// sl_debbug('# process_pending_meta() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'mediameta');
+			            		// sl_debug('# process_pending_meta() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'mediameta');
 			            		// $time_ini_update_attachment_metadata = microtime(1);
 			            		wp_update_attachment_metadata($attach_id, $attach_data);
-			            		// sl_debbug('# process_pending_meta() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'mediameta');
+			            		// sl_debug('# process_pending_meta() - time_update_attachment_metadata: '.(microtime(1) - $time_ini_update_attachment_metadata).' seconds.', 'mediameta');
 			            		$this->sl_delete_metadata_by_mid($meta_id);
 
 			            	}else{
 
-			            		// sl_debbug('# process_pending_meta() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'mediameta');
-			            		sl_debbug('## Error. Generating attachment metadata for file: '.$save_path, 'mediameta');
+			            		// sl_debug('# process_pending_meta() - time_generate_attachment_metadata: '.(microtime(1) - $time_ini_generate_attachment_metadata).' seconds.', 'mediameta');
+			            		sl_debug('## Error. Generating attachment metadata for file: '.$save_path, 'mediameta');
 
 			            		$n_try++;
 
@@ -661,7 +666,7 @@ class Media_class{
 				            		$meta_required_data = array('save_path' => rawurlencode($save_path), 'n_try' => $n_try);
 	            					if (!$result_update = update_metadata_by_mid( 'post', $meta_id, json_encode($meta_required_data))){
 			            			
-	            						sl_debbug('## Error. Updating process tries to item with meta_id: '.$meta_id, 'mediameta');
+	            						sl_debug('## Error. Updating process tries to item with meta_id: '.$meta_id, 'mediameta');
 
 	            						$this->sl_delete_metadata_by_mid($meta_id);
 
@@ -687,14 +692,14 @@ class Media_class{
 
 		}else{
 			
-			sl_debbug('There are no pending media meta items to process.', 'mediameta');
+			sl_debug('There are no pending media meta items to process.', 'mediameta');
 			$return_message = 'There are no pending media meta items to process.';
 			
 		}
 
-		sl_debbug('### time_process_pending_meta: '.(microtime(1) - $this->sl_time_ini_media_meta_process).' seconds.', 'mediameta');
+		sl_debug('### time_process_pending_meta: '.(microtime(1) - $this->sl_time_ini_media_meta_process).' seconds.', 'mediameta');
 
-		sl_debbug("==== Media meta process END ====", 'mediameta');
+		sl_debug("==== Media meta process END ====", 'mediameta');
 		
 		return $return_message;
 
@@ -709,7 +714,7 @@ class Media_class{
 
 		if (!$result_delete = delete_metadata_by_mid( 'post', $meta_id )){
 
-    		sl_debbug('## Error. Deleting item with meta_id '.$meta_id, 'mediameta');
+    		sl_debug('## Error. Deleting item with meta_id '.$meta_id, 'mediameta');
 			
 		}
 
@@ -757,19 +762,19 @@ class Media_class{
 					
 					if ($minutes < 10){
 					
-					    sl_debbug('Less than 10 minutes processing item with meta_id '.$meta_id.', we let it finish.', 'mediameta');
+					    sl_debug('Less than 10 minutes processing item with meta_id '.$meta_id.', we let it finish.', 'mediameta');
 
 					}else{
 						    
-						sl_debbug('More than 10 minutes processing item with meta_id '.$meta_id.', we set it to run one last time.', 'mediameta');
+						sl_debug('More than 10 minutes processing item with meta_id '.$meta_id.', we set it to run one last time.', 'mediameta');
 		            	$meta_required_data = array('save_path' => $pending_meta_data['save_path'], 'n_try' => 3);
 						if (!$result_update = update_metadata_by_mid( 'post', $meta_id, json_encode($meta_required_data))){
 
-							sl_debbug('## Error. Updating last try to pending item with meta_id: '.$meta_id, 'mediameta');
+							sl_debug('## Error. Updating last try to pending item with meta_id: '.$meta_id, 'mediameta');
 
 					        if (!$result_delete = $this->sl_delete_metadata_by_mid( 'post', $meta_id )){
 
-					    		sl_debbug('## Error. Deleting pending item with meta_id: '.$meta_id, 'mediameta');
+					    		sl_debug('## Error. Deleting pending item with meta_id: '.$meta_id, 'mediameta');
 
 					    	}
 

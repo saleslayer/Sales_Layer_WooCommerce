@@ -1,0 +1,90 @@
+<div id="slyr_catalogue_admin">
+	<header>
+		<div id="logo-container">
+			<img alt="logo sales layer" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
+		</div>
+		<h3>Connectors</h3>
+		<div id="version-message-container" style="display: none;"></div>
+	</header>
+	<main id="slyr-catalogue-main">
+		<div id="messages"></div>		
+		<table class="wp-list-table widefat fixed striped posts">
+		<thead>
+			<tr>
+				<th class="slyr_of">Connector ID</th>
+				<th class="slyr_of">Last Update</th>
+				<th class="slyr_of">Progress</th>
+				<th class="slyr_of">Auto-sync every</th>
+				<th class="slyr_of">Actions</th>
+			</tr>
+		</thead>
+		<tbody>		
+		<?php
+			
+			$auto_sync_options = array('0'=>'','1'=>'1H','3'=>'3H','6'=>'6H','8'=>'8H','12'=>'12H','15'=>'15H','24'=>'24H','48'=>'48H','72'=>'72H');
+			
+			foreach ($connectors as $connector) {
+		?>
+			<tr>
+				<td class="slyr_of title column-title column-primary"><strong><?php echo $connector['conn_code']; ?></strong></td>
+				<td class="slyr_of date column-date"><strong><?php echo $connector['last_update']; ?></strong></td>
+				<td>
+					<div class="slyr_progress progress" id="progress_catalogue_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_catalogue_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+							aria-valuemax="100" style="width:0%">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_catalogue_<?php echo $connector['conn_code']; ?>">
+								Catalogue
+							</span>
+						</div>
+					</div>
+					<div class="slyr_progress progress" id="progress_products_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_products_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+							aria-valuemax="100" style="width:0%">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_products_<?php echo $connector['conn_code']; ?>">
+								Products
+							</span>
+						</div>
+					</div>
+					<div class="slyr_progress progress" id="progress_product_formats_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_formats_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+							aria-valuemax="100" style="width:0%">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_formats_<?php echo $connector['conn_code']; ?>">
+								Product variants
+							</span>
+						</div>
+					</div>
+					<div class="slyr_progress progress" id="progress_product_links_<?php echo $connector['conn_code']; ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_links_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+							aria-valuemax="100" style="width:0%">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_links_<?php echo $connector['conn_code']; ?>">
+								Product links
+							</span>
+						</div>
+					</div>
+				</td>
+				<td>
+					<select class="select" name="auto_sync" id="auto_sync_<?php echo $connector['conn_code']; ?>" onchange="update_conn_field(this);" >
+						<?php
+						foreach($auto_sync_options as $asoKey => $auto_sync_option){
+							?>
+							<option value="<?php echo $asoKey; ?>" <?php echo ($connector['auto_sync'] == $asoKey ? 'selected' : ''); ?> ><?php echo $auto_sync_option; ?></option>
+							<?php
+						}
+						?>
+					</select>
+				</td>
+				<td class="tags column-tags">
+					<button type="button" class="button button-primary button_block button-sync slyr_of" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
+					<form id="delconn_form_<?php echo $connector['conn_code']; ?>" name="delconn_form" method="post" action="">
+						<input name="delete_conn" type="hidden" value="<?php echo $connector['conn_code']; ?>" />
+						<input type="submit" class="button button_block button-forget slyr_of" value="Forget Me!">
+					</form>
+				</td>
+			</tr>
+		<?php
+			}
+		?>
+		</tbody>
+		</table>
+	</main>		
+</div>

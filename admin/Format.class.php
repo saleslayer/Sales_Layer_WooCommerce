@@ -33,12 +33,12 @@ class Format {
 
 	protected $media_class;
 
-	protected $debugg_level;
+	protected $debug_level;
 
 	public function __construct()
 	{
-		global $debbug_level;
-		$this->debbug_level = $debbug_level ?? 0;
+		global $debug_level;
+		$this->debug_level = $debug_level ?? 0;
 	}
 
 	/**
@@ -163,11 +163,11 @@ class Format {
 		
 		}
 		
-		if ($this->debbug_level > 1 &&
+		if ($this->debug_level > 1 &&
 			isset($format_params['format_additional_fields']) &&
 			count($format_params['format_additional_fields']) > 0) {
             
-            sl_debbug("Format additional fields: ".print_r($format_params['format_additional_fields'], 1));
+            sl_debug("Format additional fields: ".print_r($format_params['format_additional_fields'], 1));
 
 		}
 
@@ -206,11 +206,11 @@ class Format {
 			}
 
 		}
-	    sl_debbug('### pre_process_formats: '.(microtime(1) - $time_ini_pre_process_formats).' seconds.');
+	    sl_debug('### pre_process_formats: '.(microtime(1) - $time_ini_pre_process_formats).' seconds.');
 
 	    $time_ini_reorganize_formats = microtime(1);
 		$formats = $this->reorganize_formats_before_store($formats);
-	    sl_debbug('### reorganize_formats: '.(microtime(1) - $time_ini_reorganize_formats).' seconds.');
+	    sl_debug('### reorganize_formats: '.(microtime(1) - $time_ini_reorganize_formats).' seconds.');
 
 	    if (isset($formats['not_synced_formats']) && !empty($formats['not_synced_formats'])){
 
@@ -450,24 +450,24 @@ class Format {
 
 		// $time_ini_find_saleslayer_parent_product = microtime(1);
 		$wp_parent_product = find_saleslayer_product($sl_parent_product_id, $this->comp_id);
-		// sl_debbug('## time_find_saleslayer_parent_product: '.(microtime(1) - $time_ini_find_saleslayer_parent_product).' seconds.', 'timer');
+		// sl_debug('## time_find_saleslayer_parent_product: '.(microtime(1) - $time_ini_find_saleslayer_parent_product).' seconds.', 'timer');
 		
 		if (!$wp_parent_product){
 
-			sl_debbug('## Error. '.$format_data[$this->format_field_sku]." - The format parent does not exist.");
+			sl_debug('## Error. '.$format_data[$this->format_field_sku]." - The format parent does not exist.");
 			return 'item_not_updated';
 
 		}else{
 
 			// $time_ini_get_parent_attributes = microtime(1);
 			$parent_attributes = $this->get_parent_attributes($wp_parent_product['ID'], $format['sl_attributes']);
-			// sl_debbug('## time_get_parent_attributes: '.(microtime(1) - $time_ini_get_parent_attributes).' seconds.', 'timer');
+			// sl_debug('## time_get_parent_attributes: '.(microtime(1) - $time_ini_get_parent_attributes).' seconds.', 'timer');
 			
 		}
 		
 		// $time_ini_sync_parent_data = microtime(1);
 		$this->sync_parent_data($wp_parent_product['ID'], $parent_attributes);
-		// sl_debbug('## time_sync_parent_data: '.(microtime(1) - $time_ini_sync_parent_data).' seconds.', 'timer');
+		// sl_debug('## time_sync_parent_data: '.(microtime(1) - $time_ini_sync_parent_data).' seconds.', 'timer');
 
 		$time_ini_format_core_data = microtime(1);
 		
@@ -517,7 +517,7 @@ class Format {
 
 				$time_ini_format_create = microtime(1);
 				$this->create_format($sl_parent_product_id, $this->comp_id, $sl_format_id, $wp_parent_product['ID'], $wp_parent_product['post_title']);
-				sl_debbug('## time_format_create: '.(microtime(1) - $time_ini_format_create).' seconds.', 'timer');
+				sl_debug('## time_format_create: '.(microtime(1) - $time_ini_format_create).' seconds.', 'timer');
 			
 			}
 			
@@ -525,16 +525,16 @@ class Format {
 			
 			if (!$wp_format){
 				
-				sl_debbug('## Error. '.$format_data[$this->format_field_sku]." - The format could not been created.");
+				sl_debug('## Error. '.$format_data[$this->format_field_sku]." - The format could not been created.");
 				return 'item_not_updated';
 			
 			}
 		
 		}
 
-		if ($this->debbug_level) sl_debbug(" > Updating product format ID: $sl_format_id (parent: $sl_parent_product_id)");
+		if ($this->debug_level) sl_debug(" > Updating product format ID: $sl_format_id (parent: $sl_parent_product_id)");
 
-		if ($this->debbug_level > 1) sl_debbug(" SKU ({$this->format_field_sku}): ".$format_data[$this->format_field_sku]);
+		if ($this->debug_level > 1) sl_debug(" SKU ({$this->format_field_sku}): ".$format_data[$this->format_field_sku]);
 
 		//Format attributes
 		foreach ($sl_format_attributes as $format_name => $format_value) {
@@ -805,7 +805,7 @@ class Format {
 
 			}else{
 
-				sl_debbug('## Error. Product shipping class taxonomy does not exist.');
+				sl_debug('## Error. Product shipping class taxonomy does not exist.');
 
 			}
 
@@ -963,11 +963,11 @@ class Format {
 
 			}catch(\Exception $e){
 
-				sl_debbug('## Error. Clearing/refreshing the parent product price cache: '.$e->getMessage());
+				sl_debug('## Error. Clearing/refreshing the parent product price cache: '.$e->getMessage());
 
 			}
 
-			sl_debbug('## time_parent_price: '.(microtime(1) - $time_ini_parent_price).' seconds.', 'timer');
+			sl_debug('## time_parent_price: '.(microtime(1) - $time_ini_parent_price).' seconds.', 'timer');
 
 		}
 
@@ -1124,7 +1124,7 @@ class Format {
 		
 		}
 
-		sl_debbug('## time_format_core_data: '.(microtime(1) - $time_ini_format_core_data).' seconds.', 'timer');
+		sl_debug('## time_format_core_data: '.(microtime(1) - $time_ini_format_core_data).' seconds.', 'timer');
 				
 		$time_ini_format_images = microtime(1);
 		//Format images
@@ -1226,9 +1226,9 @@ class Format {
 			}
 
 		}
-		sl_debbug('## time_format_images: '.(microtime(1) - $time_ini_format_images).' seconds.', 'timer');	
+		sl_debug('## time_format_images: '.(microtime(1) - $time_ini_format_images).' seconds.', 'timer');	
 		
-		sl_debbug('### time_formats_per_prod: '.(microtime(1) - $time_ini_formats_per_prod).' seconds.', 'timer');
+		sl_debug('### time_formats_per_prod: '.(microtime(1) - $time_ini_formats_per_prod).' seconds.', 'timer');
 
 		return 'item_updated';
 
@@ -1349,7 +1349,7 @@ class Format {
 
 		if( is_wp_error( $posts ) ) {
 
-			sl_debbug('## Error. find_format_by_attributes: '.$posts->get_error_message());
+			sl_debug('## Error. find_format_by_attributes: '.$posts->get_error_message());
 
 		}else if (!empty($posts)){
 	    	
@@ -1412,7 +1412,7 @@ class Format {
 
 		if( is_wp_error( $format_id ) ) {
 
-			sl_debbug('## Error. create_format: '.$format_id->get_error_message());
+			sl_debug('## Error. create_format: '.$format_id->get_error_message());
 
 		}else if ($format_id){
 			
@@ -1424,7 +1424,7 @@ class Format {
 			sl_update_post_meta($format_id, '_saleslayercompid', $comp_id);
 			sl_update_post_meta($format_id, '_saleslayerformatid', $sl_format_id);
 
-			if ($this->debbug_level) sl_debbug("Format created!");
+			if ($this->debug_level) sl_debug("Format created!");
 			return true;
 
 		}
@@ -1638,7 +1638,7 @@ class Format {
 	 */
 	public function delete_stored_product_format ($format_to_delete) {
 
-		sl_debbug('Disabling product format with SL id: '.$format_to_delete.' comp_id: '.$this->comp_id. '. Setting it to private status.');
+		sl_debug('Disabling product format with SL id: '.$format_to_delete.' comp_id: '.$this->comp_id. '. Setting it to private status.');
 
 		$wp_format = find_saleslayer_format(null, $connector->conn_data['comp_id'], $format_to_delete);
 		
@@ -1652,7 +1652,7 @@ class Format {
 
 		}else{
 
-			sl_debbug('## Error. The product format with id: '.$format_to_delete.' does not exist.');
+			sl_debug('## Error. The product format with id: '.$format_to_delete.' does not exist.');
 			return 'item_not_deleted';
 
 		}

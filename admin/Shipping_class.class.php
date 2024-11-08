@@ -57,7 +57,7 @@ class Shipping_class {
 	    
 	    }else{
 
-			sl_debbug('## Error. Product shipping class taxonomy does not exist.');
+			sl_debug('## Error. Product shipping class taxonomy does not exist.');
 
 	    }
 	    
@@ -74,7 +74,7 @@ class Shipping_class {
 	    
 	    if( is_wp_error( $new_shipping_class ) ) {
 
-			sl_debbug('## Error. Creating new shipping class with name '.$shipping_class_name.' : '.print_r($new_shipping_class->get_error_message(),1));
+			sl_debug('## Error. Creating new shipping class with name '.$shipping_class_name.' : '.print_r($new_shipping_class->get_error_message(),1));
 			return '';
 
 		}else{

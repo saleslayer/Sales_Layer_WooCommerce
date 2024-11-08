@@ -1,0 +1,41 @@
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    margin-top: 10px;
+    text-align: center;
+}
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin-top: 10px;
+    text-align: center;
+}
+.action-group {
+    width: 48%;
+    display: inline-block;
+    vertical-align: top;
+    margin-bottom: 20px;
+    text-align: center;
+}
+.action-group p {
+    margin-bottom: 10px;
+}
+.action-group button i {
+    margin-right: 8px;
+}
+.action-group button {
+    width: 30%;
+    padding: 10px;
+    font-size: 16px;
+}
+@media (max-width: 600px) {
+    .action-group {
+        width: 100%;
+    }
+}

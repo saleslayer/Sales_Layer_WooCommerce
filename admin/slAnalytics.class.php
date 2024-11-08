@@ -10,8 +10,8 @@ class slAnalytics
     
     public function __construct()
 	{
-        global $debbug_level;
-		$this->debbug_level = $debbug_level ?? 0;
+        global $debug_level;
+		$this->debug_level = $debug_level ?? 0;
         $this->SL_API_URL = 'https://'.SLYR_WC_url_API.'?s=conn_plug_analytics';
     }
 
@@ -75,7 +75,7 @@ class slAnalytics
 
         foreach ($expectedKeys as $key) {
             if (!array_key_exists($key, $data)){
-                sl_debbug('## Error. Analytics data incomplete. Missing index: '.print_r($key, true));
+                sl_debug('## Error. Analytics data incomplete. Missing index: '.print_r($key, true));
                 return false;
             }
         }
@@ -112,7 +112,7 @@ class slAnalytics
 
         if ($response === false) {
             // Connection error or another cURL error
-            sl_debbug('## Error. Analytics error connection: '.curl_error($ch));
+            sl_debug('## Error. Analytics error connection: '.curl_error($ch));
             curl_close($ch);
             return false;
         }
@@ -122,14 +122,14 @@ class slAnalytics
 
         if ($http_code >= 400) {
             // If the HTTP code is 400 or higher, we consider it an error
-            sl_debbug('## Error. HTTP Error '.$http_code.'. Response: '.print_r($response, true));
+            sl_debug('## Error. HTTP Error '.$http_code.'. Response: '.print_r($response, true));
             curl_close($ch);
             return false;
         }
 
         if ($http_code == 200) {
             // If the HTTP code is 200, we print the response
-            sl_debbug('Analytics data stored: '.$response);
+            sl_debug('Analytics data stored: '.$response);
             curl_close($ch);
             return true;
 
@@ -150,7 +150,7 @@ class slAnalytics
         
         $publicKey = $this->getAnalyticsPublicKey();
         if (!$publicKey) {
-            sl_debbug('## Error. Invalid public key.');
+            sl_debug('## Error. Invalid public key.');
             return false;
         }
 
@@ -165,7 +165,7 @@ class slAnalytics
 
         // Encrypt AES key with RSA public key
         if (!openssl_public_encrypt($aesKey, $encryptedCEKey, $publicKey)) {
-            sl_debbug('## Error. RSA encryption failed.');
+            sl_debug('## Error. RSA encryption failed.');
             return false;
         }
 
