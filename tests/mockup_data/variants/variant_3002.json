@@ -1,0 +1,86 @@
+{
+  "sync_type": "update",
+  "item_type": "product_format",
+  "sync_tries": "0",
+  "item_data": {
+    "format_data": {
+      "data": {
+        "format_sku": "TEST-CAMISETA-HOMBRE-001-NEGRO-L",
+        "format_description": "Camiseta Básica Hombre - Negro L",
+        "format_image_es": {
+          "6264061350d1652b38405fbe2674e549": {
+            "ORG": "https://d7rh5s3nxmpy4.cloudfront.net/CMP9590/nadie.jpg"
+          }
+        },
+        "format_regular_price": "24.99",
+        "format_sale_price": "19.99",
+        "format_stock": 30,
+        "format_weight": "0.2",
+        "format_length": "27",
+        "format_width": "22",
+        "format_height": "2",
+        "format_enabled": "publish",
+        "format_manage_stock": "",
+        "format_stock_status": "",
+        "format_downloadable": "",
+        "format_virtual": "",
+        "format_shipping_class": "",
+        "etiquetas": "Test_woo",
+        "tmt_image_format_field": "",
+        "tmt_file_format_field": "",
+        "color": "Negro",
+        "size": "L",
+        "material": ""
+      },
+      "ID": "3002",
+      "ID_products": "2001"
+    },
+    "sl_attributes": {
+      "color": ["Blanco", "Negro", "Azul", "Gris"],
+      "size": ["S", "M", "L", "XL"]
+    },
+    "parent_product_attributes": {
+      "color": "color",
+      "size": "size"
+    }
+  },
+  "sync_params": {
+    "format_fields": {
+      "format_images_sizes": [
+          "ORG"
+      ],
+      "format_field_sku": "format_sku",
+      "format_field_description": "format_description",
+      "format_field_regular_price": "format_regular_price",
+      "format_field_sale_price": "format_sale_price",
+      "format_field_stock": "format_stock",
+      "format_field_manage_stock": "format_manage_stock",
+      "format_field_stock_status": "format_stock_status",
+      "format_field_weight": "format_weight",
+      "format_field_length": "format_length",
+      "format_field_width": "format_width",
+      "format_field_height": "format_height",
+      "format_field_enabled": "format_enabled",
+      "format_field_downloadable": "format_downloadable",
+      "format_field_virtual": "format_virtual",
+      "format_field_image": "format_image_es",
+      "format_field_shipping_class": "format_shipping_class"
+    },
+    "format_additional_fields": {
+      "color": "color",
+      "size": "size",
+      "material": "material",
+      "etiquetas": "etiquetas",
+      "tmt_image_format_field": "tmt_image_format_field",
+      "tmt_file_format_field": "tmt_file_format_field"
+    },
+    "product_formats_media_field_names": {
+      "tmt_image_format_field": "tmt_image_format_field",
+      "tmt_file_format_field": "tmt_file_format_field"
+    },
+    "conn_params": {
+      "comp_id": "1000",
+      "connector_id": "CN4150H4015C1000"
+    }
+  }
+}

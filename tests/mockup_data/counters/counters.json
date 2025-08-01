@@ -1,0 +1,28 @@
+{
+  "sync_type": "info",
+  "item_type": "counters",
+  "sync_tries": "0",
+  "item_data": {
+    "catalogue": {
+        "sync": {
+            "total": 3
+        }
+    },
+    "products": {
+        "sync": {
+            "total": 3
+        }
+    },
+    "product_formats": {
+        "sync": {
+            "total": 6
+        }
+    }
+  },
+  "sync_params": {
+    "conn_params": {
+      "comp_id": "1000",
+      "connector_id": "CN4150H4015C1000"
+    }
+  }
+}

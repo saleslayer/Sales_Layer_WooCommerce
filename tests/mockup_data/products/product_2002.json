@@ -1,0 +1,100 @@
+{
+  "sync_type": "update",
+  "item_type": "product",
+  "sync_tries": "0",
+  "item_data": {
+    "data": {
+      "product_name_es": "Vestido Casual Mujer Test",
+      "product_description_es": "Vestido casual elegante para mujer, perfecto para cualquier ocasión. Fabricado en tejido suave y transpirable con corte favorecedor. Disponible en varios colores y tallas para testing completo de variantes.",
+      "product_description_short": "Vestido casual elegante para mujer en tejido suave",
+      "product_sku": "TEST-VESTIDO-MUJER-001",
+      "product_regular_price": "34.99",
+      "product_sale_price": "29.99",
+      "product_stock": "35",
+      "product_weight": 0.4,
+      "product_length": 35,
+      "product_width": 25,
+      "product_height": 3,
+      "product_image_es": {
+        "3d45501cc33cbb0db1756850ef5c4b17": {
+          "ORG": "https://d7rh5s3nxmpy4.cloudfront.net/CMP9590/her.jpg"
+        },
+        "3d45501cc33cbb0db1756850ef5c4b15": {
+          "ORG": "https://d7rh5s3nxmpy4.cloudfront.net/CMP9590/agua.jpg"
+        }
+      },
+      "product_purchase_note": "",
+      "product_menu_order": "",
+      "product_tags": [
+          "Test_Woo"
+      ],
+      "product_downloadable": "",
+      "product_virtual": "",
+      "file_data": [],
+      "texto_500": "",
+      "additional_image": [],
+      "grouping_product_references": [],
+      "related_products_references": [],
+      "upsell_products_references": [],
+      "crosssell_products_references": [],
+      "composition_es": "75% Algodón",
+      "specifications": "10 botones",
+      "product_manage_stock": "",
+      "product_stock_status": "",
+      "product_shipping_class": "",
+      "tmt_file_test": [],
+      "product_status": ""
+    },
+    "ID": "2002",
+    "ID_catalogue": ["1001", "1002"]
+  },
+  "sync_params": {
+    "product_fields": {
+      "product_images_sizes": [
+          "ORG"
+      ],
+      "product_field_name": "product_name_es",
+      "product_field_description": "product_description_es",
+      "product_field_description_short": "product_description_short",
+      "product_field_regular_price": "product_regular_price",
+      "product_field_sale_price": "product_sale_price",
+      "product_field_image": "product_image_es",
+      "product_field_sku": "product_sku",
+      "product_field_status": "product_status",
+      "product_field_stock": "product_stock",
+      "product_field_manage_stock": "product_manage_stock",
+      "product_field_stock_status": "product_stock_status",
+      "product_field_menu_order": "product_menu_order",
+      "product_field_weight": "product_weight",
+      "product_field_length": "product_length",
+      "product_field_width": "product_width",
+      "product_field_height": "product_height",
+      "product_field_purchase_note": "product_purchase_note",
+      "product_field_tags": "product_tags",
+      "product_field_downloadable": "product_downloadable",
+      "product_field_virtual": "product_virtual",
+      "product_field_related_references": "related_products_references",
+      "product_field_crosssell_references": "crosssell_products_references",
+      "product_field_upsell_references": "upsell_products_references",
+      "product_field_grouping_references": "grouping_product_references",
+      "product_field_shipping_class": "product_shipping_class"
+    },
+    "product_additional_fields": {
+      "file_data": "file_data",
+      "texto_500": "texto_500",
+      "additional_image": "additional_image",
+      "composition": "composition_es",
+      "specifications": "specifications",
+      "tmt_file_test": "tmt_file_test"
+    },
+    "products_media_field_names": {
+      "file_data": "file_data",
+      "additional_image": "additional_image",
+      "tmt_file_test": "tmt_file_test"
+    },
+    "conn_params": {
+      "comp_id": "1000",
+      "connector_id": "CN4150H4015C1000"
+    }
+  }
+}

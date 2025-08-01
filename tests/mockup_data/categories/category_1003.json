@@ -1,0 +1,32 @@
+{
+  "sync_type": "update",
+  "item_type": "category",
+  "sync_tries": "0",
+  "item_data": {
+    "data": {
+      "section_name_es": "Hombre",
+      "section_description": "Categoría ropa hombre.",
+      "section_image": {
+        "de7d8cc4d5fe019eec2eadb61692d0f2": {
+          "ORG": "https://d7rh5s3nxmpy4.cloudfront.net/CMP9590/1/puma.png"
+        }
+      },
+      "section_order": "2"
+    },
+    "ID": "1003",
+    "ID_PARENT": "1001"
+  },
+  "sync_params": {
+    "category_fields": {
+      "category_images_sizes": ["ORG"],
+      "category_field_name": "section_name_es",
+      "category_field_description": "section_description",
+      "category_field_image": "section_image",
+      "category_field_order": "section_order"
+    },
+    "conn_params": {
+      "comp_id": "1000",
+      "connector_id": "CN4150H4015C1000"
+    }
+  }
+}
