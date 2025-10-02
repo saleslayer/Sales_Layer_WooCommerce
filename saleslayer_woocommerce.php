@@ -3,18 +3,26 @@
 Plugin Name:    Sales Layer WooCommerce
 Plugin URI:     http://support.saleslayer.com/
 Description:    Plugin that allows you to synchronize your catalogue from Sales Layer to WooCommerce.
-Version:        2.5.2
+Version:        2.5.3
 Author:         Sales Layer
 Author URI:     http://saleslayer.com/
 License:        GPL2
 License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
 Text Domain:    saleslayer_woocommerce
-WC requires at least: 3.0.0
-WC tested up to: 9.3.3
+WC requires at least: 8.2.0
+WC tested up to: 9.9.4
 */
 
 defined( 'ABSPATH' ) or die( '¡Sin trampas!' );
 require_once(ABSPATH . 'wp-admin/includes/file.php');
+
+// Declaring compatibility with HPOS (High-Performance Order Storage) - MUST go really early
+add_action('before_woocommerce_init', function() {
+    // Verificar que WooCommerce y la funcionalidad HPOS están disponibles
+    if (class_exists('Automattic\WooCommerce\Utilities\FeaturesUtil')) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+    }
+});
 
 ?>
 <?php
@@ -130,6 +138,28 @@ function slyr_wc_activate(){
             __( 'Activation error', 'slyr-wc-plugin' ),
             array( 
                 'back_link' => true 
+            )
+        );
+    }
+
+    if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '8.2', '<' ) ) {
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+        wp_die(
+            __( 'This plugin requires WooCommerce version 8.2 o higher.', 'slyr-wc-plugin' ),
+            __( 'Activation error', 'slyr-wc-plugin' ),
+            array(
+                'back_link' => true
+            )
+        );
+    }
+
+    if ( version_compare( PHP_VERSION, '8.0', '<' ) ) {
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+        wp_die(
+            __( 'This plugin requires PHP version 8.0 o higher.', 'slyr-wc-plugin' ),
+            __( 'Activation error', 'slyr-wc-plugin' ),
+            array(
+                'back_link' => true
             )
         );
     }
