@@ -1,9 +1,13 @@
 <?php 
 
-    ini_set('display_errors', 0);
-    error_reporting(E_ALL ^ E_NOTICE);
+    ini_set('display_errors', '0');
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_reporting(E_ALL);
+    } else {
+        error_reporting(E_ALL ^ E_NOTICE);
+    }
     
-    define('SLYR_WC_version', "2.5.2");
+    define('SLYR_WC_version', "2.5.3");
     define('SLYR_WC_latest_version', "");
     define('SLYR_WC_connector_type', 'CN_WOOCOMM');
     define('SLYR_WC_url_API', 'api.saleslayer.com/');

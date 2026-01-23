@@ -9,6 +9,10 @@ Author URI:     http://saleslayer.com/
 License:        GPL2
 License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
 Text Domain:    saleslayer_woocommerce
+Requires PHP:   8.0
+Requires at least: 6.4
+Tested up to:   6.9
+Requires Plugins: woocommerce
 WC requires at least: 8.2.0
 WC tested up to: 9.9.4
 */
@@ -47,7 +51,7 @@ add_action('before_woocommerce_init', function() {
 include_once(plugin_dir_path(__FILE__).'settings.php');
 if (!defined('SLYR_TIME_INI_PROCESS')) define('SLYR_TIME_INI_PROCESS', microtime(true));
 
-function sl_debug($msg, $type = '')
+function sl_debug($msg, string $type = '')
 {
     global $debug_level;
 
@@ -129,7 +133,8 @@ function sl_debug($msg, $type = '')
 /**
  * Check if WooCommerce is active
  **/
-function slyr_wc_activate(){
+function slyr_wc_activate()
+{
 
     if ( !in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
         deactivate_plugins( plugin_basename( __FILE__ ) );
@@ -170,7 +175,8 @@ function slyr_wc_activate(){
 }
 register_activation_hook( __FILE__, 'slyr_wc_activate' );
 
-function slyr_wc_deactivate(){
+function slyr_wc_deactivate()
+{
     $stored_version = get_option('SLYR_WC_latest_version', '');
     if ($stored_version !== '') {
         delete_option('SLYR_WC_latest_version');
@@ -179,7 +185,8 @@ function slyr_wc_deactivate(){
 }
 register_deactivation_hook( __FILE__, 'slyr_wc_deactivate');
 
-function slyr_wc_plugin_init(){
+function slyr_wc_plugin_init()
+{
 
     global $debug_level;
     
@@ -202,7 +209,8 @@ function slyr_wc_plugin_init(){
 }
 add_action('init','slyr_wc_plugin_init');
 
-function slyr_wc_enqueue_stylesheets(){
+function slyr_wc_enqueue_stylesheets()
+{
 
     // Register Bootstrap and flat ui styles
     if (is_admin()) {
@@ -217,7 +225,8 @@ function slyr_wc_enqueue_stylesheets(){
 
 }
 
-function slyr_wc_enqueue_scripts(){
+function slyr_wc_enqueue_scripts()
+{
 
     if (is_admin()){
 
@@ -236,7 +245,8 @@ function slyr_wc_enqueue_scripts(){
 
 }
 
-function slyr_wc_menu() {
+function slyr_wc_menu()
+{
     
     $menu_pages[]= add_menu_page( SLYR_WC_name.' Options', SLYR_WC_name, 'manage_options', 'slyr_wc_menu', 'slyr_wc_how_to_start',
                                   $icon_url=plugin_dir_url( __FILE__ ).'images/'.SLYR_WC_name_icon);
@@ -254,7 +264,8 @@ function slyr_wc_menu() {
     } 
 }
 
-function slyr_wc_how_to_start() {
+function slyr_wc_how_to_start()
+{
     if ( !current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
@@ -296,7 +307,8 @@ function slyr_wc_show_admin_notice()
 }
 add_action('admin_notices', 'slyr_wc_show_admin_notice');
 
-function slyr_wc_general_params() {
+function slyr_wc_general_params()
+{
     if ( !current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     } else {
@@ -344,7 +356,8 @@ function slyr_enqueue_general_params_script()
 }
 add_action( 'admin_enqueue_scripts', 'slyr_enqueue_general_params_script' );
 
-function slyr_wc_add_connector(){
+function slyr_wc_add_connector()
+{
 
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
@@ -434,7 +447,8 @@ function slyr_wc_add_connector(){
     
 }
 
-function slyr_wc_connectors(){
+function slyr_wc_connectors()
+{
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }else{
@@ -504,7 +518,8 @@ function slyr_enqueue_connectors_script()
 }
 add_action( 'admin_enqueue_scripts', 'slyr_enqueue_connectors_script' );
 
-function slyr_wc_tools() {
+function slyr_wc_tools()
+{
     if ( !current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
@@ -524,7 +539,8 @@ function slyr_wc_tools() {
     }
 }
 
-function slyr_enqueue_tools_script() {
+function slyr_enqueue_tools_script()
+{
     if ( isset( $_GET['page'] ) && $_GET['page'] === 'slyr_wc_tools' ) {
         wp_register_script(
             'slyr_wc_script_tools',
@@ -550,7 +566,8 @@ function slyr_enqueue_tools_script() {
 }
 add_action( 'admin_enqueue_scripts', 'slyr_enqueue_tools_script' );
 
-function slyr_wc_faq() {
+function slyr_wc_faq()
+{
     if ( !current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
@@ -570,7 +587,8 @@ function slyr_wc_faq() {
     }
 }
 
-function slyr_enqueue_faq_script() {
+function slyr_enqueue_faq_script()
+{
     if ( isset( $_GET['page'] ) && $_GET['page'] === 'slyr_wc_faq' ) {
         wp_register_script(
             'slyr_wc_script_faq',
@@ -588,13 +606,20 @@ function slyr_enqueue_faq_script() {
 }
 add_action( 'admin_enqueue_scripts', 'slyr_enqueue_faq_script' );
 
-function slyr_wc_plugin_uninstall() {
+function slyr_wc_plugin_uninstall()
+{
 
     global $wpdb;
 
     // Delete any options starting with slyr
-    $wpdb->query("DELETE FROM wp_options WHERE option_name LIKE 'slyr_wc%' OR option_name LIKE '" .
-                 SLYR_WC_general_params. "';");
+    $options_table = $wpdb->options;
+    $like_prefix = $wpdb->esc_like('slyr_wc') . '%';
+    $sql = $wpdb->prepare(
+        "DELETE FROM {$options_table} WHERE option_name LIKE %s OR option_name = %s",
+        $like_prefix,
+        SLYR_WC_general_params
+    );
+    $wpdb->query($sql);
 
     // Delete all saleslayer tables
     // $deleteTables = array('slyr_catalogue', 'slyr_locations', 'slyr_products', 'slyr_product_formats', 'slyr___api_config', 'slyr_filter');
@@ -604,7 +629,8 @@ function slyr_wc_plugin_uninstall() {
 
 register_uninstall_hook(__FILE__, 'slyr_wc_plugin_uninstall');
 
-function synchronize_connector($connector_id, $secret_key){
+function synchronize_connector($connector_id, $secret_key)
+{
 
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Synchronize.class.php');
 
@@ -614,7 +640,8 @@ function synchronize_connector($connector_id, $secret_key){
     
 }
 
-function sl_wc_process_pending_meta(){
+function sl_wc_process_pending_meta()
+{
 
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Media_class.class.php');
 
@@ -627,7 +654,8 @@ function sl_wc_process_pending_meta(){
 
 }
 
-function media_meta_add_cron_schedule( $schedules ) {
+function media_meta_add_cron_schedule($schedules)
+{
     $schedules[SLYR_WC_media_meta_minutes_interval] = array(
         'interval' => SLYR_WC_media_meta_minutes_start * 60,
         'display'  => __( 'Once every '.SLYR_WC_media_meta_minutes_start.' minutes' ),
@@ -642,7 +670,8 @@ if (!wp_next_scheduled( 'sl_wc_media_meta_schedule' ) ) {
 }
 add_action('sl_wc_media_meta_schedule', 'sl_wc_process_pending_meta');
 
-function check_plugin_requirements(){
+function check_plugin_requirements()
+{
 
     if (!extension_loaded('curl')){
         return array('error' => 1, 'message' => '<div class="dialog dialog-warning">You need to activate curl extension in order to make the plugin work.</div>');
@@ -653,7 +682,8 @@ function check_plugin_requirements(){
 
 add_action('wp_ajax_sl_wc_synchronize_connector', 'sl_wc_synchronize_connector');
 
-function sl_wc_synchronize_connector(){
+function sl_wc_synchronize_connector()
+{
 
     $connector_id = $_POST['connector_id'];
     $secret_key = $_POST['secret_key'];
@@ -673,7 +703,8 @@ function sl_wc_synchronize_connector(){
 add_action('wp_ajax_sl_wc_update_conn_field', 'update_conn_field_action');
 add_action('wp_ajax_sl_wc_update_general_parameter_field', 'update_general_parameter_field_action');
 
-function update_conn_field_action(){
+function update_conn_field_action()
+{
 
     $connector_id = $_GET['connector_id'];
     $field_name = $_GET['field_name'];
@@ -759,7 +790,8 @@ function update_general_parameter_field_action()
 
 add_action('wp_ajax_sl_wc_execute_tool', 'sl_wc_execute_tool');
 
-function sl_wc_execute_tool(){
+function sl_wc_execute_tool()
+{
 
     $toolToExecute = $_POST['tool_to_execute'];
     $response = [];
@@ -819,14 +851,15 @@ function sl_wc_execute_tool(){
 }
 
 /**
- * Function to check and synchronize Sales Layer connectors with auto-synchronization enabled.
+ * Check and synchronize Sales Layer connectors with auto-synchronization enabled.
  * @return void
  */
-function sl_wc_auto_sync_connectors(){
+function sl_wc_auto_sync_connectors()
+{
 
     sl_debug("==== AUTOSync INIT ".date('Y-m-d H:i:s')." ====", 'autosync');
 
-    $sl_time_ini_auto_sync_process = microtime(1);
+    $sl_time_ini_auto_sync_process = microtime(true);
     
     $return_message = [];
 
@@ -847,14 +880,14 @@ function sl_wc_auto_sync_connectors(){
 
             sl_debug("Connector to auto-synchronize: ".$conn_code, 'autosync');
             
-            $time_ini_cron_sync = microtime(1);
+            $time_ini_cron_sync = microtime(true);
             
             $time_random = rand(20,50);
             sleep($time_random);
             $return_message['message'] = synchronize_connector($conn_code, $conn_secret);
             
             sl_debug("#### time_random: ".$time_random.' seconds.', 'autosync');
-            sl_debug("#### time_cron_sync: ".(microtime(1) - $time_ini_cron_sync - $time_random).' seconds.', 'autosync');
+            sl_debug("#### time_cron_sync: ".(microtime(true) - $time_ini_cron_sync - $time_random).' seconds.', 'autosync');
 
         }else{
 
@@ -867,7 +900,7 @@ function sl_wc_auto_sync_connectors(){
 
     }
 
-    sl_debug('##### time_all_autosync_process: '.(microtime(1) - $sl_time_ini_auto_sync_process).' seconds.', 'autosync');
+    sl_debug('##### time_all_autosync_process: '.(microtime(true) - $sl_time_ini_auto_sync_process).' seconds.', 'autosync');
 
     sl_debug("==== AUTOSync END ====", 'autosync');
 
@@ -881,7 +914,8 @@ function sl_wc_auto_sync_connectors(){
 
 }
 
-function auto_sync_add_cron_schedule( $schedules ) {
+function auto_sync_add_cron_schedule($schedules)
+{
     $schedules[SLYR_WC_auto_sync_minutes_interval] = array(
         'interval' => SLYR_WC_auto_sync_minutes_start * 60,
         'display'  => __( 'Once every '.SLYR_WC_auto_sync_minutes_start.' minutes' ),
@@ -897,10 +931,11 @@ if (!wp_next_scheduled( 'sl_wc_auto_sync_schedule' ) ) {
 add_action('sl_wc_auto_sync_schedule', 'sl_wc_auto_sync_connectors');
 
 /**
- * Function to synchronize Sales Layer stored connector's data.
+ * Synchronize Sales Layer stored connector's data.
  * @return void
  */
-function sl_wc_syncdata_connectors(){
+function sl_wc_syncdata_connectors()
+{
 
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Synchronize.class.php');
     
@@ -911,7 +946,8 @@ function sl_wc_syncdata_connectors(){
 
 }
 
-function syncdata_add_cron_schedule( $schedules ) {
+function syncdata_add_cron_schedule($schedules)
+{
     $schedules[SLYR_WC_syncdata_minutes_interval] = array(
         'interval' => SLYR_WC_syncdata_minutes_start * 60,
         'display'  => __( 'Once every '.SLYR_WC_syncdata_minutes_start.' minutes' ),
@@ -928,7 +964,8 @@ add_action('sl_wc_syncdata_schedule', 'sl_wc_syncdata_connectors');
 
 add_action('wp_ajax_sl_wc_check_process_status', 'sl_wc_check_process_status');
 
-function sl_wc_check_process_status(){
+function sl_wc_check_process_status()
+{
     
     $process_status = array();
 
@@ -938,7 +975,7 @@ function sl_wc_check_process_status(){
     
     if (!empty($counters_info_data) && isset($counters_info_data[0])){
 
-        $counters_info = json_decode(stripslashes($counters_info_data[0]['item_data']),1);
+        $counters_info = json_decode(stripslashes($counters_info_data[0]['item_data']), true);
 
         $processing_messages = array();
 
@@ -960,7 +997,7 @@ function sl_wc_check_process_status(){
 
         }
 
-        $sync_params = json_decode(stripslashes($counters_info_data[0]['sync_params']),1);
+        $sync_params = json_decode(stripslashes($counters_info_data[0]['sync_params']), true);
         
         $processing_messages['header'] = 'Synchronizing connector: '.$sync_params['conn_params']['connector_id'];
         $process_status['status'] = 'not_finished';
@@ -984,10 +1021,11 @@ if (!wp_next_scheduled( 'sl_wc_check_version_schedule' ) ) {
 add_action('sl_wc_check_version_schedule', 'sl_wc_check_version');
 
 /**
- * Function to check plugin version.
+ * Check plugin version.
  * @return void
  */
-function sl_wc_check_version(){
+function sl_wc_check_version()
+{
 
     $repo_url = "https://api.github.com/repos/saleslayer/Sales_Layer_WooCommerce/releases/latest";
     $response = wp_remote_get($repo_url, array('headers' => array('User-Agent' => 'WordPress')));
@@ -1011,14 +1049,15 @@ function sl_wc_check_version(){
     }
 }
 
-function getLatestVersionContent(){
+function getLatestVersionContent()
+{
 
-	$latestVersion = get_option('SLYR_WC_latest_version', '');	
-	$latestVersionContent = [];
+    $latestVersion = get_option('SLYR_WC_latest_version', '');	
+    $latestVersionContent = [];
 
-	if ($latestVersion !== ''){
+    if ($latestVersion !== ''){
 
-		$latestVersionContent['div_class'] = 'notice notice-warning is-dismissible';
+        $latestVersionContent['div_class'] = 'notice notice-warning is-dismissible';
         $latestVersionContent['div_content'] = 
             '<p>There is a new available version of the plugin. Actual version: '.
             esc_html(get_option('SLYR_WC_version')).
@@ -1028,13 +1067,13 @@ function getLatestVersionContent(){
                 <span class="screen-reader-text">Dismiss this notice.</span>
             </button>';
 
-	}
+    }
 
-	$script = '<script type="text/javascript">
-	var versionContent = '.json_encode($latestVersionContent).';
-	</script>';
-	
-	return $script;
+    $script = '<script type="text/javascript">
+    var versionContent = '.json_encode($latestVersionContent).';
+    </script>';
+    
+    return $script;
 }
 
 function getAllowedTags()

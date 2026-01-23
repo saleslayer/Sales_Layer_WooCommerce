@@ -9,14 +9,14 @@ class slAnalytics
     private $analyticsData = [];
     
     public function __construct()
-	{
+    {
         global $debug_level;
-		$this->debug_level = $debug_level ?? 0;
+        $this->debug_level = $debug_level ?? 0;
         $this->SL_API_URL = 'https://'.SLYR_WC_url_API.'?s=conn_plug_analytics';
     }
 
     /**
-     * Function to get Analytics public key
+     * Get Analytics public key
      *
      * @return string|null Analytics public key
      */
@@ -32,7 +32,7 @@ class slAnalytics
     }
 
     /**
-     * Function to load analytics data
+     * Load analytics data
      *
      * @param array $analyticsData Analytics data
      * @return bool True if data is loaded, false otherwise
@@ -49,7 +49,7 @@ class slAnalytics
     }
 
     /**
-     * Function to validate data
+     * Validate data
      *
      * @param array $data Data to validate indexes
      * @return bool True if data is valid, false otherwise
@@ -84,7 +84,7 @@ class slAnalytics
     }
 
     /**
-     * Function to send analytics calls through cURL
+     * Send analytics calls through cURL
      *
      * @return bool True if cURL response is valid, false otherwise
      */
@@ -141,7 +141,7 @@ class slAnalytics
     }
 
     /**
-     * Function to encrypt analytics data into a JSON package
+     * Encrypt analytics data into a JSON package
      *
      * @return string|false Encrypted JSON package, or false on failure
      */

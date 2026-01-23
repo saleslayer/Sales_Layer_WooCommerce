@@ -43,10 +43,10 @@ Please check the [important notes for the installation][sc-important-notes] avai
 ## Version Guidance
 
 | Branch         | Status     | WooCommerce version     | PHP compatibility | Changelog                             |
-|----------------|------------|-------------------------------|-------------------|---------------------------------------|
-| [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4            | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
-| [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1            | \>= 7.3, <= 8.1   | [Changelog 2.4.x][changelog-2.4.x]    |
-| [2.5.x]        | Stable     | 8.x                           | 8.1, 8.2          | [Changelog 2.5.x][changelog-2.5.x]    |
+|----------------|------------|-------------------------|-------------------|---------------------------------------|
+| [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
+| [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1      | \>= 7.3, <= 8.1   | [Changelog 2.4.x][changelog-2.4.x]    |
+| [2.5.x]        | Stable     | 8.x                     | \>= 8.1, <= 8.5   | [Changelog 2.5.x][changelog-2.5.x]    |
 
 ## Branch 2.5.x Release recommended configuration
 
@@ -55,7 +55,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 | [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
 | [2.5.2][2.5.2] | WooCommerce 9.3.3   | WordPress 6.6.2   | PHP 8.2        | Apache2.4  |
-
+| [2.5.3][2.5.3] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache2.4  |
 
 > **Warning**.
 > WooCommerce frequently releases new plugin versions to fix bugs and introduce new functionality. Some of these versions may conflict with this plugin. We highly encourage you to configure the WooCommerce plugin according to the recommendations provided in the guidance table to ensure the correct functioning of this plugin. 
@@ -77,3 +77,4 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [2.5.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.0
 [2.5.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.1
 [2.5.2]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.2
+[2.5.3]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.3

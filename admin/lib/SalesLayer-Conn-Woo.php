@@ -99,7 +99,7 @@ class SalesLayer_Conn_Woo
      * @param string $url       Url to SalesLayer API connection
      * @param bool   $forceuft8 Set PHP system default charset to utf-8
      */
-    public function __construct($codeConn = null, $secretKey = null, $SSL = null, $url = null, $forceuft8 = true)
+    public function __construct(?string $codeConn = null, ?string $secretKey = null, ?bool $SSL = null, ?string $url = null, bool $forceuft8 = true)
     {
         if ($this->has_system_requirements()) { 
             if (true == $forceuft8) {
@@ -138,7 +138,7 @@ class SalesLayer_Conn_Woo
      *
      * @return string
      */
-    private function get_api_url($last_update = false)    
+    private function get_api_url(int|string|false|null $last_update = false)    
     {
         if (null != $this->__secretKey) {
             $time    = time();
@@ -183,12 +183,13 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Set the Connector identification and secret key.
+     * Set the connector identification and secret key.
      *
-     * @param string $codeConn Connector Code Identificator
-     * @param string $secret   Secret Key for secure petitions
+     * @param string      $codeConn  Connector code identifier.
+     * @param string|null $secretKey Secret key for API requests.
+     * @return void
      */
-    public function set_identification($codeConn, $secretKey = null)
+    public function set_identification($codeConn, ?string $secretKey = null)
     {
         $this->__codeConn  = $codeConn;
         $this->__secretKey = $secretKey;
@@ -233,7 +234,7 @@ class SalesLayer_Conn_Woo
      * @param string $key    SSL client key
      * @param string $CACert SSL CA cert (only required if you are having problems with your system CA cert)
      */
-    public function set_SSL_credentials($cert = null, $key = null, $CACert = null)
+    public function set_SSL_credentials(?string $cert = null, ?string $key = null, ?string $CACert = null)
     {
         $this->SSL_Cert   = $cert;
         $this->SSL_Key    = $key;
@@ -245,7 +246,7 @@ class SalesLayer_Conn_Woo
      *
      * @param string $url base
      */
-    public function set_URL_connection($url)
+    public function set_URL_connection(string $url)
     {
         if ($url) {
             $this->url = $url;
@@ -263,9 +264,10 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Set group multicategory products.
+     * Enable/disable grouping of multicategory products.
      *
-     * @param bool $group
+     * @param bool $enable Whether to group multicategory products.
+     * @return void
      */
     public function set_group_multicategory($enable)
     {
@@ -273,9 +275,10 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Set value for getting same parent variants modifications on single variant modification.
+     * Control whether a single variant modification also retrieves sibling variants modifications.
      *
-     * @param bool $enable
+     * @param bool $enable Whether to retrieve same-parent variants modifications.
+     * @return void
      */
     public function set_same_parent_variants_modifications($enable)
     {
@@ -283,9 +286,10 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Set value for getting modifications/deletions of first level parents.
+     * Control whether first-level parent modifications/deletions are retrieved.
      *
-     * @param bool $enable
+     * @param bool $enable Whether to include first-level parents in modifications/deletions.
+     * @return void
      */
     public function set_parents_category_tree($enable)
     {
@@ -312,7 +316,7 @@ class SalesLayer_Conn_Woo
      *
      * @return array info or false (if error)
      */
-    public function get_info($last_update = null, $params = null, $connector_type = null, $add_reference_files = false)
+    public function get_info(int|string|null $last_update = null, ?array $params = null, ?string $connector_type = null, bool $add_reference_files = false)
     {
         if ($this->hasConnector()) {
 
@@ -360,20 +364,25 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Set pagination data
+     * Set the pagination size for API requests.
+     *
+     * @param int $pagination Max items per page.
+     * @return void
      */
-     public function set_pagination($pagination)
-     {
-         $this->output_pagination = $pagination;
-     }
+    public function set_pagination($pagination)
+    {
+        $this->output_pagination = $pagination;
+    }
 
-     /**
-     * Get pagination 
+    /**
+     * Get the configured pagination size for API requests.
+     *
+     * @return int Max items per page.
      */
-     public function get_pagination()
-     {
-         return $this->output_pagination;
-     }
+    public function get_pagination()
+    {
+        return $this->output_pagination;
+    }
 
     /**
      * Check for data paging
@@ -424,10 +433,10 @@ class SalesLayer_Conn_Woo
      *
      * @return integer
      */
-     public function get_page_length()
-     {
-         return ($this->response_page_length ? $this->response_page_length : 0);
-     }
+    public function get_page_length()
+    {
+        return ($this->response_page_length ? $this->response_page_length : 0);
+    }
 
     /**
      * Set info to API
@@ -440,7 +449,7 @@ class SalesLayer_Conn_Woo
      *
      * @return response to API
      */
-    public function set_info($update_items = [], $delete_items = [], $compression = false, $force_directly = false, $extra_params = [])
+    public function set_info(array $update_items = [], array $delete_items = [], bool $compression = false, bool $force_directly = false, array $extra_params = [])
     {
         $params = [];
 
@@ -481,7 +490,6 @@ class SalesLayer_Conn_Woo
                 if ($force_directly) {
                     $params['input_data_directly'] = 1;
                 }
-
 
                 if ($compression) {
                     $params['compression'] = 1;
@@ -604,7 +612,7 @@ class SalesLayer_Conn_Woo
             $this->response_input_tracking_percent = 0;
             $this->response_input_tracking_message = '';
 
-        } else if (   !$this->response_input_tracking 
+        } elseif (   !$this->response_input_tracking 
                    &&  $this->response_input_tracking_status != 'error' 
                    && isset($this->data_returned['input_response'])
                    &&       $this->data_returned['input_response']['result'] == 2) {
@@ -636,36 +644,34 @@ class SalesLayer_Conn_Woo
      * @return array info
      */
     
-     public function get_input_tracking_percent()
-     {
+    public function get_input_tracking_percent()
+    {
         $this->check_input_tracking();
  
         return $this->response_input_tracking_percent;
-     }
+    }
 
-     /**
+    /**
      * Get input tracking percentage from API
      *
      * @return array info
      */
-    
-     public function get_input_tracking_message()
-     {
+    public function get_input_tracking_message()
+    {
         $this->check_input_tracking();
  
         return $this->response_input_tracking_message;
-     }
+    }
 
     /**
-     * CURL Request to retrieve information.
+     * Execute an API request and decode the JSON response into $this->data_returned.
      *
-     * @param string    $url                 API URL for call
-     * @param array     $params              extra parameters for the API
-     * @param array     $post                POST data
-     *
-     * @return array info or false (if error)
+     * @param string       $url    API URL to call.
+     * @param array|string $params POST fields (array) or raw payload (string).
+     * @return bool True on success, false on failure.
      */
-     public function call ($url, $params = []) {
+    public function call(string $url, array|string $params = [])
+    {
 
         if ($url and preg_match('/^https?:\/\/'.preg_quote(preg_replace('/^([^\/?]+[\/?]).*$/', '\\1', $this->url), '/').'/i', $url)) {
 
@@ -699,7 +705,7 @@ class SalesLayer_Conn_Woo
 
             if (false !== $response) {
 
-                $this->data_returned = json_decode(preg_replace('/^\xef\xbb\xbf/', '', $response), 1);
+                $this->data_returned = json_decode(preg_replace('/^\xef\xbb\xbf/', '', $response), true);
 
                 if (false !== $this->data_returned && is_array($this->data_returned)) {
 
@@ -726,18 +732,18 @@ class SalesLayer_Conn_Woo
      *
      * @return string or null
      */
-     public function get_data_returned()
-     {
-         return $this->data_returned;
-     }
+    public function get_data_returned()
+    {
+        return $this->data_returned;
+    }
  
-     /**
-      * Parsing received data.
-      *
-      * @return bool
-      */
-     private function parsing_json_returned()   
-     {
+    /**
+     * Parsing received data.
+     *
+     * @return bool
+     */
+    private function parsing_json_returned()   
+    {
 
         if (null !== $this->data_returned) {
  
@@ -877,7 +883,7 @@ class SalesLayer_Conn_Woo
 
                                                         $data[$fname] = (isset($fields[$ord]) ? $fields[$ord] : null);
 
-                                                    } else if (    isset($fields[$ord])
+                                                    } elseif (    isset($fields[$ord])
                                                             and is_array($fields[$ord])
                                                             and    isset($this->response_tables_schema[$table][$ord][$fname])
                                                             and is_array($this->response_tables_schema[$table][$ord][$fname])) {
@@ -1040,7 +1046,7 @@ class SalesLayer_Conn_Woo
      *
      * @return int
      */
-    public function get_response_time($mode = 'datetime')
+    public function get_response_time(string $mode = 'datetime')
     {
         return $this->response_time ? ('datetime' === $mode ? date('Y-m-d H:i:s', $this->response_time) : $this->response_time) : false;
     }
@@ -1088,9 +1094,10 @@ class SalesLayer_Conn_Woo
     /**
      * Get information about the structure of tables.
      *
+     * @param string|null $table Table name. Null returns all tables info.
      * @return array
      */
-    public function get_response_table_information($table = null)
+    public function get_response_table_information(?string $table = null)
     {
         return (null === $table) ? $this->response_tables_info : $this->response_tables_info[$table];
     }
@@ -1098,19 +1105,21 @@ class SalesLayer_Conn_Woo
     /**
      * Get parsed data of tables.
      *
+     * @param string|null $table Table name. Null returns all tables data.
      * @return array
      */
-    public function get_response_table_data($table = null)
+    public function get_response_table_data(?string $table = null)
     {
         return (null === $table) ? $this->response_tables_data : $this->response_tables_data[$table];
     }
 
     /**
-     * Get ID's of registers deleted.
+     * Get IDs of deleted records.
      *
+     * @param string|null $table Table name. Null returns data for all tables.
      * @return array
      */
-    public function get_response_table_deleted_ids($table = null)
+    public function get_response_table_deleted_ids(?string $table = null)
     {
         return (null === $table) ? $this->response_table_deleted_ids
                                    :
@@ -1118,11 +1127,12 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Get ID's of registers modified.
+     * Get IDs of modified records.
      *
+     * @param string|null $table Table name. Null returns data for all tables.
      * @return array
      */
-    public function get_response_table_modified_ids($table = null)
+    public function get_response_table_modified_ids(?string $table = null)
     {
         return (null === $table ? $this->response_table_modified_ids
                :
@@ -1130,11 +1140,12 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Get only the modified information.
+     * Get modified records data only.
      *
+     * @param string|null $table Table name. Null returns modified data for all tables.
      * @return array
      */
-    public function get_response_table_modified_data($table = null)
+    public function get_response_table_modified_data(?string $table = null)
     {
         if (null === $table) {
             if (isset($this->response_tables_data)) {
@@ -1209,12 +1220,12 @@ class SalesLayer_Conn_Woo
     }
 
     /**
-     * Get table joins
+     * Get table joins.
      *
+     * @param string|null $table Table name. Null returns joins for all tables.
      * @return array
-     *
      */
-    public function get_response_table_joins($table = null)
+    public function get_response_table_joins(?string $table = null)
     {
         if (null !== $this->response_tables_info and is_array($this->response_tables_info)) {
             if (null === $table) {
@@ -1309,8 +1320,10 @@ class SalesLayer_Conn_Woo
      */
     public function get_response_offline_file()
     {
-        if (is_array($this->data_returned['output']['offline_files']) && !empty($this->data_returned['output']['offline_files'])) {
-            return $this->data_returned['output']['offline_files'];
+        if (isset($this->data_returned['output']['offline_files'])
+            && is_array($this->data_returned['output']['offline_files'])
+            && !empty($this->data_returned['output']['offline_files'])) {
+                return $this->data_returned['output']['offline_files'];
         }
 
         return null;
@@ -1321,14 +1334,14 @@ class SalesLayer_Conn_Woo
      *
      * @return array
      */
-     public function get_schema_information()
-     {
-         if (isset($this->data_returned['data_schema_info'])) {
-             return $this->data_returned['data_schema_info'];
-         }
+    public function get_schema_information()
+    {
+        if (isset($this->data_returned['data_schema_info'])) {
+            return $this->data_returned['data_schema_info'];
+        }
  
-         return null;
-     }
+        return null;
+    }
 
     /**
      * Get number of images or files waiting in process.
@@ -1347,9 +1360,10 @@ class SalesLayer_Conn_Woo
     /**
      * Get field titles.
      *
+     * @param string|null $table Table name. Null returns titles for all tables.
      * @return array
      */
-    public function get_response_field_titles($table = null)
+    public function get_response_field_titles(?string $table = null)
     {
         $titles = [];
 
@@ -1403,11 +1417,12 @@ class SalesLayer_Conn_Woo
     /**
      * Get field titles in certain language.
      *
-     * @param string $language (ISO 639-1)
+     * @param string      $language Language code (ISO 639-1).
+     * @param string|null $table    Table name. Null returns titles for all tables.
      *
      * @return array
      */
-    public function get_response_language_field_titles($language, $table = null)
+    public function get_response_language_field_titles(string $language, ?string $table = null)
     {
         $titles = [];
 

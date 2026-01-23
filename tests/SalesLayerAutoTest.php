@@ -2164,7 +2164,7 @@ class SalesLayerAutoTest {
         );
 
         if (!empty($result['errors'])) {
-            $this->logger->error("Errors:  ".print_r($result['errors'],1));
+            $this->logger->error("Errors:  ".print_r($result['errors'], true));
         }
 
         return $result;

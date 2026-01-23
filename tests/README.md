@@ -109,8 +109,6 @@ php run_autotest.php count
 php run_autotest.php help
 ```
 
-
-
 ## 🔇 System Behavior
 
 ### **Silent Mode by Default**

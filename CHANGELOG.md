@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5.3] - 2025-09-22
+
+### Added
+
+- Added compatibility with PHP 8.5.
+
+### Changed
+
+- Optimized code with PSR-2 coding standards.
+- Fixed minor bugs.
+
+### Tested
+
+- Tested on WooCommerce 10.4.3 / Wordpress 6.9 / PHP 8.5
+    
 ## [2.5.2] - 2024-11-05
 
 ### Added
@@ -103,6 +118,4 @@
 - Improved format status field.
 - Products and formats now will be disabled instead of deleted.
 - 'post_status' filter modified on get_posts calls.
-
-
 
