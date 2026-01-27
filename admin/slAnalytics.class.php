@@ -4,6 +4,8 @@ class slAnalytics
 {
 
     private $SL_API_URL;
+
+    protected $debug_level;
     
     protected $scopeConfig;
     private $analyticsData = [];
