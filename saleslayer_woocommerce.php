@@ -14,7 +14,7 @@ Requires at least: 6.4
 Tested up to:   6.9
 Requires Plugins: woocommerce
 WC requires at least: 8.2.0
-WC tested up to: 9.9.4
+WC tested up to: 10.4.3
 */
 
 defined( 'ABSPATH' ) or die( '¡Sin trampas!' );
@@ -22,7 +22,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
 // Declaring compatibility with HPOS (High-Performance Order Storage) - MUST go really early
 add_action('before_woocommerce_init', function() {
-    // Verificar que WooCommerce y la funcionalidad HPOS están disponibles
+    // Verify that WooCommerce and HPOS functionality are available
     if (class_exists('Automattic\WooCommerce\Utilities\FeaturesUtil')) {
         \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
     }
@@ -30,7 +30,7 @@ add_action('before_woocommerce_init', function() {
 
 ?>
 <?php
-/*  Copyright 2016-2024  Sales Layer   (email : alexis@saleslayer.com, pedro.moreno@saleslayer.com)
+/*  Copyright 2016-2026  Sales Layer   (email : alexis@saleslayer.com, pedro.moreno@saleslayer.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2, as 
