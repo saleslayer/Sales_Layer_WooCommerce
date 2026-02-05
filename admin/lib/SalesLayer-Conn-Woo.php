@@ -717,8 +717,6 @@ class SalesLayer_Conn_Woo
             } else {
                 $this->trigger_error('Error connection: '.curl_error($ch), 102);     
             }
-            
-            curl_close($ch);
 
         } else {
             $this->trigger_error('Incorrect URL call: '.$url, 100);  
