@@ -5,6 +5,7 @@
 ### Added
 
 - Added compatibility with PHP 8.5.
+- Added HPOS compatibility.
 
 ### Changed
 
