@@ -115,7 +115,6 @@ class slAnalytics
         if ($response === false) {
             // Connection error or another cURL error
             sl_debug('## Error. Analytics error connection: '.curl_error($ch));
-            curl_close($ch);
             return false;
         }
 
@@ -125,19 +124,14 @@ class slAnalytics
         if ($http_code >= 400) {
             // If the HTTP code is 400 or higher, we consider it an error
             sl_debug('## Error. HTTP Error '.$http_code.'. Response: '.print_r($response, true));
-            curl_close($ch);
             return false;
         }
 
         if ($http_code == 200) {
             // If the HTTP code is 200, we print the response
             sl_debug('Analytics data stored: '.$response);
-            curl_close($ch);
             return true;
-
         }
-
-        curl_close($ch);
 
         return true;
     }
