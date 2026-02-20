@@ -36,6 +36,12 @@
 
 #slyr_catalogue_admin .button_block {width: 100%}
 
+/* Connectors table column widths */
+#slyr_catalogue_admin .wp-list-table .col-connector-id { width: 200px; }
+#slyr_catalogue_admin .wp-list-table .col-last-update { width: 200px; }
+#slyr_catalogue_admin .wp-list-table .col-auto-sync { width: 150px; }
+#slyr_catalogue_admin .wp-list-table .col-actions { width: 500px; white-space: nowrap; }
+
 #slyr_catalogue_admin .form-table { width: 100% }
 #slyr_catalogue_admin .form-table td { padding: 0 0 15px 0 }
 #slyr_catalogue_admin .form-table input[type=text] {width: 100%}
@@ -66,17 +72,13 @@
 #slyr_catalogue_admin .highlight                      { background-color: #FFFF88; color: #000; }
 
 #slyr_catalogue_admin .button-sync {
-    float: left;
-    /*margin-left: 10px;*/
-    width: 30%;
+    width: 100px;
 }
 #slyr_catalogue_admin .button-forget {
     color: rgb(255, 255, 255);
     background-color: rgb(217,83,79);
     border-color: rgb(212, 63, 58);
-    /*float: left;*/
-    margin-left: 10px;
-    width: 30%;
+    width: 100px;
 }
 
 #slyr_catalogue_admin .button-forget:hover {
@@ -89,25 +91,22 @@
 
     margin: 12px;
     width: 100%;
-
-}
-
-#slyr_catalogue_admin .slyr_progress .progress {
     position: relative;
+
 }
 
 #slyr_catalogue_admin .slyr_progress .progress-bar {
     z-index: 1;
-    /*position: absolute;*/
 }
 
 #slyr_catalogue_admin .slyr_progress .progress-bar .slyr_progress_span{
 
     position: absolute;
-    /*top: 0;*/
+    left: 0;
+    top: 0;
     z-index: 2;
     text-align: center;
-    width: 17%;
+    width: 100%;
     color: black;
 
 }
@@ -129,3 +128,146 @@
     color: #666;
     margin-top: 5px;
 }
+
+#slyr_catalogue_admin .button-multisite {
+    color: #fff;
+    background-color: #46b450;
+    border-color: #3a9a42;
+    width: 100px;
+}
+
+#slyr_catalogue_admin .button-multisite:hover {
+    background-color: #3a9a42;
+    color: #fff;
+}
+
+/* --- Multisite Configuration Modal --- */
+
+.slyr-multisite-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100000;
+    /* Hidden by default via inline style="display:none;" in HTML.
+       JS sets display:flex to show, display:none to hide. */
+    align-items: center;
+    justify-content: center;
+}
+
+.slyr-multisite-modal {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+    width: 680px;
+    max-width: 90vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.slyr-multisite-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.slyr-multisite-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.slyr-multisite-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+    padding: 0;
+}
+
+.slyr-multisite-close:hover { color: #d63638; }
+
+.slyr-multisite-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.slyr-multisite-site-disabled {
+    opacity: 0.5;
+}
+
+.slyr-multisite-site-disabled td {
+    color: #999;
+}
+
+.slyr-multisite-no-woo-badge {
+    display: inline-block;
+    background: #d63638;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+}
+
+.slyr-multisite-main-site-badge {
+    display: inline-block;
+    background: #0073aa;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+}
+
+.slyr-multisite-info {
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #555;
+}
+
+.slyr-multisite-info p { margin: 0 0 5px; }
+
+.slyr-multisite-warning {
+    color: #d63638;
+    font-style: italic;
+}
+
+.slyr-multisite-url {
+    font-size: 12px;
+    color: #888;
+}
+
+#slyr-multisite-sites-table { margin-top: 10px; }
+
+#slyr-multisite-sites-table th { font-weight: 600; }
+
+#slyr-multisite-sites-table td,
+#slyr-multisite-sites-table th { vertical-align: middle; }
+
+/* Modal table column widths: narrow Active, rest flexible */
+#slyr-multisite-sites-table .col-modal-active { width: 60px; text-align: center; }
+#slyr-multisite-sites-table .col-modal-lang { width: 160px; }
+
+#slyr-multisite-sites-table .slyr-site-lang { width: 100%; }
+
+/* --- Multilanguage column: hidden until feature is implemented.
+   Remove these 3 rules to re-enable the language column. --- */
+#slyr-multisite-languages-info { display: none; }
+#slyr-multisite-sites-table .col-modal-lang { display: none; }
+#slyr-multisite-sites-table td:nth-child(3) { display: none; }
+
+.slyr-multisite-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #ddd;
+    text-align: right;
+}
+
+.slyr-multisite-modal-footer .button { margin-left: 8px; }

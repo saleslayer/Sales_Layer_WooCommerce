@@ -147,15 +147,74 @@ class Connector
     }
 
     /**
+     * Migrate old unprefixed tables to new prefixed names.
+     *
+     * Prior to v2.5.4, plugin tables were created without the WordPress
+     * database prefix (e.g. 'slyr_wc_api_config' instead of
+     * 'wp_slyr_wc_api_config'). This method renames them in-place so
+     * that existing data is preserved without any copy/re-insert.
+     *
+     * Safe to call multiple times: it only renames when the old table
+     * exists AND the new prefixed table does NOT exist yet.
+     *
+     * @return void
+     */
+    private function migrate_tables_to_prefixed(): void
+    {
+        $migrations = [
+            [
+                'old' => SLYR_WC_connector_table_base,
+                'new' => SLYR_WC_connector_table,
+            ],
+            [
+                'old' => SLYR_WC_syncdata_table_base,
+                'new' => SLYR_WC_syncdata_table,
+            ],
+            [
+                'old' => SLYR_WC_syncdata_flag_table_base,
+                'new' => SLYR_WC_syncdata_flag_table,
+            ],
+            [
+                'old' => SLYR_WC_multiconn_table_base,
+                'new' => SLYR_WC_multiconn_table,
+            ],
+        ];
+
+        foreach ($migrations as $migration) {
+            $oldExists = $this->db->get_var(
+                $this->db->prepare("SHOW TABLES LIKE %s", $migration['old'])
+            );
+            $newExists = $this->db->get_var(
+                $this->db->prepare("SHOW TABLES LIKE %s", $migration['new'])
+            );
+
+            if ($oldExists && !$newExists) {
+                // RENAME TABLE is atomic in MySQL/MariaDB — no data loss risk
+                $this->db->query(
+                    "RENAME TABLE `{$migration['old']}` TO `{$migration['new']}`"
+                );
+            } elseif ($oldExists && $newExists) {
+                // Both exist (edge case: partial migration or manual intervention).
+                // Drop the old unprefixed table to avoid confusion.
+                $this->db->query("DROP TABLE IF EXISTS `{$migration['old']}`");
+            }
+        }
+    }
+
+    /**
      * Check Sales Layer plugin version.
      * @return void
      */
     public function check_version()
     {
 
-        $ver = get_option('SLYR_WC_version');
+        $ver = get_site_option('SLYR_WC_version');
 
         if ($ver === false || version_compare((string) $ver, (string) SLYR_WC_version, '<')) {
+
+            // v2.5.4: Rename old unprefixed tables to prefixed names
+            // before any DROP/CREATE logic runs on the new names
+            $this->migrate_tables_to_prefixed();
 
             $connectors = array();
 
@@ -195,7 +254,7 @@ class Connector
                 }
             }
 
-            update_option('SLYR_WC_version', SLYR_WC_version);
+            update_site_option('SLYR_WC_version', SLYR_WC_version);
 
         } else {
             $this->check_table();
@@ -203,6 +262,9 @@ class Connector
         
         $this->check_syncdata_table();
         $this->check_syncdata_flag_table();
+
+        $multiconn = Multiconn::get_instance();
+        $multiconn->check_table();
 
     }
 
@@ -248,19 +310,32 @@ class Connector
 
     /**
      * Add a connector to the Sales Layer table.
+     *
+     * The connector is always initialized with the main site as the
+     * default active target. This enables a unified sync flow where
+     * both single-site and multisite iterate through targets.
+     *
      * @param string $connector_id Connector id
      * @param string $secret_key   Connector secret key
      * @return int|false Number of rows affected or false on failure
      */
     public function add_connector($connector_id, $secret_key)
-    {  
-        
+    {
+        $connExtra = json_encode([
+            'multisite_targets' => [
+                [
+                    'blog_id'   => (int) get_main_site_id(),
+                    'lang_code' => '',
+                ],
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+
         $stmt = $this->db->prepare(
             "INSERT INTO `" . SLYR_WC_connector_table . "` (" .
             "conn_code, conn_secret, default_cat_id, comp_id, last_update, " .
             "default_language, languages, conn_extra" .
-            ") VALUES (%s, %s, '0', '0', null, '', '', '')",
-            [ $connector_id, $secret_key ]
+            ") VALUES (%s, %s, '0', '0', null, '', '', %s)",
+            [ $connector_id, $secret_key, $connExtra ]
         );
 
         return $this->db->query($stmt);

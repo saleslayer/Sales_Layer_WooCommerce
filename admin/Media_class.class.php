@@ -105,13 +105,15 @@ class Media_class
 
         sl_debug(" > Importing media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
 
-        //directory to import to	
-        $artDir = 'wp-content/uploads/importedmedia/';
-        
+        //directory to import to (uses wp_upload_dir() to support Multisite)
+        $uploads = wp_upload_dir();
+        $importedmedia_dir = $uploads['basedir'] . '/importedmedia/';
+        $importedmedia_url = $uploads['baseurl'] . '/importedmedia/';
+
         // $time_ini_mkdir = microtime(true);
-        //if the directory doesn't exist, create it	
-        if(!file_exists(ABSPATH.$artDir)) {
-            mkdir(ABSPATH.$artDir, 0755, true);
+        //if the directory doesn't exist, create it
+        if (!file_exists($importedmedia_dir)) {
+            mkdir($importedmedia_dir, 0755, true);
         }
         // sl_debug('# fetch_media() - time_mkdir: '.(microtime(true) - $time_ini_mkdir).' seconds.', 'timer');
 
@@ -122,10 +124,9 @@ class Media_class
             sl_debug('## Error. Downloading file: '.$file_url_encoded);
             return false;
         }
-        rename($temp_file, ABSPATH.$artDir.$new_filename);
-        
-        $siteurl = get_option('siteurl');
-        $file_info = getimagesize(ABSPATH.$artDir.$new_filename);
+        rename($temp_file, $importedmedia_dir . $new_filename);
+
+        $file_info = getimagesize($importedmedia_dir . $new_filename);
 
         //create an array of attachment data to insert into wp_posts table
         $artdata = array(
@@ -141,14 +142,13 @@ class Media_class
             'post_modified_gmt' => current_time('mysql'),
             'post_parent' => $post_id,
             'post_type' => 'attachment',
-            'guid' => $siteurl.'/'.$artDir.$new_filename,
+            'guid' => $importedmedia_url . $new_filename,
             'post_mime_type' => $file_info['mime'],
             'post_excerpt' => '',
             'post_content' => ''
         );
 
-        $uploads = wp_upload_dir();
-        $save_path = $uploads['basedir'].'/importedmedia/'.$new_filename;
+        $save_path = $importedmedia_dir . $new_filename;
         // sl_debug('# fetch_media() - time_prepare_data: '.(microtime(true) - $time_ini_prepare_data).' seconds.', 'timer');
 
         // $time_ini_insert_attachment = microtime(true);
@@ -224,8 +224,9 @@ class Media_class
 
         sl_debug(" > Updating media: ".$file_url.($process_meta ? ' - Processing Meta' : ''));
 
-        $uploads_path = 'wp-content/uploads/';
-        $importedmedia_path = $uploads_path.'importedmedia/';
+        $uploads = wp_upload_dir();
+        $importedmedia_dir = $uploads['basedir'] . '/importedmedia/';
+        $importedmedia_url = $uploads['baseurl'] . '/importedmedia/';
 
         // $time_ini_check_existing_image = microtime(true);
 
@@ -233,7 +234,7 @@ class Media_class
         
         if (!empty($existing_attachment_metadata)){
 
-            $main_file_to_delete_path = ABSPATH.$uploads_path.$existing_attachment_metadata['file'];
+            $main_file_to_delete_path = $uploads['basedir'] . '/' . $existing_attachment_metadata['file'];
 
             try{
                 
@@ -249,7 +250,7 @@ class Media_class
            
                 foreach ($existing_attachment_metadata['sizes'] as $keySize => $meta_size){
                 	
-                	$file_to_delete_path = ABSPATH.$importedmedia_path.$meta_size['file'];
+                	$file_to_delete_path = $importedmedia_dir . $meta_size['file'];
 
                 	try{
                         
@@ -272,9 +273,9 @@ class Media_class
 
             // $time_ini_mkdir = microtime(true);
             //if the directory doesn't exist, create it 
-            if (!file_exists(ABSPATH.$importedmedia_path)) {
+            if (!file_exists($importedmedia_dir)) {
 
-                mkdir(ABSPATH.$importedmedia_path);
+                mkdir($importedmedia_dir, 0755, true);
 
             }
             // sl_debug('# update_media() - time_mkdir: '.(microtime(true) - $time_ini_mkdir).' seconds.', 'timer');
@@ -282,26 +283,25 @@ class Media_class
             $file_url_encoded = $this->get_encoded_url($file_url);
             
             // $time_ini_copy_image = microtime(true);
-            copy($file_url_encoded, ABSPATH.$importedmedia_path.$new_filename);
+            copy($file_url_encoded, $importedmedia_dir . $new_filename);
             // sl_debug('# update_media() - time_copy_image: '.(microtime(true) - $time_ini_copy_image).' seconds.', 'timer');
             
             // $time_ini_update_post = microtime(true);
 
-            $siteurl = get_option('siteurl');
-            $file_info = getimagesize(ABSPATH.$importedmedia_path.$new_filename);
+            $file_info = getimagesize($importedmedia_dir . $new_filename);
 
             $post_data = array(
              	'ID' => $attachment_id,
              	'post_title' => $new_filename,
              	'post_name' => sanitize_title_with_dashes(str_replace("_", "-", $new_filename)),
-             	'guid' => $siteurl.'/'.$importedmedia_path.$new_filename,
+             	'guid' => $importedmedia_url . $new_filename,
              	'post_mime_type' => $file_info['mime']
             );
 
             wp_update_post($post_data);
             // sl_debug('# update_media() - time_update_post: '.(microtime(true) - $time_ini_update_post).' seconds.', 'timer');
 
-            $save_path = ABSPATH.$importedmedia_path.$new_filename;
+            $save_path = $importedmedia_dir . $new_filename;
 
             if (!$process_meta){
 
@@ -366,14 +366,14 @@ class Media_class
 
         sl_debug(" > Deleting media from attachment_id: $attachment_id");
         
-        $uploads_path = 'wp-content/uploads/';
-        $importedmedia_path = $uploads_path.'importedmedia/';
+        $uploads = wp_upload_dir();
+        $importedmedia_dir = $uploads['basedir'] . '/importedmedia/';
 
             try{
 
                 $termmeta_count = sl_connection_query(
                     'read',
-                    " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."termmeta WHERE meta_key = %s AND meta_value = %d",
+                    " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."termmeta WHERE meta_key = %s AND meta_value = %d",
                     ['thumbnail_id', (int)$attachment_id]
                 );
             
@@ -393,7 +393,7 @@ class Media_class
 
                 $postmeta_thumbnail_count = sl_connection_query(
                     'read',
-                    " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."postmeta WHERE meta_key = %s AND meta_value = %d",
+                    " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = %s AND meta_value = %d",
                     ['_thumbnail_id', (int)$attachment_id]
                 );
             
@@ -413,7 +413,7 @@ class Media_class
 
             $postmeta_image_galleries = sl_connection_query(
                 'read',
-                " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = %s AND meta_value LIKE %s",
+                " SELECT * FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = %s AND meta_value LIKE %s",
                 ['_product_image_gallery', '%'.(string)$attachment_id.'%']
             );
 
@@ -469,7 +469,7 @@ class Media_class
         
         if (!empty($existing_attachment_metadata)){
 
-            $main_file_to_delete_path = ABSPATH.$uploads_path.$existing_attachment_metadata['file'];
+            $main_file_to_delete_path = $uploads['basedir'] . '/' . $existing_attachment_metadata['file'];
 
             try{
                 
@@ -485,7 +485,7 @@ class Media_class
            
                 foreach ($existing_attachment_metadata['sizes'] as $keySize => $meta_size){
                 	
-                	$file_to_delete_path = ABSPATH.$importedmedia_path.$meta_size['file'];
+                	$file_to_delete_path = $importedmedia_dir . $meta_size['file'];
 
                 	try{
                         
@@ -630,7 +630,7 @@ class Media_class
 
         try{
 
-            $sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
+            $sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
         
         }catch(\Exception $e){
 
@@ -642,7 +642,7 @@ class Media_class
         
             sl_debug('Pending media meta items to process: '.$sql_meta_count['sl_cuenta_registros'], 'mediameta');
 
-            $sql_meta_required = " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
+            $sql_meta_required = " SELECT * FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
 
             do{
 
@@ -777,7 +777,7 @@ class Media_class
     private function check_pending_meta()
     {
 
-        $sql_pending_meta = " SELECT * FROM ".WPDB_PREFIX."postmeta WHERE meta_key = '_meta_required' AND meta_value LIKE '%start_meta_process%'";
+        $sql_pending_meta = " SELECT * FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value LIKE '%start_meta_process%'";
 
         $all_pending_meta = sl_connection_query('read', $sql_pending_meta);
      

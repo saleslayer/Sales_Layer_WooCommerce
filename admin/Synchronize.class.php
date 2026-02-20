@@ -423,19 +423,6 @@ class Synchronize
         
         sl_debug("==== Sync Data INIT ".date('Y-m-d H:i:s')." ====", 'syncdata');
         
-        try{
-
-            //Clear exceeded attemps
-            $sql_delete = " DELETE FROM ".SLYR_WC_syncdata_table." WHERE sync_tries >= 3";
-
-            sl_connection_query('delete', $sql_delete);
-
-        }catch(\Exception $e){
-
-            sl_debug('## Error. Clearing exceeded attemps: '.$e->getMessage(), 'syncdata');
-
-        }
-
         $this->end_process = false;
 
         $this->check_sync_data_flag();
@@ -483,58 +470,139 @@ class Synchronize
                                     $sync_tries = $item_to_delete['sync_tries'];
 
                                     $sync_params = json_decode(stripslashes($item_to_delete['sync_params']), true);
-                                    
+
                                     $item_data = json_decode(stripslashes($item_to_delete['item_data']), true);
-                                    
+
                                     $sl_id = $item_data['sl_id'];
-                                    
-                                    switch ($item_to_delete['item_type']) {
-                                        case 'category':
 
-                                            $this->cat_class->comp_id = $sync_params['conn_params']['comp_id'];
-                                            $result_delete = $this->cat_class->delete_stored_category($sl_id);
-                                            
-                                            break;
-                                        case 'product':
-                                            
-                                            $this->prod_class->comp_id = $sync_params['conn_params']['comp_id'];
-                                            $result_delete = $this->prod_class->delete_stored_product($sl_id);
+                                    // Multi-connector: determine if reference counting
+                                    // applies for this item type.
+                                    $multiconnItemTypes = ['category', 'product', 'product_format'];
+                                    $useMulticonn = in_array($item_to_delete['item_type'], $multiconnItemTypes, true)
+                                        && isset($sync_params['conn_params']);
 
-                                            break;
-                                        case 'product_format':
-                                            
-                                            $this->form_class->comp_id = $sync_params['conn_params']['comp_id'];
-                                            $result_delete = $this->form_class->delete_stored_product_format($sl_id);
-                                            
-                                            break;
-                                        default:
-                                            
-                                            sl_debug('## Error. Incorrect item: '.print_r($item_to_delete, true), 'syncdata');
-                                            break;
-                                    }
-                                    
-                                    switch ($result_delete) {
-                                        case 'item_not_deleted':
-                                            
-                                            $sync_tries++;
+                                    $targets = $sync_params['targets'] ?? [];
+                                    $isMultisite = slyr_is_multisite_mode();
+                                    $allTargetsSynced = true;
 
-                                            $sql_update = " UPDATE ".SLYR_WC_syncdata_table." SET sync_tries = ".$sync_tries." WHERE id = ".$item_to_delete['id'];
+                                    // If no targets (legacy data), execute delete directly
+                                    if (empty($targets)) {
 
-                                            sl_connection_query('update', $sql_update);
+                                        // Multi-connector: unregister on current site before delete
+                                        if ($useMulticonn) {
+                                            $canDelete = Multiconn::get_instance()->unregister_connector(
+                                                $item_to_delete['item_type'],
+                                                (string) $sl_id,
+                                                (int) $sync_params['conn_params']['comp_id'],
+                                                $sync_params['conn_params']['connector_id'],
+                                                get_current_blog_id()
+                                            );
 
-                                            if ($sync_tries == 3){
-                                    
-                                            	$this->update_syncdata_counters($item_to_delete['item_type'], 'delete');
+                                            if (!$canDelete) {
+                                                sl_debug('Multiconn: skipping delete for ' . $item_to_delete['item_type'] . ' SL ID: ' . $sl_id . ' — still referenced by another connector.', 'syncdata');
+                                                $this->update_syncdata_counters($item_to_delete['item_type'], 'delete');
+                                                $this->sql_items_delete[] = $item_to_delete['id'];
+                                                continue;
+                                            }
+                                        }
+
+                                        $result_delete = $this->execute_delete_item($item_to_delete['item_type'], $sync_params, $sl_id);
+                                        $allTargetsSynced = ($result_delete !== 'item_not_deleted');
+
+                                    } else {
+
+                                        foreach ($targets as $targetIndex => &$target) {
+
+                                            // Skip already synced targets (partial retry)
+                                            if (!empty($target['synced'])) {
+                                                continue;
+                                            }
+
+                                            $blogId = (int) $target['blog_id'];
+
+                                            if ($isMultisite) {
+                                                switch_to_blog($blogId);
+                                            }
+
+                                            try {
+
+                                                // Multi-connector: unregister on this specific
+                                                // site before attempting delete. If another
+                                                // connector still references the item on this
+                                                // site, skip deletion for this target only.
+                                                if ($useMulticonn) {
+                                                    $canDelete = Multiconn::get_instance()->unregister_connector(
+                                                        $item_to_delete['item_type'],
+                                                        (string) $sl_id,
+                                                        (int) $sync_params['conn_params']['comp_id'],
+                                                        $sync_params['conn_params']['connector_id'],
+                                                        $blogId
+                                                    );
+
+                                                    if (!$canDelete) {
+                                                        sl_debug('Multiconn: skipping delete on blog_id: ' . $blogId . ' for ' . $item_to_delete['item_type'] . ' SL ID: ' . $sl_id . ' — still referenced by another connector.', 'syncdata');
+                                                        $target['synced'] = true;
+                                                        $target['error'] = null;
+
+                                                        if ($isMultisite) {
+                                                            restore_current_blog();
+                                                        }
+                                                        continue;
+                                                    }
+                                                }
+
+                                                sl_debug('Deleting item on blog_id: ' . $blogId . ': ' . $item_to_delete['item_type'] . ' SL ID: ' . $sl_id, 'syncdata');
+                                                $result_delete = $this->execute_delete_item($item_to_delete['item_type'], $sync_params, $sl_id);
+
+                                                if ($result_delete === 'item_not_deleted') {
+                                                    $target['synced'] = false;
+                                                    $target['error'] = 'item_not_deleted';
+                                                    $allTargetsSynced = false;
+                                                } else {
+                                                    $target['synced'] = true;
+                                                    $target['error'] = null;
+                                                }
+
+                                            } catch (\Exception $e) {
+
+                                                $target['synced'] = false;
+                                                $target['error'] = $e->getMessage();
+                                                $allTargetsSynced = false;
+                                                sl_debug('## Error. Deleting on blog_id: ' . $blogId . ': ' . $e->getMessage(), 'syncdata');
 
                                             }
 
-                                            break;
-                                        
-                                        default:
-                                            
+                                            if ($isMultisite) {
+                                                restore_current_blog();
+                                            }
+
+                                        }
+                                        unset($target);
+
+                                        // Persist updated target states in sync_params
+                                        $sync_params['targets'] = $targets;
+                                        $sql_update_params = " UPDATE " . SLYR_WC_syncdata_table .
+                                            " SET sync_params = '" . addslashes(json_encode($sync_params)) . "'" .
+                                            " WHERE id = " . $item_to_delete['id'];
+                                        sl_connection_query('update', $sql_update_params);
+
+                                    }
+
+                                    if (!$allTargetsSynced) {
+
+                                        $sync_tries++;
+
+                                        $sql_update = " UPDATE " . SLYR_WC_syncdata_table . " SET sync_tries = " . $sync_tries . " WHERE id = " . $item_to_delete['id'];
+                                        sl_connection_query('update', $sql_update);
+
+                                        if ($sync_tries == 3) {
                                             $this->update_syncdata_counters($item_to_delete['item_type'], 'delete');
-                                            $this->sql_items_delete[] = $item_to_delete['id'];
-                                            break;
+                                        }
+
+                                    } else {
+
+                                        $this->update_syncdata_counters($item_to_delete['item_type'], 'delete');
+                                        $this->sql_items_delete[] = $item_to_delete['id'];
 
                                     }
 
@@ -560,7 +628,7 @@ class Synchronize
                 
                 foreach ($indexes as $index) {
                     
-                    $sql_items_to_update = " SELECT * FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'update' and item_type = '".$index."' and sync_tries < 4 ORDER BY item_type ASC, sync_tries ASC, id ASC LIMIT 1";
+                    $sql_items_to_update = " SELECT * FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'update' and item_type = '".$index."' and sync_tries < 3 ORDER BY item_type ASC, sync_tries ASC, id ASC LIMIT 1";
                     
                     do{
 
@@ -599,7 +667,21 @@ class Synchronize
         }
 
         $this->check_sql_items_delete(true);
-        
+
+        // Clean up items that exhausted all retry attempts (sync_tries >= 3)
+        // during this sync cycle. Batch deletion at the end is more efficient
+        // than deleting each item individually when it reaches the limit.
+        try {
+
+            $sql_delete = " DELETE FROM " . SLYR_WC_syncdata_table . " WHERE sync_tries >= 3";
+            sl_connection_query('delete', $sql_delete);
+
+        } catch (\Exception $e) {
+
+            sl_debug('## Error. Clearing exceeded attempts: ' . $e->getMessage(), 'syncdata');
+
+        }
+
         if (!$this->end_process){
 
         	$items_processing = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table." WHERE sync_type in('delete','update') and sync_tries <= 2");
@@ -640,179 +722,323 @@ class Synchronize
     }
 
     /**
+     * Execute a delete operation for a single item type.
+     *
+     * Extracted from the delete block to allow per-target iteration.
+     *
+     * @param string $itemType  Item type (category, product, product_format)
+     * @param array  $syncParams Decoded sync_params with conn_params
+     * @param string $slId      SalesLayer item ID to delete
+     * @return string 'item_deleted' or 'item_not_deleted'
+     */
+    private function execute_delete_item(string $itemType, array $syncParams, string $slId): string
+    {
+        $resultDelete = 'item_not_deleted';
+
+        switch ($itemType) {
+            case 'category':
+                $this->cat_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $resultDelete = $this->cat_class->delete_stored_category($slId);
+                break;
+
+            case 'product':
+                $this->prod_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $resultDelete = $this->prod_class->delete_stored_product($slId);
+                break;
+
+            case 'product_format':
+                $this->form_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $resultDelete = $this->form_class->delete_stored_product_format($slId);
+                break;
+
+            default:
+                sl_debug('## Error. Incorrect item type for delete: ' . $itemType, 'syncdata');
+                break;
+        }
+
+        return $resultDelete;
+    }
+
+    /**
+     * Execute the sync operation for a single item type.
+     *
+     * Contains the original switch logic extracted from update_item()
+     * to allow per-target iteration with switch_to_blog().
+     *
+     * @param string $itemType   Item type (category, product, product_format, product_links)
+     * @param array  $syncParams Decoded sync_params
+     * @param array  $itemData   Decoded item_data
+     * @return string Result code (e.g., 'item_updated', 'item_not_updated', '')
+     */
+    private function execute_update_item(string $itemType, array $syncParams, array $itemData): string
+    {
+        $resultUpdate = '';
+
+        switch ($itemType) {
+            case 'category':
+
+                $this->cat_class->comp_id = $syncParams['conn_params']['comp_id'];
+
+                foreach ($this->category_fields as $category_field) {
+                    if (isset($syncParams['category_fields'][$category_field])) {
+                        $this->cat_class->set_class_field_value($category_field, $syncParams['category_fields'][$category_field]);
+                    }
+                }
+
+                $time_ini = microtime(true);
+                sl_debug(' >> Category synchronization initialized << ');
+                $resultUpdate = $this->cat_class->sync_stored_category($itemData);
+                sl_debug(' >> Category synchronization finished << ');
+                sl_debug('#### time_sync_stored_category: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
+                break;
+
+            case 'product':
+
+                $this->prod_class->comp_id = $syncParams['conn_params']['comp_id'];
+
+                foreach ($this->product_fields as $product_field) {
+                    if (isset($syncParams['product_fields'][$product_field])) {
+                        $this->prod_class->set_class_field_value($product_field, $syncParams['product_fields'][$product_field]);
+                    }
+                }
+
+                if (isset($syncParams['product_additional_fields']) && !empty($syncParams['product_additional_fields'])) {
+                    $product_additional_fields = array();
+                    foreach ($syncParams['product_additional_fields'] as $field_name => $field_name_value) {
+                        $product_additional_fields[$field_name] = $field_name_value;
+                    }
+                    $this->prod_class->set_class_field_value('product_additional_fields', $product_additional_fields);
+                }
+
+                if (isset($syncParams['products_media_field_names']) && !empty($syncParams['products_media_field_names'])) {
+                    $this->prod_class->set_class_field_value('media_field_names', $syncParams['products_media_field_names']);
+                }
+
+                $time_ini = microtime(true);
+                sl_debug(' >> Product synchronization initialized << ');
+                $resultUpdate = $this->prod_class->sync_stored_product($itemData);
+                sl_debug(' >> Product synchronization finished << ');
+                sl_debug('#### time_sync_stored_product: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
+                break;
+
+            case 'product_format':
+
+                $this->form_class->comp_id = $syncParams['conn_params']['comp_id'];
+
+                foreach ($this->product_format_fields as $product_format_field) {
+                    if (isset($syncParams['format_fields'][$product_format_field])) {
+                        $this->form_class->set_class_field_value($product_format_field, $syncParams['format_fields'][$product_format_field]);
+                    }
+                }
+
+                if (isset($syncParams['format_additional_fields']) && !empty($syncParams['format_additional_fields'])) {
+                    $format_additional_fields = array();
+                    foreach ($syncParams['format_additional_fields'] as $field_name => $field_name_value) {
+                        $format_additional_fields[$field_name] = $field_name_value;
+                    }
+                    $this->form_class->set_class_field_value('format_additional_fields', $format_additional_fields);
+                }
+
+                if (isset($syncParams['product_formats_media_field_names']) && !empty($syncParams['product_formats_media_field_names'])) {
+                    $this->form_class->set_class_field_value('media_field_names', $syncParams['product_formats_media_field_names']);
+                }
+
+                $time_ini = microtime(true);
+                sl_debug(' >> Format synchronization initialized << ');
+                $resultUpdate = $this->form_class->sync_stored_product_format($itemData);
+                sl_debug(' >> Format synchronization finished << ');
+                sl_debug('#### time_sync_stored_product_format: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
+                break;
+
+            case 'product_links':
+
+                $time_ini = microtime(true);
+                sl_debug(' >> Product links synchronization initialized << ');
+                $this->prod_class->sync_stored_product_links($itemData);
+                sl_debug(' >> Product links synchronization finished << ');
+                $resultUpdate = 'item_updated';
+                sl_debug('#### time_sync_stored_product_links: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
+                break;
+
+            default:
+                sl_debug('## Error. Incorrect item type for update: ' . $itemType, 'syncdata');
+                break;
+        }
+
+        return $resultUpdate;
+    }
+
+    /**
      * Update a syncdata item based on its type.
+     *
+     * Iterates through per-site targets stored in sync_params.
+     * In multisite mode, calls switch_to_blog() before each target.
+     * In single-site mode, executes directly without switching.
+     * Tracks synced/error state per target in sync_params.
      *
      * @param array $item_to_update Syncdata row to update.
      * @return void
      */
     private function update_item($item_to_update)
     {
-            
         $sync_tries = $item_to_update['sync_tries'];
-        
-        if ($item_to_update['sync_params'] != ''){
+        $sync_params = [];
 
+        if ($item_to_update['sync_params'] != '') {
             $sync_params = json_decode($item_to_update['sync_params'], true);
-
         }
 
         $item_data = json_decode($item_to_update['item_data'], true);
 
-        if ($item_data == ''){
-        
-            sl_debug("## Error. Decoding item's data: ".print_r($item_to_update['item_data'], true), 'syncdata');
+        if ($item_data == '') {
+            sl_debug("## Error. Decoding item's data: " . print_r($item_to_update['item_data'], true), 'syncdata');
             $result_update = '';
-        
-        }else{
-            
-            switch ($item_to_update['item_type']) {
-                case 'category':
-                    
-                    $this->cat_class->comp_id = $sync_params['conn_params']['comp_id'];
+        } else {
 
-                    foreach ($this->category_fields as $category_field) {
-                        
-                        if (isset($sync_params['category_fields'][$category_field])){
+            $targets = $sync_params['targets'] ?? [];
+            $isMultisite = slyr_is_multisite_mode();
 
-                            $this->cat_class->set_class_field_value($category_field, $sync_params['category_fields'][$category_field]);
+            // Multi-connector: extract SalesLayer ID for per-site
+            // reference counting. product_format stores it inside
+            // format_data['ID'], while category and product store
+            // it at the top level.
+            $multiconnSlId = null;
+            $multiconnItemTypes = ['category', 'product', 'product_format'];
+            if (in_array($item_to_update['item_type'], $multiconnItemTypes, true)
+                && isset($sync_params['conn_params'])
+            ) {
+                if ($item_to_update['item_type'] === 'product_format') {
+                    $multiconnSlId = $item_data['format_data']['ID'] ?? null;
+                } else {
+                    $multiconnSlId = $item_data['ID'] ?? null;
+                }
+            }
 
+            // Legacy path: no targets configured, execute directly
+            if (empty($targets)) {
+
+                $result_update = $this->execute_update_item($item_to_update['item_type'], $sync_params, $item_data);
+
+                // Multi-connector: register on the current site if sync succeeded
+                if ($multiconnSlId !== null
+                    && $result_update !== 'item_not_updated'
+                    && $result_update !== ''
+                ) {
+                    Multiconn::get_instance()->register_connector(
+                        $item_to_update['item_type'],
+                        (string) $multiconnSlId,
+                        (int) $sync_params['conn_params']['comp_id'],
+                        $sync_params['conn_params']['connector_id'],
+                        get_current_blog_id()
+                    );
+                }
+
+            } else {
+
+                $allTargetsSynced = true;
+                $anyTargetNotUpdated = false;
+
+                foreach ($targets as &$target) {
+
+                    // Skip already synced targets (partial retry)
+                    if (!empty($target['synced'])) {
+                        continue;
+                    }
+
+                    $blogId = (int) $target['blog_id'];
+
+                    if ($isMultisite) {
+                        switch_to_blog($blogId);
+                    }
+
+                    try {
+
+                        sl_debug('Syncing item on blog_id: ' . $blogId . ': ' . $item_to_update['item_type'], 'syncdata');
+                        $targetResult = $this->execute_update_item($item_to_update['item_type'], $sync_params, $item_data);
+
+                        if ($targetResult === 'item_not_updated') {
+                            $target['synced'] = false;
+                            $target['error'] = 'item_not_updated';
+                            $allTargetsSynced = false;
+                            $anyTargetNotUpdated = true;
+                        } else {
+                            $target['synced'] = true;
+                            $target['error'] = null;
+
+                            // Multi-connector: register on this specific site
+                            if ($multiconnSlId !== null) {
+                                Multiconn::get_instance()->register_connector(
+                                    $item_to_update['item_type'],
+                                    (string) $multiconnSlId,
+                                    (int) $sync_params['conn_params']['comp_id'],
+                                    $sync_params['conn_params']['connector_id'],
+                                    $blogId
+                                );
+                            }
                         }
 
-                    }
-                    
-                    $time_ini_sync_stored_category = microtime(true);
-                    sl_debug(' >> Category synchronization initialized << ');
-                    $result_update = $this->cat_class->sync_stored_category($item_data);
-                    sl_debug(' >> Category synchronization finished << ');
-                    sl_debug('#### time_sync_stored_category: '.(microtime(true) - $time_ini_sync_stored_category).' seconds.', 'timer');
-                    break;
-                
-                case 'product':
-                    
-                    $this->prod_class->comp_id = $sync_params['conn_params']['comp_id'];
-                    
-                    foreach ($this->product_fields as $product_field) {
-                        
-                        if (isset($sync_params['product_fields'][$product_field])){
+                    } catch (\Exception $e) {
 
-                        	$this->prod_class->set_class_field_value($product_field, $sync_params['product_fields'][$product_field]);
-                            
-                        }
-
-                    }
-                    
-                    if (isset($sync_params['product_additional_fields']) && !empty($sync_params['product_additional_fields'])){
-
-                    	$product_additional_fields = array();
-                        foreach ($sync_params['product_additional_fields'] as $field_name => $field_name_value) {
-                            
-                            $product_additional_fields[$field_name] = $field_name_value;
-
-                        }
-
-                        $this->prod_class->set_class_field_value('product_additional_fields', $product_additional_fields);
+                        $target['synced'] = false;
+                        $target['error'] = $e->getMessage();
+                        $allTargetsSynced = false;
+                        sl_debug('## Error. Syncing on blog_id: ' . $blogId . ': ' . $e->getMessage(), 'syncdata');
 
                     }
 
-                    if (isset($sync_params['products_media_field_names']) && !empty($sync_params['products_media_field_names'])){
-
-                    	$this->prod_class->set_class_field_value('media_field_names', $sync_params['products_media_field_names']);
-
-                    }
-                    
-                    $time_ini_sync_stored_product = microtime(true);
-                    sl_debug(' >> Product synchronization initialized << ');
-                    $result_update = $this->prod_class->sync_stored_product($item_data);
-                    sl_debug(' >> Product synchronization finished << ');
-                    sl_debug('#### time_sync_stored_product: '.(microtime(true) - $time_ini_sync_stored_product).' seconds.', 'timer');
-                    break;
-
-                case 'product_format':
-                    
-                    $this->form_class->comp_id = $sync_params['conn_params']['comp_id'];
-                    
-                    foreach ($this->product_format_fields as $product_format_field) {
-                        
-                        if (isset($sync_params['format_fields'][$product_format_field])){
-
-                        	$this->form_class->set_class_field_value($product_format_field, $sync_params['format_fields'][$product_format_field]);
-
-                        }
-
+                    if ($isMultisite) {
+                        restore_current_blog();
                     }
 
-                    if (isset($sync_params['format_additional_fields']) && !empty($sync_params['format_additional_fields'])){
+                }
+                unset($target);
 
-                    	$format_additional_fields = array();
-                        foreach ($sync_params['format_additional_fields'] as $field_name => $field_name_value) {
-                            
-                            $format_additional_fields[$field_name] = $field_name_value;
+                // Persist updated target states in sync_params
+                $sync_params['targets'] = $targets;
+                $sql_update_params = " UPDATE " . SLYR_WC_syncdata_table .
+                    " SET sync_params = '" . addslashes(json_encode($sync_params)) . "'" .
+                    " WHERE id = " . $item_to_update['id'];
+                sl_connection_query('update', $sql_update_params);
 
-                        }
-
-                    	$this->form_class->set_class_field_value('format_additional_fields', $format_additional_fields);
-
-                    }
-
-                    if (isset($sync_params['product_formats_media_field_names']) && !empty($sync_params['product_formats_media_field_names'])){
-
-                    	$this->form_class->set_class_field_value('media_field_names', $sync_params['product_formats_media_field_names']);
-
-                    }
-
-                    $time_ini_sync_stored_product_format = microtime(true);
-                    sl_debug(' >> Format synchronization initialized << ');
-                    $result_update = $this->form_class->sync_stored_product_format($item_data);
-                    sl_debug(' >> Format synchronization finished << ');
-                    sl_debug('#### time_sync_stored_product_format: '.(microtime(true) - $time_ini_sync_stored_product_format).' seconds.', 'timer');
-                    break;
-
-                case 'product_links':
-                    
-                    $time_ini_sync_stored_product_links = microtime(true);
-                    sl_debug(' >> Product links synchronization initialized << ');
-                    $this->prod_class->sync_stored_product_links($item_data);
-                    sl_debug(' >> Product links synchronization finished << ');
+                // Determine overall result for retry/completion logic
+                if ($allTargetsSynced) {
                     $result_update = 'item_updated';
-                    sl_debug('#### time_sync_stored_product_links: '.(microtime(true) - $time_ini_sync_stored_product_links).' seconds.', 'timer');
-                    break;
+                } elseif ($anyTargetNotUpdated) {
+                    $result_update = 'item_not_updated';
+                } else {
+                    $result_update = '';
+                }
 
-                default:
-                    
-                    sl_debug('## Error. Incorrect item: : '.print_r($item_to_update, true), 'syncdata');
-                    break;
             }
 
         }
 
         switch ($result_update) {
             case 'item_not_updated':
-                
+
                 $sync_tries++;
-                
-                if ($sync_tries == 2 && $item_to_update['item_type'] == 'category'){
+
+                if ($sync_tries == 2 && $item_to_update['item_type'] == 'category') {
 
                     $item_data[$this->cat_class->category_id_parent_field] = 0;
-                    
-                    $sql_update = " UPDATE ".SLYR_WC_syncdata_table.
-                                            " SET sync_tries = ".$sync_tries.", ".
-                                            " item_data = '".addslashes(json_encode($item_data))."'".
-                                            " WHERE id = ".$item_to_update['id'];
+
+                    $sql_update = " UPDATE " . SLYR_WC_syncdata_table .
+                        " SET sync_tries = " . $sync_tries . ", " .
+                        " item_data = '" . addslashes(json_encode($item_data)) . "'" .
+                        " WHERE id = " . $item_to_update['id'];
 
                     sl_connection_query('update', $sql_update);
 
-                }else{
+                } else {
 
-                    $sql_update = " UPDATE ".SLYR_WC_syncdata_table.
-                                            " SET sync_tries = ".$sync_tries.
-                                            " WHERE id = ".$item_to_update['id'];
+                    $sql_update = " UPDATE " . SLYR_WC_syncdata_table .
+                        " SET sync_tries = " . $sync_tries .
+                        " WHERE id = " . $item_to_update['id'];
 
                     sl_connection_query('update', $sql_update);
 
-                    if ($sync_tries == 3){
-
-                    	$this->update_syncdata_counters($item_to_update['item_type'], 'sync');
-                    	
+                    if ($sync_tries == 3) {
+                        $this->update_syncdata_counters($item_to_update['item_type'], 'sync');
                     }
 
                 }
@@ -820,9 +1046,9 @@ class Synchronize
                 unset($sql_update);
 
                 break;
-            
+
             default:
-                
+
                 $this->update_syncdata_counters($item_to_update['item_type'], 'sync');
                 $this->sql_items_delete[] = $item_to_update['id'];
                 break;
@@ -834,6 +1060,92 @@ class Synchronize
 
     }
 
+    /**
+     * Set connector's config data.
+     * @param  string $connector_id SL connector id.
+     * @param  string $secret_key   SL secret key
+     * @return string messages to show in front
+     */
+    public function config_connector($connector_id, $secret_key)
+    {
+        
+        sl_debug("==== Config Connector INIT ====");
+
+        $sync_params = $arrayReturn = array();
+    
+        $general_params = GeneralParameters::get_instance_singleton();
+        $connector = Connector::get_instance();
+
+        $this->cat_class = new Category();
+
+        $last_update = $connector->get_info($connector_id, 'last_update');
+
+        $conn_data = array();
+        $conn_data['default_cat_id'] = $this->cat_class->default_cat_id;
+
+        $slconn = new SalesLayer_Conn_Woo ($connector_id, $secret_key, true);
+        $slconn->set_URL_connection(SLYR_WC_url_API);
+        $slconn->set_group_multicategory(true);
+        $slconn->set_parents_category_tree(true);
+        $slconn->set_same_parent_variants_modifications(true);
+
+        $API_version = $general_params->getInfo('API_version');
+        if ($API_version !== false) {
+            $slconn->set_API_version($API_version);
+        }
+        
+        $slconn->get_info();
+        
+        sl_debug('Connecting with API... API Version: '.$API_version);
+        
+        $language_to_sync = '';
+
+        $get_response_default_language = $slconn->get_response_default_language();
+
+        if (!is_null($get_response_default_language)){
+            
+            $conn_data['default_language'] = $get_response_default_language;
+            $language_to_sync = $get_response_default_language;
+
+        }
+
+        $get_response_languages_used = $slconn->get_response_languages_used();
+        
+        if (!is_null($get_response_languages_used)){
+
+            if (is_array($get_response_languages_used)){
+
+                $language_to_sync = reset($get_response_languages_used);
+
+            }else{
+
+                $language_to_sync = $get_response_languages_used;				
+
+            }
+
+            $get_response_languages_used = implode(',', $get_response_languages_used);
+
+            $conn_data['languages'] = $get_response_languages_used;
+
+        }
+        
+        $conn_data['comp_id'] = $slconn->get_response_company_ID();
+        
+        // $conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
+        $last_update = $slconn->get_response_time();
+
+        // if (!is_null($last_update)){ $conn_data['last_update'] = $last_update; }
+        sl_debug("conn_data: ".print_r($conn_data,1));
+        $connector->update_connector($connector_id, $conn_data);
+
+        sl_debug("==== Config Connector END ====");
+
+        $message_content = "Connector ID: ".$connector_id." - Connector added successfully!";
+        $div_messages = '<div class="dialog dialog-success">'.$message_content.'</div>';
+        return $div_messages;
+
+    }
+                
     /**
      * Store connector's data into sync data table.
      * @param  string $connector_id SL connector id.
@@ -939,7 +1251,13 @@ class Synchronize
 
         $sync_params['conn_params']['comp_id'] = $conn_data['comp_id'];
         $sync_params['conn_params']['connector_id'] = $connector_id;
-        
+
+        // Build per-site sync targets from connector's multisite configuration.
+        // Works in both single-site (1 target) and multisite (N targets).
+        $connectorRow = $connector->get_connector($connector_id);
+        $connectorArray = is_object($connectorRow) ? (array) $connectorRow : $connectorRow;
+        $sync_params['targets'] = slyr_build_sync_targets($connectorArray);
+
         set_time_limit('0');
         
         $get_data_schema = $this->get_data_schema($slconn);
@@ -1020,7 +1338,7 @@ class Synchronize
                                     if (!isset($arrayReturn['products_to_delete'])) $arrayReturn['products_to_delete'] = 0;
                                     $arrayReturn['products_to_delete'] += count($deleted_data);
                                     
-                                        if ($this->debug_level > 1) sl_debug('Delete products data to store: '.print_r($deleted_data, true));
+                                    if ($this->debug_level > 1) sl_debug('Delete products data to store: '.print_r($deleted_data, true));
                                     
                                     foreach ($deleted_data as $delete_product_id) {
                                         
@@ -1038,7 +1356,7 @@ class Synchronize
                                     if (!isset($arrayReturn['product_formats_to_delete'])) $arrayReturn['product_formats_to_delete'] = 0;
                                     $arrayReturn['product_formats_to_delete'] += count($deleted_data);
                                     
-                                        if ($this->debug_level > 1) sl_debug('Delete product formats data to store: '.print_r($deleted_data, true));
+                                    if ($this->debug_level > 1) sl_debug('Delete product formats data to store: '.print_r($deleted_data, true));
 
                                     foreach ($deleted_data as $delete_product_format_id) {
                                             

@@ -1078,9 +1078,23 @@ class Product
 
         if (!empty($linked_product_data)){
 
+            // Build sync_params with a single target for the current blog context.
+            // product_links contain wp_product_ids that are local to the blog where
+            // sync_stored_product() is executing (already inside switch_to_blog()).
+            $linksSyncParams = [
+                'targets' => [
+                    [
+                        'blog_id'   => (int) get_current_blog_id(),
+                        'lang_code' => '',
+                        'synced'    => false,
+                        'error'     => null,
+                    ],
+                ],
+            ];
+
             $sql_query_to_insert = " INSERT INTO ".SLYR_WC_syncdata_table.
                                     " ( sync_type, item_type, item_data, sync_params ) VALUES ".
-                                    " ('update', 'product_links', '".json_encode($linked_product_data)."', '')";
+                                    " ('update', 'product_links', '".json_encode($linked_product_data)."', '".addslashes(json_encode($linksSyncParams))."')";
 
             sl_connection_query('insert', $sql_query_to_insert);
 

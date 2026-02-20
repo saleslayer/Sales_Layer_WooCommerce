@@ -96,7 +96,7 @@ document.getElementById('delete_sl_credentials').addEventListener('click', funct
 		type: "POST",
 		dataType: "json",
 		data: {
-			action: 'sl_wc_execute_tool', 
+			action: 'sl_wc_execute_tool',
 			tool_to_execute: 'delete_sl_credentials'
 		},
 		success: function(response) {
@@ -104,6 +104,25 @@ document.getElementById('delete_sl_credentials').addEventListener('click', funct
 		},
 		error: function(data_return){
 			showMessage(response['message_type'], response['message']);
+		}
+	});
+});
+
+document.getElementById('clean_orphaned_multiconn').addEventListener('click', function()
+{
+	jQuery.ajax({
+		url: ajaxurl,
+		type: "POST",
+		dataType: "json",
+		data: {
+			action: 'sl_wc_execute_tool',
+			tool_to_execute: 'clean_orphaned_multiconn'
+		},
+		success: function(response) {
+			showMessage(response['message_type'], response['message']);
+		},
+		error: function(data_return){
+			showMessage('error', "Couldn't clean orphaned multiconn records.");
 		}
 	});
 });

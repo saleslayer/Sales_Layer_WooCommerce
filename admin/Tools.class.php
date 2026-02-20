@@ -109,13 +109,13 @@ class Tools
             foreach ($meta_keys as $meta_key) {
                 $meta_key_count = sl_connection_query(
                     'read',
-                    ' SELECT count(*) as sl_cuenta_registros FROM ' . WPDB_PREFIX . 'termmeta WHERE meta_key = %s',
+                    ' SELECT count(*) as sl_cuenta_registros FROM ' . slyr_get_wpdb_prefix() . 'termmeta WHERE meta_key = %s',
                     [$meta_key]
                 );
             if (isset($meta_key_count['sl_cuenta_registros']) && $meta_key_count['sl_cuenta_registros'] > 0) {
                 $deleted = delete_metadata('term', 0, $meta_key, '', true);
                 if ($deleted === false) {
-                        sl_debug('## Error. Deleting categories SL credentials: ' . $meta_key);
+                    sl_debug('## Error. Deleting categories SL credentials: ' . $meta_key);
                     return false;
                 }
             }
@@ -125,19 +125,39 @@ class Tools
             foreach ($meta_keys as $meta_key) {
                 $meta_key_count = sl_connection_query(
                     'read',
-                    ' SELECT count(*) as sl_cuenta_registros FROM ' . WPDB_PREFIX . 'postmeta WHERE meta_key = %s',
+                    ' SELECT count(*) as sl_cuenta_registros FROM ' . slyr_get_wpdb_prefix() . 'postmeta WHERE meta_key = %s',
                     [$meta_key]
                 );
             if (isset($meta_key_count['sl_cuenta_registros']) && $meta_key_count['sl_cuenta_registros'] > 0) {
                 $deleted = delete_metadata('post', 0, $meta_key, '', true);
                 if ($deleted === false) {
-                        sl_debug('## Error. Deleting products and variants SL credentials: ' . $meta_key);
+                    sl_debug('## Error. Deleting products and variants SL credentials: ' . $meta_key);
                     return false;
                 }
             }
         }
 
         return true;
+    }
+
+    /**
+     * Remove orphaned multiconn records whose blog_id is no longer
+     * an active target in the connector's multisite configuration.
+     *
+     * @return array{success: bool, deleted: int} Result with success flag and count of deleted rows
+     */
+    public function cleanOrphanedMulticonnRecords(): array
+    {
+        try {
+            include_once(SLYR_WC__PLUGIN_DIR . 'admin/Multiconn.class.php');
+            $multiconn = Multiconn::get_instance();
+            $deletedCount = $multiconn->purgeOrphanedBlogIds();
+
+            return ['success' => true, 'deleted' => $deletedCount];
+        } catch (\Exception $e) {
+            sl_debug('## Error. Cleaning orphaned multiconn records: ' . $e->getMessage());
+            return ['success' => false, 'deleted' => 0];
+        }
     }
 
 }

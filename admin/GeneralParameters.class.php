@@ -43,7 +43,7 @@ class GeneralParameters
     public function insertFirstTimeWPOption()
     {
 
-        add_option(SLYR_WC_general_params, json_encode($this->default_options), '', 'no');
+        add_site_option(SLYR_WC_general_params, json_encode($this->default_options));
     }
 
     /**
@@ -53,7 +53,7 @@ class GeneralParameters
     public function checkWPOption()
     {
         
-        $row_options_values_gp = get_option(SLYR_WC_general_params, []);
+        $row_options_values_gp = get_site_option(SLYR_WC_general_params, []);
         if ($row_options_values_gp) {
             $this->options_values = json_decode($row_options_values_gp, true);
             foreach ($this->default_options as $default_option_name => $default_option_value){
@@ -130,7 +130,7 @@ class GeneralParameters
     public function updateWPOptionsGeneralParameters()
     {
         
-        $result = update_option(SLYR_WC_general_params, json_encode($this->options_values));									
+        $result = update_site_option(SLYR_WC_general_params, json_encode($this->options_values));
         return $result;
     }
 

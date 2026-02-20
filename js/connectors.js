@@ -186,3 +186,323 @@ function processRestartStatusData(data, connector_id)
     $(":input").prop("disabled", false);
     $('#messages').html(data['content']);
 }
+
+// --- Multisite Configuration Modal ---
+
+/**
+ * Open the multisite configuration modal for a given connector.
+ * Fetches network sites and current config, then populates the modal.
+ * @param {string} connectorId
+ */
+function openMultisiteModal(connectorId)
+{
+    if (!ajax_object.is_multisite_mode) {
+        return;
+    }
+
+    $('#slyr-multisite-connector-id').val(connectorId);
+    $('#slyr-multisite-sites-body').html('<tr><td colspan="3">Loading sites...</td></tr>');
+    $('#slyr-multisite-overlay').css('display', 'flex');
+
+    // Fetch sites and config in parallel
+    var sitesRequest = jQuery.ajax({
+        type: 'GET',
+        url: ajax_object.ajaxurl,
+        dataType: 'json',
+        data: {
+            action: 'slyr_get_network_sites',
+            nonce: ajax_object.multisite_nonce
+        }
+    });
+
+    var configRequest = jQuery.ajax({
+        type: 'GET',
+        url: ajax_object.ajaxurl,
+        dataType: 'json',
+        data: {
+            action: 'slyr_get_multisite_config',
+            connector_id: connectorId,
+            nonce: ajax_object.multisite_nonce
+        }
+    });
+
+    jQuery.when(sitesRequest, configRequest).done(function(sitesResponse, configResponse) {
+        var sitesData = sitesResponse[0];
+        var configData = configResponse[0];
+
+        if (!sitesData.success || !configData.success) {
+            $('#slyr-multisite-sites-body').html(
+                '<tr><td colspan="3">Error loading data.</td></tr>'
+            );
+            return;
+        }
+
+        var sites = sitesData.data.sites;
+        var mainSiteId = sitesData.data.main_site_id || 1;
+        var config = configData.data;
+        var savedTargets = config.multisite_targets || [];
+        var availableLanguages = config.available_languages || [];
+
+        // Show available languages info
+        if (availableLanguages.length > 0) {
+            $('#slyr-multisite-languages-info').html(
+                '<p><strong>Available Languages (from SalesLayer):</strong> ' +
+                availableLanguages.join(', ') + '</p>'
+            );
+        } else {
+            $('#slyr-multisite-languages-info').html(
+                '<p class="slyr-multisite-warning">No languages configured in this connector. ' +
+                'Synchronize the connector first to load available languages.</p>'
+            );
+        }
+
+        populateMultisiteSitesTable(sites, savedTargets, availableLanguages, mainSiteId);
+
+    }).fail(function() {
+        $('#slyr-multisite-sites-body').html(
+            '<tr><td colspan="3">Connection error. Please try again.</td></tr>'
+        );
+    });
+}
+
+/**
+ * Populate the sites table in the modal with checkboxes and language dropdowns.
+ * Sites without WooCommerce are shown disabled. Main site lock is dynamic:
+ * locked (checked+disabled) only when no other site is active.
+ *
+ * @param {Array} sites Network sites
+ * @param {Array} savedTargets Previously saved targets from conn_extra
+ * @param {Array} availableLanguages Languages from connector
+ * @param {number} mainSiteId The main site blog_id
+ */
+function populateMultisiteSitesTable(sites, savedTargets, availableLanguages, mainSiteId)
+{
+    var tableBody = '';
+
+    // Build a lookup of saved targets by blog_id.
+    // Only active targets are stored, so presence in the array = active.
+    var savedLookup = {};
+    for (var i = 0; i < savedTargets.length; i++) {
+        savedLookup[savedTargets[i].blog_id] = savedTargets[i];
+    }
+
+    for (var s = 0; s < sites.length; s++) {
+        var site = sites[s];
+        var saved = savedLookup[site.blog_id] || null;
+        var isMainSite = (site.blog_id === mainSiteId);
+        var hasWoo = site.has_woocommerce;
+
+        // Determine initial active state:
+        // - No WooCommerce → always inactive
+        // - Present in savedTargets → active (stored = active)
+        // - Not present + main site + no saved config at all → active by default
+        // - Not present otherwise → inactive
+        var isActive;
+        if (!hasWoo) {
+            isActive = false;
+        } else if (saved) {
+            isActive = true;
+        } else if (isMainSite && savedTargets.length === 0) {
+            isActive = true;
+        } else {
+            isActive = false;
+        }
+        var selectedLang = saved ? saved.lang_code : '';
+
+        var rowClass = !hasWoo ? ' class="slyr-multisite-site-disabled"' : '';
+        tableBody += '<tr data-blog-id="' + site.blog_id + '"' + rowClass + '>';
+
+        // Site name column with badges
+        tableBody += '<td><strong>' + site.blog_id + '. ' + escapeHtml(site.blogname) + '</strong>';
+        if (isMainSite) {
+            tableBody += '<span class="slyr-multisite-main-site-badge">Main Site</span>';
+        }
+        if (!hasWoo) {
+            tableBody += '<span class="slyr-multisite-no-woo-badge">WooCommerce disabled</span>';
+        }
+        tableBody += '<br><span class="slyr-multisite-url">' + escapeHtml(site.siteurl) + '</span></td>';
+
+        // Active checkbox: sites without WooCommerce are always disabled.
+        // Main site disabled/enabled state is managed dynamically by updateMainSiteCheckboxState().
+        var checkboxAttrs = '';
+        if (!hasWoo) {
+            checkboxAttrs = ' disabled';
+        } else if (isMainSite) {
+            checkboxAttrs = ' data-main-site="1"';
+        }
+        tableBody += '<td><input type="checkbox" class="slyr-site-active" ' +
+            (isActive ? 'checked' : '') + checkboxAttrs + ' /></td>';
+
+        // Language dropdown: disabled for sites without WooCommerce
+        var selectDisabled = !hasWoo ? ' disabled' : '';
+        tableBody += '<td><select class="slyr-site-lang"' + selectDisabled + '>';
+        tableBody += '<option value="">-- Select --</option>';
+
+        for (var l = 0; l < availableLanguages.length; l++) {
+            var lang = availableLanguages[l];
+            tableBody += '<option value="' + lang + '"' +
+                (selectedLang === lang ? ' selected' : '') + '>' + lang + '</option>';
+        }
+
+        tableBody += '</select></td>';
+        tableBody += '</tr>';
+    }
+
+    if (tableBody === '') {
+        tableBody = '<tr><td colspan="3">No sites found in the network.</td></tr>';
+    }
+
+    $('#slyr-multisite-sites-body').html(tableBody);
+
+    // Set initial lock state for main site checkbox
+    updateMainSiteCheckboxState();
+
+    // Bind change event to recalculate lock state on every checkbox toggle
+    $('#slyr-multisite-sites-body').off('change', '.slyr-site-active').on(
+        'change', '.slyr-site-active', updateMainSiteCheckboxState
+    );
+}
+
+/**
+ * Dynamically lock/unlock the main site checkbox based on other active sites.
+ *
+ * Rules:
+ *   - If at least one non-main site is checked → main site is unlockable (user can uncheck it)
+ *   - If no non-main site is checked → main site is forced checked + disabled (minimum 1 guarantee)
+ */
+function updateMainSiteCheckboxState()
+{
+    var $mainCheckbox = $('#slyr-multisite-sites-body .slyr-site-active[data-main-site="1"]');
+    if ($mainCheckbox.length === 0) {
+        return;
+    }
+
+    // Count active non-main, non-disabled-by-woo checkboxes
+    var otherActiveCount = $('#slyr-multisite-sites-body .slyr-site-active')
+        .not('[data-main-site="1"]')
+        .not(':disabled')
+        .filter(':checked')
+        .length;
+
+    if (otherActiveCount > 0) {
+        // Other sites are active — main site can be toggled
+        $mainCheckbox.prop('disabled', false);
+    } else {
+        // No other site active — force main site on
+        $mainCheckbox.prop('checked', true).prop('disabled', true);
+    }
+}
+
+/**
+ * Close the multisite configuration modal.
+ */
+function closeMultisiteModal()
+{
+    $('#slyr-multisite-overlay').css('display', 'none');
+}
+
+/**
+ * Save multisite configuration from the modal form.
+ * Collects targets from the sites table and sends them via AJAX.
+ * Disabled rows (no WooCommerce) are skipped.
+ * Backend enforces at least one active site (falls back to main site).
+ */
+function saveMultisiteConfig()
+{
+    var connectorId = $('#slyr-multisite-connector-id').val();
+
+    var targets = [];
+    $('#slyr-multisite-sites-body tr').each(function() {
+        var blogId = $(this).data('blog-id');
+        if (typeof blogId === 'undefined') {
+            return;
+        }
+
+        // Skip sites without WooCommerce (disabled rows)
+        if ($(this).hasClass('slyr-multisite-site-disabled')) {
+            return;
+        }
+
+        targets.push({
+            blog_id: blogId,
+            lang_code: $(this).find('.slyr-site-lang').val() || '',
+            active: $(this).find('.slyr-site-active').is(':checked')
+        });
+    });
+
+    jQuery.ajax({
+        type: 'POST',
+        url: ajax_object.ajaxurl,
+        dataType: 'json',
+        data: {
+            action: 'slyr_save_multisite_config',
+            nonce: ajax_object.multisite_nonce,
+            connector_id: connectorId,
+            targets: JSON.stringify(targets)
+        },
+        success: function(response) {
+            if (response.success) {
+                showMessage('success', response.data.message);
+                closeMultisiteModal();
+            } else {
+                showMessage('warning', response.data.message || 'Error saving configuration.');
+            }
+            clear_message_status();
+        },
+        error: function() {
+            showMessage('warning', 'Connection error. Please try again.');
+            clear_message_status();
+        }
+    });
+}
+
+/**
+ * Delete a connector via AJAX and reload the page on success.
+ * @param {string} connectorId
+ */
+function deleteConnector(connectorId)
+{
+    if (!confirm('Are you sure you want to delete connector ' + connectorId + '?')) {
+        return;
+    }
+
+    jQuery.ajax({
+        type: 'POST',
+        url: ajaxurl,
+        data: {
+            action: 'sl_wc_delete_connector',
+            connector_id: connectorId
+        },
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                showMessage('warning', response.data.message || 'Error deleting connector.');
+                clear_message_status();
+            }
+        },
+        error: function() {
+            showMessage('warning', 'Connection error. Please try again.');
+            clear_message_status();
+        }
+    });
+}
+
+/**
+ * Escape HTML special characters to prevent XSS in dynamic content.
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeHtml(text)
+{
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+
+// Bind the Save button click event when DOM is ready
+jQuery(document).ready(function() {
+    jQuery('#slyr-multisite-save').on('click', function() {
+        saveMultisiteConfig();
+    });
+});
