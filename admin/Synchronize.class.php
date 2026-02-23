@@ -43,6 +43,15 @@ class Synchronize
     protected 		$analyticsAPIItemCount = [];
     protected 		$analyticsLastUpdate;
 
+    /**
+     * Blog IDs already verified for WooCommerce tables in this request.
+     * Prevents redundant SHOW TABLES checks when syncing multiple items
+     * to the same subsite within a single cron run.
+     *
+     * @var array<int, bool>
+     */
+    private static array $woocommerceTablesVerified = [];
+
     public function __construct()
     {
 
@@ -522,6 +531,7 @@ class Synchronize
 
                                             if ($isMultisite) {
                                                 switch_to_blog($blogId);
+                                                $this->ensureWooCommerceTablesExist($blogId);
                                             }
 
                                             try {
@@ -949,6 +959,7 @@ class Synchronize
 
                     if ($isMultisite) {
                         switch_to_blog($blogId);
+                        $this->ensureWooCommerceTablesExist($blogId);
                     }
 
                     try {
@@ -1942,9 +1953,53 @@ class Synchronize
     }
 
     /**
+     * Ensure WooCommerce custom tables exist on the current blog context.
+     *
+     * WooCommerce creates per-subsite tables (wc_category_lookup,
+     * woocommerce_attribute_taxonomies, wc_tax_rate_classes, etc.) only when
+     * someone accesses the admin of that subsite for the first time via
+     * WC_Install::check_version(). If the plugin syncs to a subsite before
+     * any admin access, these tables are missing and WooCommerce internal
+     * hooks (e.g., CategoryLookup->on_create) fail with DB errors.
+     *
+     * This method performs a lightweight SHOW TABLES check and triggers
+     * WC_Install::create_tables() only when needed. Results are cached
+     * per blog_id to avoid redundant checks within the same sync run.
+     *
+     * @param int $blogId The blog ID to verify tables for.
+     * @return void
+     */
+    private function ensureWooCommerceTablesExist(int $blogId): void
+    {
+        if (isset(self::$woocommerceTablesVerified[$blogId])) {
+            return;
+        }
+
+        global $wpdb;
+
+        // Lightweight probe: check one representative WooCommerce table
+        $tableName = $wpdb->prefix . 'wc_category_lookup';
+        $tableExists = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $tableName)
+        );
+
+        if (!$tableExists && class_exists('\WC_Install')) {
+            sl_debug(
+                'WooCommerce tables missing on blog_id ' . $blogId
+                . ' — running WC_Install::create_tables()',
+                'syncdata'
+            );
+            \WC_Install::create_tables();
+            \WC_Install::verify_base_tables(false);
+        }
+
+        self::$woocommerceTablesVerified[$blogId] = true;
+    }
+
+    /**
      * Get ecommerce version
      *
-     * @return string   
+     * @return string
      */
     private function getEcommerceVersion(): string
     {
