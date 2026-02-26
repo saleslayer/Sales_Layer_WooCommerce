@@ -1,14 +1,39 @@
+var ajaxurl = (typeof window.ajaxurl !== 'undefined') ? window.ajaxurl : '';
+
+function setConnectorPageInputsDisabled(disabled)
+{
+    // Do not disable the Add Connector modal inputs, otherwise users can open it and stare at disabled fields.
+    $(":input").not('#slyr-add-connector-overlay :input').prop('disabled', disabled);
+}
+
 jQuery(document).ready(function()
 {
-    var plugin_name_dir = '<?php echo SLYR_WC_PLUGIN_NAME_DIR ?>';
-    var ajaxurl = "<?php echo admin_url('admin-ajax.php') ?>";    
-    $('.progress').hide();
-    $(":input").prop("disabled", true);
-    start_check_process_status();
-    if (typeof add_conn_message !== 'undefined' && add_conn_message){
-        $('#messages').html(add_conn_message);
-        $('#messages').fadeIn('slow');
+    if (typeof ajax_object !== 'undefined' && ajax_object.ajaxurl) {
+        ajaxurl = ajax_object.ajaxurl;
     }
+
+    $('.progress').hide();
+    setConnectorPageInputsDisabled(true);
+    start_check_process_status();
+
+    // Add Connector modal bindings
+    jQuery('#slyr-add-connector-form').on('submit', function(e) {
+        e.preventDefault();
+        submitAddConnector();
+    });
+
+    jQuery('#slyr-add-connector-overlay').on('click', function(e) {
+        if (e.target === this) {
+            closeAddConnectorModal();
+        }
+    });
+
+    // Enable submit only when both fields have values
+    jQuery('#slyr-add-connector-id, #slyr-add-connector-secret').on('input', function() {
+        var hasConnectorId = jQuery('#slyr-add-connector-id').val().trim() !== '';
+        var hasSecretKey = jQuery('#slyr-add-connector-secret').val().trim() !== '';
+        jQuery('#slyr-add-connector-submit').prop('disabled', !(hasConnectorId && hasSecretKey));
+    });
 });
 
 function update_conn_field(data)
@@ -44,8 +69,90 @@ function update_conn_field(data)
 
 function showMessage(type = 'success', message)
 {
-    var html = "<div class='dialog dialog-"+type+"'>"+message+"<br></div>";
-    $('#messages').html(html);
+    var allowedTypes = ['success', 'warning', 'info', 'error'];
+    if (allowedTypes.indexOf(type) === -1) {
+        type = 'info';
+    }
+
+    var safeMessage = escapeHtml(String(message || ''));
+    var html = "<div class='dialog dialog-" + type + "'>" + safeMessage + "<br></div>";
+    jQuery('#messages').html(html);
+}
+
+// --- Add Connector Modal ---
+
+function openAddConnectorModal()
+{
+    jQuery('#slyr-add-connector-id').val('');
+    jQuery('#slyr-add-connector-secret').val('');
+    jQuery('#slyr-add-connector-submit').prop('disabled', true);
+    jQuery('#slyr-add-connector-overlay').css('display', 'flex');
+    jQuery('#slyr-add-connector-id').trigger('focus');
+}
+
+function closeAddConnectorModal()
+{
+    jQuery('#slyr-add-connector-overlay').hide();
+}
+
+function submitAddConnector()
+{
+    if (typeof ajax_object === 'undefined' || !ajax_object.create_connector_nonce) {
+        showMessage('warning', 'Missing security nonce. Please reload the page.');
+        clear_message_status();
+        return;
+    }
+
+    var connectorId = String(jQuery('#slyr-add-connector-id').val() || '').trim();
+    var secretKey = String(jQuery('#slyr-add-connector-secret').val() || '').trim();
+
+    if (!connectorId || !secretKey) {
+        showMessage('warning', 'Connector ID and Secret key are required.');
+        clear_message_status();
+        return;
+    }
+
+    closeAddConnectorModal();
+    showMessage('info', 'Validating connector credentials…');
+    jQuery('#messages').fadeIn('slow');
+
+    jQuery.ajax({
+        type: 'POST',
+        url: ajaxurl,
+        dataType: 'json',
+        data: {
+            action: 'sl_wc_create_connector',
+            connector_id: connectorId,
+            secret_key: secretKey,
+            nonce: ajax_object.create_connector_nonce
+        },
+        success: function(response) {
+            if (response && response.success) {
+                var successMessage = (response.data && response.data.message)
+                    ? response.data.message
+                    : 'Connector added successfully!';
+                showMessage('success', successMessage);
+                setTimeout(function() { location.reload(); }, 1500);
+                return;
+            }
+
+            var message = (response && response.data && response.data.message)
+                ? response.data.message
+                : 'Error when creating the connector.';
+
+            showMessage('warning', message);
+            clear_message_status();
+        },
+        error: function(xhr) {
+            var rawResponse = (xhr && xhr.responseText) ? String(xhr.responseText).trim() : '';
+            if (rawResponse === '-1') {
+                showMessage('warning', 'Security check failed. Please reload the page and try again.');
+            } else {
+                showMessage('warning', 'Connection error. Please try again.');
+            }
+            clear_message_status();
+        }
+    });
 }
 
 function clear_message_status()
@@ -79,9 +186,10 @@ function check_process_status()
 var sync_conn = function(param)
 {
     var conn_id = param.getAttribute('connectorid');
-    var sec_key = param.getAttribute('secretkey');		
-    $(":input").prop("disabled", true);
-    start_check_process_status();
+    var sec_key = param.getAttribute('secretkey');
+    setConnectorPageInputsDisabled(true);
+    $('#messages').html('<div class="dialog dialog-info">Downloading data from Sales Layer API&hellip;</div>');
+    $('#messages').fadeIn('slow');
     jQuery.ajax({
         type:'POST',
         data:{action:'sl_wc_synchronize_connector', connector_id: conn_id, secret_key: sec_key},
@@ -89,7 +197,9 @@ var sync_conn = function(param)
         success: function(data) {
             data = JSON.parse(data);
             $('#messages').html(data['message']);
-            $('#messages').fadeIn('slow');  
+            $('#messages').fadeIn('slow');
+            // Start polling AFTER items are queued so progress bars appear automatically
+            setTimeout(check_process_status, 3000);
         }
     });
 }
@@ -112,7 +222,7 @@ function processUnfinishedStatusData(data, connector_id)
     $("#progress_products_"+connector_id).show();
     $("#progress_product_formats_"+connector_id).show();
     $("#progress_product_links_"+connector_id).show();
-    $(":input").prop("disabled", true);
+    setConnectorPageInputsDisabled(true);
     data_content = data['content'];
     checkDataContentTables(data_content, connector_id)
     setTimeout(check_process_status, 4000);
@@ -168,7 +278,7 @@ function getProgressName(table)
 function processStoppedStatusData(data)
 {
     $(".progress").hide();
-    $(":input").prop("disabled", false);
+    setConnectorPageInputsDisabled(false);
     $('#messages').html(data['header']);
 }
 
@@ -183,8 +293,10 @@ function processRestartStatusData(data, connector_id)
     $("#sub_progress_product_formats_"+connector_id).attr('aria-valuenow', 0);
     $("#sub_progress_product_links_"+connector_id).attr('aria-valuenow', 0);
     $(".progress").hide();
-    $(":input").prop("disabled", false);
-    $('#messages').html(data['content']);
+    setConnectorPageInputsDisabled(false);
+    if (data['content']) {
+        $('#messages').html(data['content']);
+    }
 }
 
 // --- Multisite Configuration Modal ---

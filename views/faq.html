@@ -27,7 +27,7 @@
                 <div class="faq-item">
                     <div class="faq-question">How to do a first synchronization</div>
                     <div class="faq-answer">
-                        <p>Once SL channel is configured and fields mapped, you can add the connector to synchronize it in <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_add_connector">Add Connector</a>.</p>
+                        <p>Once SL channel is configured and fields mapped, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click the <strong>Add connector</strong> button to enter your credentials.</p>
                         <p>You should test synchronization before leaving it automated, to validate the configuration. This should be done in a staging environment.</p>
                         <p>Before starting, verify to have logs enabled in your WooCommerce store, Sales Layer Woo menu <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a>.</p>
                         <p>To start, we suggest starting with a test synchronization with a few items, setting their status as visible (only these items), and adding a tag, that you have to add in the Products tab in Output data as well. This will narrow the scope of items. Remember to include categories and variants for the items selected, to avoid sync errors and make more complete tests.</p>
@@ -75,6 +75,10 @@
                 <div class="faq-item">
                     <div class="faq-question">Delete SL credentials</div>
                     <div class="faq-answer">Delete Sales Layer credentials from existing items, this will affect categories, products and variants.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">Clean orphaned multiconn</div>
+                    <div class="faq-answer">Removes multiconn records whose site (blog_id) has been deactivated from the connector's multisite targets. This is useful to clean up leftover data after disabling sites in the multisite synchronization settings.</div>
                 </div>
             </div>
             <div class="faq-group">

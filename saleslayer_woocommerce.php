@@ -252,10 +252,13 @@ add_action('init','slyr_wc_plugin_init');
 function slyr_wc_enqueue_stylesheets()
 {
 
-    // Register Bootstrap and flat ui styles
+    // Register Bootstrap, Google Fonts and admin styles
     if (is_admin()) {
-        
-        wp_register_style('sl_wc_style_admin', plugin_dir_url( __FILE__ ).'css/style_admin.css');
+
+        wp_register_style('sl_wc_google_fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        wp_enqueue_style('sl_wc_google_fonts');
+
+        wp_register_style('sl_wc_style_admin', plugin_dir_url( __FILE__ ).'css/style_admin.css', array('sl_wc_google_fonts'), SLYR_WC_version);
         wp_enqueue_style('sl_wc_style_admin');
 
         wp_register_style('sl_wc_bootstrap_min', plugin_dir_url( __FILE__ ).'css/bootstrap.min.css');
@@ -293,7 +296,6 @@ function slyr_wc_menu()
 
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How to Start?'),           __('How to Start?'),        'manage_options', 'slyr_wc_menu',           'slyr_wc_how_to_start');
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('General Parameters'),      __('General Parameters'),   'manage_options', 'slyr_wc_general_params', 'slyr_wc_general_params' );
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Add Connector'),           __('Add Connector'),        'manage_options', 'slyr_wc_add_connector',  'slyr_wc_add_connector' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Connectors'),              __('Connectors'),           'manage_options', 'slyr_wc_connectors',     'slyr_wc_connectors' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Tools'),                   __('Tools'),                'manage_options', 'slyr_wc_tools',          'slyr_wc_tools' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('FAQ'),                     __('FAQ'),                  'manage_options', 'slyr_wc_faq',            'slyr_wc_faq' );
@@ -319,7 +321,7 @@ function slyr_wc_how_to_start()
         echo wp_kses_post($how_to_content);
         echo getLatestVersionContent(); 
     } else {
-        set_transient('slyr_wc_not_found_message', __('How to content not available.', 'text-domain'), 30);
+		set_transient('slyr_wc_not_found_message', __('How to content not available.', 'saleslayer_woocommerce'), 30);
         wp_redirect(admin_url('index.php'), 301);
         exit;
     }
@@ -370,7 +372,7 @@ function slyr_wc_general_params()
             echo getLatestVersionContent(); 
 
         } else {
-            set_transient( 'slyr_wc_not_found_message', __( 'General parameters content not available.', 'text-domain' ), 30 );
+			set_transient( 'slyr_wc_not_found_message', __( 'General parameters content not available.', 'saleslayer_woocommerce' ), 30 );
             wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
             exit;
         }
@@ -401,93 +403,16 @@ function slyr_wc_add_connector()
 
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
-    }else{
-
-        if (isset($_POST['connector_id']) && !empty($_POST['connector_id']) && isset($_POST['secret_key']) && !empty($_POST['secret_key'])) {
-            
-            $result_check_plugins_requirements = check_plugin_requirements();
-
-            if ($result_check_plugins_requirements['error'] === 0){
-                
-                if (!class_exists('SalesLayer_Conn_Woo')){
-                    include_once(SLYR_WC__PLUGIN_DIR.'admin/lib/SalesLayer-Conn-Woo.php');
-                }
-                
-                $connector_id = $_POST['connector_id'];
-                $secret_key = $_POST['secret_key'];
-                $connector = new Connector();
-
-                if (!$connector->check_connector($connector_id)){
-                    
-                    $slconn = new SalesLayer_Conn_Woo ($connector_id, $secret_key);
-                    $slconn->set_URL_connection(SLYR_WC_url_API);
-                    $slconn->set_group_multicategory(true);
-                    $slconn->set_parents_category_tree(true);
-                    $slconn->set_same_parent_variants_modifications(true);
-                    $slconn->get_info();
-
-                    if (!$slconn->has_response_error()) {
-
-                        if ($response_connector_schema = $slconn->get_response_connector_schema()) {
-
-                            $response_connector_type = $response_connector_schema['connector_type'];
-                            
-                            if ($response_connector_type == SLYR_WC_connector_type) {
-                            
-                                if ($connector->add_connector($connector_id, $secret_key)){
-
-                                    set_transient('slyr_wc_connectors_success_message', __( 'Connector added successfully!', 'text-domain' ), 30 );
-                                    slyr_wc_show_admin_notice();
-
-                                    include_once(SLYR_WC__PLUGIN_DIR.'admin/Synchronize.class.php');
-
-                                    $sync_class = new Synchronize();
-                                    $return_message = $sync_class->config_connector($connector_id, $secret_key);
-                                    
-                                    global $pagenow;
-                                    if($pagenow == 'admin.php' && isset($_GET['page']) && $_GET['page'] == 'slyr_wc_add_connector'){
-                                        set_transient('slyr_wc_add_connector_redirect_message', $return_message, 30);
-                                        wp_redirect(admin_url('/admin.php?page=slyr_wc_connectors', 'http'), 301);
-                                        exit;
-                                    }
-                                }
-                                set_transient('slyr_wc_connectors_error_message', __( 'Error when creating the connector.', 'text-domain' ), 30 );
-                                slyr_wc_show_admin_notice();
-
-                            }else{
-                                set_transient('slyr_wc_connectors_error_message', __( 'Invalid Sales Layer connector type.', 'text-domain' ), 30 );
-                                slyr_wc_show_admin_notice();
-                            }
-                        }
-                    }else{
-                        set_transient('slyr_wc_connectors_error_message', __( $slconn->get_response_error_message(), 'text-domain' ), 30 );
-                        slyr_wc_show_admin_notice();
-                    }
-                }else{
-                    set_transient( 'slyr_wc_connectors_error_message', __( 'The connector already exists.', 'text-domain' ), 30 );
-                    slyr_wc_show_admin_notice();
-                }
-            }
-
-        }
-
-        $template_path = SLYR_WC__PLUGIN_DIR.'views/add_connector.html';
-    
-        if (file_exists($template_path)){       
-            ob_start();
-            include $template_path;
-            $add_conn_content = ob_get_clean();
-            echo wp_kses($add_conn_content, getAllowedTags());
-            echo getLatestVersionContent();
-
-        } else {
-            set_transient( 'slyr_wc_not_found_message', __( 'Add connector content not available.', 'text-domain' ), 30 );
-            wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
-            exit;
-        }
-
     }
-    
+
+    // Legacy page removed: Add Connector is now a modal within the Connectors page.
+    set_transient(
+        'slyr_wc_not_found_message',
+		__( 'The Add Connector page has been removed. Use the Add connector button in Connectors.', 'saleslayer_woocommerce' ),
+        30
+    );
+    wp_redirect(admin_url('/admin.php?page=slyr_wc_connectors', 'http'), 302);
+    exit;
 }
 
 function slyr_wc_connectors()
@@ -498,89 +423,80 @@ function slyr_wc_connectors()
         $connector = new Connector();
         
         if (isset($_POST['delete_conn']) && !empty($_POST['delete_conn'])){
+            $deleteConnectorId = sanitize_text_field(wp_unslash($_POST['delete_conn']));
             // Purge multiconn references before deleting the connector
-            $compId = $connector->get_info($_POST['delete_conn'], 'comp_id');
+            $compId = $connector->get_info($deleteConnectorId, 'comp_id');
             if ($compId !== false) {
                 $multiconn = Multiconn::get_instance();
-                $multiconn->purge_connector($_POST['delete_conn'], (int) $compId);
+                $multiconn->purge_connector($deleteConnectorId, (int) $compId);
             }
 
-            if (!$connector->delete_connector($_POST['delete_conn'])){
-                set_transient('slyr_wc_error_deleting_connector_message', __( 'Error when deleting the connector: '.$_POST['delete_conn'], 'text-domain' ), 30 );
+            if (!$connector->delete_connector($deleteConnectorId)){
+                set_transient(
+                    'slyr_wc_error_deleting_connector_message',
+					__( 'Error when deleting the connector: '.$deleteConnectorId, 'saleslayer_woocommerce' ),
+                    30
+                );
                 slyr_wc_show_admin_notice();
             }
         }
 
         $connectors = $connector->get_connector();
- 
-        if (empty($connectors)){
- 
-            global $pagenow;
-            if ($pagenow == 'admin.php' && isset($_GET['page']) && $_GET['page'] == 'slyr_wc_connectors'){
-                set_transient( 'slyr_wc_no_connectors_message', __( "There aren't any connectors.", 'text-domain' ), 30 );
-                wp_redirect(admin_url('/admin.php?page=slyr_wc_add_connector', 'http'), 301);
-                exit;
-            }
- 
-        }else{
 
-            $template_path = SLYR_WC__PLUGIN_DIR.'views/connectors.html';
-    
-            if (file_exists($template_path)){
-                
-                $connectors = json_decode(json_encode($connectors), true);
-                ob_start();
-                include $template_path;
-                $conn_content = ob_get_clean();
-                echo wp_kses($conn_content, getAllowedTags());
+        if (!is_array($connectors)) {
+            $connectors = [];
+        }
 
-                // Render multisite modal outside wp_kses() — plugin-generated HTML, not user input
-                if (slyr_is_multisite_mode()) {
-                    ?>
-                    <div id="slyr-multisite-overlay" class="slyr-multisite-overlay" style="display:none;">
-                        <div class="slyr-multisite-modal">
-                            <div class="slyr-multisite-modal-header">
-                                <h3>Multisite Synchronization Settings</h3>
-                                <button type="button" class="slyr-multisite-close" onclick="closeMultisiteModal()">&times;</button>
-                            </div>
-                            <div class="slyr-multisite-modal-body">
-                                <div id="slyr-multisite-languages-info" class="slyr-multisite-info"></div>
-                                <table class="wp-list-table widefat fixed striped" id="slyr-multisite-sites-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Site</th>
-                                            <th class="col-modal-active">Active</th>
-                                            <th class="col-modal-lang">Language</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="slyr-multisite-sites-body">
-                                        <tr><td colspan="3">Loading sites...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="slyr-multisite-modal-footer">
-                                <button type="button" class="button" onclick="closeMultisiteModal()">Cancel</button>
-                                <button type="button" class="button button-primary" id="slyr-multisite-save">Save Configuration</button>
-                            </div>
-                            <input type="hidden" id="slyr-multisite-connector-id" value="" />
+        $template_path = SLYR_WC__PLUGIN_DIR.'views/connectors.html';
+
+        if (file_exists($template_path)){
+
+            $connectors = json_decode(json_encode($connectors), true);
+            ob_start();
+            include $template_path;
+            $conn_content = ob_get_clean();
+            echo wp_kses($conn_content, getAllowedTags());
+
+            // Render multisite modal outside wp_kses() — plugin-generated HTML, not user input
+            if (slyr_is_multisite_mode()) {
+                ?>
+                <div id="slyr-multisite-overlay" class="slyr-multisite-overlay" style="display:none;">
+                    <div class="slyr-multisite-modal">
+                        <div class="slyr-multisite-modal-header">
+                            <h3>Multisite Synchronization Settings</h3>
+                            <button type="button" class="slyr-multisite-close" onclick="closeMultisiteModal()">&times;</button>
                         </div>
+                        <div class="slyr-multisite-modal-body">
+                            <div id="slyr-multisite-languages-info" class="slyr-multisite-info"></div>
+                            <table class="wp-list-table widefat fixed striped" id="slyr-multisite-sites-table">
+                                <thead>
+                                    <tr>
+                                        <th>Site</th>
+                                        <th class="col-modal-active">Activate</th>
+                                        <th class="col-modal-lang">Language</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="slyr-multisite-sites-body">
+                                    <tr><td colspan="3">Loading sites...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="slyr-multisite-modal-footer">
+                            <button type="button" class="button" onclick="closeMultisiteModal()">Cancel</button>
+                            <button type="button" class="button button-primary" id="slyr-multisite-save">Save Configuration</button>
+                        </div>
+                        <input type="hidden" id="slyr-multisite-connector-id" value="" />
                     </div>
-                    <?php
-                }
-
-                echo getLatestVersionContent();
-                $add_connector_message = get_transient('slyr_wc_add_connector_redirect_message');  
-                if ($add_connector_message) {
-                    echo '<script type="text/javascript">
-                    var add_conn_message = '.json_encode($add_connector_message).';
-                    </script>';
-                    delete_transient('slyr_wc_add_connector_redirect_message');
-                }
-            } else {
-                set_transient( 'slyr_wc_not_found_message', __( 'FAQ content not available.', 'text-domain' ), 30 );
-                wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
-                exit;
+                </div>
+                <?php
             }
+
+            echo getLatestVersionContent();
+
+        } else {
+			set_transient( 'slyr_wc_not_found_message', __( 'Connectors content not available.', 'saleslayer_woocommerce' ), 30 );
+            wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
+            exit;
         }
     }
 }
@@ -599,6 +515,7 @@ function slyr_enqueue_connectors_script()
             'ajaxurl' => admin_url('admin-ajax.php'),
             'is_multisite_mode' => slyr_is_multisite_mode() ? 1 : 0,
             'multisite_nonce' => wp_create_nonce('slyr_multisite_nonce'),
+            'create_connector_nonce' => wp_create_nonce('sl_wc_create_connector_nonce'),
         ));
         wp_enqueue_script('slyr_wc_script_connectors');
     }
@@ -620,7 +537,7 @@ function slyr_wc_tools()
         echo wp_kses_post($tools_content);
         echo getLatestVersionContent(); 
     } else {
-        set_transient( 'slyr_wc_not_found_message', __( 'Tools content not available.', 'text-domain' ), 30 );
+		set_transient( 'slyr_wc_not_found_message', __( 'Tools content not available.', 'saleslayer_woocommerce' ), 30 );
         wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
         exit;
     }
@@ -643,7 +560,7 @@ function slyr_enqueue_tools_script()
 
         wp_enqueue_script('slyr_wc_script_tools');
 
-        wp_register_style('sl_wc_style_tools', plugin_dir_url( __FILE__ ).'css/tools.css');
+        wp_register_style('sl_wc_style_tools', plugin_dir_url( __FILE__ ).'css/tools.css', array(), SLYR_WC_version);
         wp_enqueue_style('sl_wc_style_tools');
 
         wp_register_style('sl_wc_fontawesome_min', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
@@ -668,7 +585,7 @@ function slyr_wc_faq()
         echo wp_kses_post($faq_content);
         echo getLatestVersionContent(); 
     } else {
-        set_transient( 'slyr_wc_not_found_message', __( 'FAQ content not available.', 'text-domain' ), 30 );
+		set_transient( 'slyr_wc_not_found_message', __( 'FAQ content not available.', 'saleslayer_woocommerce' ), 30 );
         wp_redirect(admin_url('/admin.php?page=slyr_wc_menu'), 301);
         exit;
     }
@@ -676,18 +593,20 @@ function slyr_wc_faq()
 
 function slyr_enqueue_faq_script()
 {
-    if ( isset( $_GET['page'] ) && $_GET['page'] === 'slyr_wc_faq' ) {
+    $accordion_pages = array('slyr_wc_faq', 'slyr_wc_menu');
+
+    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], $accordion_pages, true ) ) {
         wp_register_script(
             'slyr_wc_script_faq',
             plugin_dir_url( __FILE__ ) . 'js/faq.js',
             array( 'jquery' ),
-            null,
+            SLYR_WC_version,
             true
         );
 
         wp_enqueue_script('slyr_wc_script_faq');
 
-        wp_register_style('sl_wc_style_faq', plugin_dir_url( __FILE__ ).'css/faq.css');
+        wp_register_style('sl_wc_style_faq', plugin_dir_url( __FILE__ ).'css/faq.css', array(), SLYR_WC_version);
         wp_enqueue_style('sl_wc_style_faq');
     }
 }
@@ -803,7 +722,7 @@ function sl_wc_delete_connector_ajax()
         return;
     }
 
-    $connectorId = isset($_POST['connector_id']) ? sanitize_text_field($_POST['connector_id']) : '';
+    $connectorId = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
     if (empty($connectorId)) {
         wp_send_json_error(['message' => 'Missing connector_id']);
         return;
@@ -823,6 +742,110 @@ function sl_wc_delete_connector_ajax()
     } else {
         wp_send_json_error(['message' => 'Error when deleting the connector: ' . $connectorId]);
     }
+}
+
+add_action('wp_ajax_sl_wc_create_connector', 'sl_wc_create_connector_ajax');
+
+/**
+ * AJAX handler: Create a connector from the Connectors page modal.
+ *
+ * This replicates the legacy Add Connector flow:
+ * - Validate requirements (curl)
+ * - Validate credentials against Sales Layer
+ * - Validate connector type
+ * - Persist connector
+ * - Fetch and store connector parameters
+ *
+ * Expects POST parameters:
+ * - connector_id
+ * - secret_key
+ * - nonce
+ *
+ * @return void Sends JSON response via wp_send_json_success/wp_send_json_error
+ */
+function sl_wc_create_connector_ajax()
+{
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Insufficient permissions']);
+        return;
+    }
+
+    check_ajax_referer('sl_wc_create_connector_nonce', 'nonce');
+
+    $connectorId = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
+    $secretKey = isset($_POST['secret_key']) ? sanitize_text_field(wp_unslash($_POST['secret_key'])) : '';
+
+    if ($connectorId === '' || $secretKey === '') {
+        wp_send_json_error(['message' => 'Connector ID and Secret key are required.']);
+        return;
+    }
+
+    $requirements = check_plugin_requirements();
+    if (!empty($requirements['error'])) {
+        $message = isset($requirements['message']) ? wp_strip_all_tags((string) $requirements['message']) : 'Missing requirements.';
+        wp_send_json_error(['message' => $message]);
+        return;
+    }
+
+    if (!class_exists('SalesLayer_Conn_Woo')) {
+        include_once(SLYR_WC__PLUGIN_DIR . 'admin/lib/SalesLayer-Conn-Woo.php');
+    }
+
+    $connector = new Connector();
+    if ($connector->check_connector($connectorId)) {
+        wp_send_json_error(['message' => 'The connector already exists.']);
+        return;
+    }
+
+    $slconn = new SalesLayer_Conn_Woo($connectorId, $secretKey);
+    $slconn->set_URL_connection(SLYR_WC_url_API);
+    $slconn->set_group_multicategory(true);
+    $slconn->set_parents_category_tree(true);
+    $slconn->set_same_parent_variants_modifications(true);
+    $slconn->get_info();
+
+    if ($slconn->has_response_error()) {
+        $errorMessage = (string) $slconn->get_response_error_message();
+        wp_send_json_error(['message' => $errorMessage !== '' ? $errorMessage : 'Invalid credentials.']);
+        return;
+    }
+
+    $responseConnectorSchema = $slconn->get_response_connector_schema();
+    if (empty($responseConnectorSchema) || empty($responseConnectorSchema['connector_type'])) {
+        wp_send_json_error(['message' => 'Unable to validate connector type.']);
+        return;
+    }
+
+    if ($responseConnectorSchema['connector_type'] != SLYR_WC_connector_type) {
+        wp_send_json_error(['message' => 'Invalid Sales Layer connector type.']);
+        return;
+    }
+
+    if (!$connector->add_connector($connectorId, $secretKey)) {
+        wp_send_json_error(['message' => 'Error when creating the connector.']);
+        return;
+    }
+
+    include_once(SLYR_WC__PLUGIN_DIR . 'admin/Synchronize.class.php');
+    $syncClass = new Synchronize();
+	$configMessage = '';
+	try {
+	    $configMessageHtml = (string) $syncClass->config_connector($connectorId, $secretKey);
+	    $configMessage = trim(wp_strip_all_tags($configMessageHtml));
+	} catch (Throwable $throwable) {
+	    // Avoid logging secrets/PII. Log only minimal failure context.
+	    sl_debug(sprintf(
+	        '## Error. Add connector: config_connector failed for connector %s (%s:%d)',
+	        $connectorId,
+	        $throwable->getFile(),
+	        $throwable->getLine()
+	    ));
+	    $configMessage = 'Connector created, but configuration failed. Please synchronize the connector and check plugin logs.';
+	}
+
+    wp_send_json_success([
+        'message' => $configMessage !== '' ? $configMessage : 'Connector added successfully!',
+    ]);
 }
 
 add_action('wp_ajax_sl_wc_update_conn_field', 'update_conn_field_action');

@@ -5,6 +5,7 @@
 		</div>
 		<h3>Connectors</h3>
 		<div id="version-message-container" style="display: none;"></div>
+			<button type="button" class="button button-primary" id="slyr-add-connector-open" onclick="openAddConnectorModal()">Add connector</button>
 	</header>
 	<main id="slyr-catalogue-main">
 		<div id="messages"></div>		
@@ -18,7 +19,7 @@
 				<th class="slyr_of col-actions">Actions</th>
 			</tr>
 		</thead>
-		<tbody>		
+			<tbody>		
 		<?php
 			
 			$auto_sync_options = array('0'=>'','1'=>'1H','3'=>'3H','6'=>'6H','8'=>'8H','12'=>'12H','15'=>'15H','24'=>'24H','48'=>'48H','72'=>'72H');
@@ -26,44 +27,44 @@
 			foreach ($connectors as $connector) {
 		?>
 			<tr>
-				<td class="slyr_of title column-title column-primary"><strong><?php echo $connector['conn_code']; ?></strong></td>
-				<td class="slyr_of date column-date"><strong><?php echo $connector['last_update']; ?></strong></td>
+					<td class="slyr_of title column-title column-primary"><strong><?php echo esc_html($connector['conn_code']); ?></strong></td>
+					<td class="slyr_of date column-date"><strong><?php echo esc_html($connector['last_update']); ?></strong></td>
 				<td>
-					<div class="slyr_progress progress" id="progress_catalogue_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar bg-success" id="sub_progress_catalogue_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_catalogue_<?php echo esc_attr($connector['conn_code']); ?>">
+						<div class="progress-bar bg-success" id="sub_progress_catalogue_<?php echo esc_attr($connector['conn_code']); ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-							<span class="slyr_progress_span slyr_of" id="sub_progress_span_catalogue_<?php echo $connector['conn_code']; ?>">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_catalogue_<?php echo esc_attr($connector['conn_code']); ?>">
 								Catalogue
 							</span>
 						</div>
 					</div>
-					<div class="slyr_progress progress" id="progress_products_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar bg-success" id="sub_progress_products_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_products_<?php echo esc_attr($connector['conn_code']); ?>">
+						<div class="progress-bar bg-success" id="sub_progress_products_<?php echo esc_attr($connector['conn_code']); ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-							<span class="slyr_progress_span slyr_of" id="sub_progress_span_products_<?php echo $connector['conn_code']; ?>">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_products_<?php echo esc_attr($connector['conn_code']); ?>">
 								Products
 							</span>
 						</div>
 					</div>
-					<div class="slyr_progress progress" id="progress_product_formats_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar bg-success" id="sub_progress_product_formats_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_product_formats_<?php echo esc_attr($connector['conn_code']); ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_formats_<?php echo esc_attr($connector['conn_code']); ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_formats_<?php echo $connector['conn_code']; ?>">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_formats_<?php echo esc_attr($connector['conn_code']); ?>">
 								Product variants
 							</span>
 						</div>
 					</div>
-					<div class="slyr_progress progress" id="progress_product_links_<?php echo $connector['conn_code']; ?>">
-						<div class="progress-bar bg-success" id="sub_progress_product_links_<?php echo $connector['conn_code']; ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
+					<div class="slyr_progress progress" id="progress_product_links_<?php echo esc_attr($connector['conn_code']); ?>">
+						<div class="progress-bar bg-success" id="sub_progress_product_links_<?php echo esc_attr($connector['conn_code']); ?>" role="progressbar" aria-valuenow="0" aria-valuemin="0" 
 							aria-valuemax="100" style="width:0%">
-							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_links_<?php echo $connector['conn_code']; ?>">
+							<span class="slyr_progress_span slyr_of" id="sub_progress_span_product_links_<?php echo esc_attr($connector['conn_code']); ?>">
 								Product links
 							</span>
 						</div>
 					</div>
 				</td>
-				<td>
-					<select class="select" name="auto_sync" id="auto_sync_<?php echo $connector['conn_code']; ?>" onchange="update_conn_field(this);" >
+				<td class="col-auto-sync">
+						<select class="select" name="auto_sync" id="auto_sync_<?php echo esc_attr($connector['conn_code']); ?>" onchange="update_conn_field(this);" >
 						<?php
 						foreach($auto_sync_options as $asoKey => $auto_sync_option){
 							?>
@@ -74,9 +75,9 @@
 					</select>
 				</td>
 				<td class="tags column-tags col-actions">
-					<button type="button" class="button button-primary button-sync" connectorid=<?php echo $connector['conn_code']; ?> secretkey=<?php echo $connector['conn_secret']; ?> onclick="sync_conn(this)" id="sync_<?php echo $connector['conn_code']; ?>">Synchronize!</button>
+						<button type="button" class="button button-primary button-sync" connectorid="<?php echo esc_attr($connector['conn_code']); ?>" secretkey="<?php echo esc_attr($connector['conn_secret']); ?>" onclick="sync_conn(this)" id="sync_<?php echo esc_attr($connector['conn_code']); ?>">Synchronize!</button>
 					<?php if (slyr_is_multisite_mode()): ?>
-					<button type="button" class="button button-multisite" onclick="openMultisiteModal('<?php echo esc_attr($connector['conn_code']); ?>')" id="multisite_<?php echo $connector['conn_code']; ?>">Multisite</button>
+						<button type="button" class="button button-multisite" onclick="openMultisiteModal('<?php echo esc_attr($connector['conn_code']); ?>')" id="multisite_<?php echo esc_attr($connector['conn_code']); ?>">Multisite</button>
 					<?php endif; ?>
 					<button type="button" class="button button-forget" onclick="deleteConnector('<?php echo esc_attr($connector['conn_code']); ?>')">Forget Me!</button>
 				</td>
@@ -84,7 +85,40 @@
 		<?php
 			}
 		?>
+			<?php if (empty($connectors)) : ?>
+				<tr>
+					<td colspan="5">
+						<div class="dialog dialog-info">No connectors configured yet.</div>
+						<button type="button" class="button button-primary" onclick="openAddConnectorModal()">Add connector</button>
+					</td>
+				</tr>
+			<?php endif; ?>
 		</tbody>
 		</table>
+
+			<div id="slyr-add-connector-overlay" class="slyr-multisite-overlay" style="display:none;">
+				<div class="slyr-multisite-modal">
+					<div class="slyr-multisite-modal-header">
+						<h3>New Connector</h3>
+						<button type="button" class="slyr-multisite-close" onclick="closeAddConnectorModal()">&times;</button>
+					</div>
+					<div class="slyr-multisite-modal-body slyr-add-connector-body">
+						<form id="slyr-add-connector-form" method="post" action="">
+							<div class="slyr_of">
+								<label for="slyr-add-connector-id">Connector ID</label>
+								<input type="text" class="input" id="slyr-add-connector-id" name="connector_id" autocomplete="off" required>
+							</div>
+							<div class="slyr_of">
+								<label for="slyr-add-connector-secret">Secret Key</label>
+								<input type="password" class="input" id="slyr-add-connector-secret" name="secret_key" autocomplete="off" required>
+							</div>
+						</form>
+					</div>
+					<div class="slyr-multisite-modal-footer">
+						<button type="button" class="button" onclick="closeAddConnectorModal()">Cancel</button>
+						<button type="button" class="button button-primary" id="slyr-add-connector-submit" onclick="submitAddConnector()">Add connector</button>
+					</div>
+				</div>
+			</div>
 	</main>
 </div>

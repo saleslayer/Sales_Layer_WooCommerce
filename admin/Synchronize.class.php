@@ -1672,7 +1672,7 @@ class Synchronize
             file_put_contents($error_file, $error_data, FILE_APPEND);
             if ($new_file){ chmod($error_file, 0777); }
 
-            $synchronization_messages['warning'][] = 'Errors can be found in '.$error_file;
+            $synchronization_messages['warning'][] = 'Errors can be found in '.basename($error_file);
             
         }
     
