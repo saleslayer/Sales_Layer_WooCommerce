@@ -13,29 +13,34 @@
                 <div class="faq-item">
                     <div class="faq-question">How to create a connector</div>
                     <div class="faq-answer">
-                        <p>In Sales Layer go to the Channel’s option in the left menu, then to the Channels marketplace tab, and scroll down until you find the WooCommerce connector's box, as shown in the next image:</p>
-                        <p><img alt="marketplace woocommerce" src="<?php echo SLYR_WC__IMAGES_DIR.'sl_marketplace_woocommerce.png'; ?>"/></p>
-                        <p>Press + create to start configuring the channel.</p>
-                        <p>In the Parameters tab, you will have to Assign new private key, with the option marked in the image.</p>
-                        <p><img alt="woocommerce conn config" src="<?php echo SLYR_WC__IMAGES_DIR.'woocommerce_conn_config.png'; ?>"/></p>
-                        <p>After that it will appear on screen the Channel private key assigned.</p>
-                        <p>You will need the Connector ID code and this Channel private key to continue with your e-commerce configuration.</p>
-                        <p>To save the channel, click on “Continue and Save“ and “Complete“ in the right corner of the screen.</p>
-                        <p>You have to finish the channel's configuration before configuring it in the WooCommerce plugin.</p>
+                        <ol>
+                            <li>In Sales Layer, go to the <strong>Channels</strong> option in the left menu, then to the <strong>Channels marketplace</strong> tab, and scroll down until you find the WooCommerce connector box, as shown in the next image:
+                                <p><img alt="marketplace woocommerce" src="<?php echo SLYR_WC__IMAGES_DIR.'sl_marketplace_woocommerce.png'; ?>"/></p>
+                            </li>
+                            <li>Press <strong>+ Create</strong> to start configuring the channel.</li>
+                            <li>In the <strong>Parameters</strong> tab, assign a new private key with the option marked in the image:
+                                <p><img alt="woocommerce conn config" src="<?php echo SLYR_WC__IMAGES_DIR.'woocommerce_conn_config.png'; ?>"/></p>
+                            </li>
+                            <li>After that, the assigned Channel private key will appear on screen. You will need the <strong>Connector ID code</strong> and this <strong>Channel private key</strong> to continue with your e-commerce configuration.</li>
+                            <li>To save the channel, click <strong>"Continue and Save"</strong> and then <strong>"Complete"</strong> in the top-right corner of the screen.</li>
+                            <li>You must finish the channel configuration before setting it up in the WooCommerce plugin.</li>
+                        </ol>
                     </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">How to do a first synchronization</div>
                     <div class="faq-answer">
-                        <p>Once SL channel is configured and fields mapped, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click the <strong>Add connector</strong> button to enter your credentials.</p>
-                        <p>You should test synchronization before leaving it automated, to validate the configuration. This should be done in a staging environment.</p>
-                        <p>Before starting, verify to have logs enabled in your WooCommerce store, Sales Layer Woo menu <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a>.</p>
-                        <p>To start, we suggest starting with a test synchronization with a few items, setting their status as visible (only these items), and adding a tag, that you have to add in the Products tab in Output data as well. This will narrow the scope of items. Remember to include categories and variants for the items selected, to avoid sync errors and make more complete tests.</p>
-                        <p>To test a synchronization it is recommended to use the “Synchronize!“ connector button in the plugin <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> panel. This is a more controlled and fast manner than setting the auto synchronization.</p>
-                        <p>After the sync has ended, you will be able to verify results downloading the SL logs. These messages will help you to adjust the configuration.</p>
-                        <p>In the logs, if you find an error file, you'll need to correct the issues reported before the next synchronization.</p>
-                        <p>If no errors arise, you can increase the quantity if items gradually until all information is synchronized.</p>
-                        <p>Then, configure the connector in the production site and synchronize.</p>
+                        <ol>
+                            <li>Once the SL channel is configured and fields are mapped, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click the <strong>Add connector</strong> button to enter your credentials.</li>
+                            <li>You should test synchronization before leaving it automated to validate the configuration. This should be done in a staging environment.</li>
+                            <li>Before starting, make sure logs are enabled in your WooCommerce store under the Sales Layer menu <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a>.</li>
+                            <li>We suggest beginning with a test synchronization using a few items: set their status as visible (only these items) and add a tag, which you also need to add in the <strong>Products</strong> tab under <strong>Output data</strong>. This will narrow the scope of items. Remember to include categories and variants for the selected items to avoid sync errors and make more complete tests.</li>
+                            <li>To test a synchronization, we recommend using the <strong>"Synchronize!"</strong> button in the plugin <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> panel. This is a more controlled and faster approach than setting up auto synchronization.</li>
+                            <li>After the sync has ended, verify the results by downloading the SL logs. These messages will help you adjust the configuration.</li>
+                            <li>In the logs, if you find an error file, you will need to correct the issues reported before the next synchronization.</li>
+                            <li>If no errors arise, you can increase the quantity of items gradually until all information is synchronized.</li>
+                            <li>Then, configure the connector on the production site and synchronize.</li>
+                        </ol>
                     </div>
                 </div>
                 <div class="faq-item">
@@ -43,7 +48,7 @@
                     <div class="faq-answer">
                         <p>When the connector has started its synchronization and stored the data, a recount of items will be shown in the grid view. While it has pending information to synchronize, the grid information will be reloaded frequently to update this recount:</p>
                         <p><img alt="synchronization counters" src="<?php echo SLYR_WC__IMAGES_DIR.'synchronization_counters.png'; ?>"/></p>
-                        <p>In case an uncontrolled error has happened and thrown in the cron jobs, this error message will be displayed in your server error log, or displayed in the WooCommerce in the error system, note it so you can be notify SL in order to get help.</p>
+                        <p>If an uncontrolled error occurs during cron execution, the error message will be displayed in your server error log or in the WooCommerce error system. Note it down so you can notify SL in order to get help.</p>
                     </div>
                 </div>
             </div>
@@ -62,7 +67,7 @@
                 <h2><a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Plugin Tools</a></h2>
                 <div class="faq-item">
                     <div class="faq-question">Download SL Logs</div>
-                    <div class="faq-answer">Creates a zip with existing SL logs in the server and download it.</div>
+                    <div class="faq-answer">Creates a zip file with existing SL logs on the server and downloads it.</div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Remove SL Logs</div>
@@ -70,11 +75,11 @@
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Delete SL items pending to process</div>
-                    <div class="faq-answer">Delete Sales Layer items pending to process stored in a plugin's table. This tool may be useful when identifying problems in the middle of a synchronization.</div>
+                    <div class="faq-answer">Deletes Sales Layer items pending processing from the plugin's queue table. This tool may be useful when identifying problems in the middle of a synchronization.</div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Delete SL credentials</div>
-                    <div class="faq-answer">Delete Sales Layer credentials from existing items, this will affect categories, products and variants.</div>
+                    <div class="faq-answer">Deletes Sales Layer credentials from existing items. This will affect categories, products and variants.</div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Clean orphaned multiconn</div>
