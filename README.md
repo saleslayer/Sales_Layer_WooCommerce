@@ -24,10 +24,10 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 	* The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.
     
-3. Add the connector credencials in WooCommerce
+3. Add the connector credentials in WooCommerce
 
-	* Go to *Admin > Sales Layer WooCommerce > Add connector*. Add the connector id and secret key.
-	* Finally, In *Admin > Sales Layer Woo > Connectors*, push Synchronize to import categories, products and product variants automatically.
+	* Go to *Admin > Sales Layer WooCommerce > Connectors* and click the **Add connector** button. Enter the connector ID and secret key.
+	* Once the connector appears in the list, push Synchronize to import categories, products and product variants automatically.
 
 ## Requirements for synchronization
 
@@ -45,8 +45,16 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | Branch         | Status     | WooCommerce version     | PHP compatibility | Changelog                             |
 |----------------|------------|-------------------------|-------------------|---------------------------------------|
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
-| [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1   | [Changelog 2.4.x][changelog-2.4.x]    |
-| [2.5.x]        | Stable     | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5   | [Changelog 2.5.x][changelog-2.5.x]    |
+| [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
+| [2.5.x]        | Stable     | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
+| [2.6.x]        | Stable     | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
+
+## Branch 2.6.x Release recommended configuration
+
+| Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
+|----------------|---------------------|-------------------|----------------|------------|
+| [2.6.0][2.6.0] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache2.4  |
+
 
 ## Branch 2.5.x Release recommended configuration
 
@@ -67,6 +75,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [changelog-2.3.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.3.x/CHANGELOG.md
 [changelog-2.4.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.4.x/CHANGELOG.md
 [changelog-2.5.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.5.x/CHANGELOG.md
+[changelog-2.6.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.6.x/CHANGELOG.md
 [sc-important-notes]: https://support.saleslayer.com/woocommerce/important-notes-about-connector
 [sl-sc]: https://support.saleslayer.com
 [woo-server-recomm]: https://woocommerce.com/document/server-requirements/
@@ -74,7 +83,9 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [2.3.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.3.x
 [2.4.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.4.x
 [2.5.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.5.x
+[2.6.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.6.x
 [2.5.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.0
 [2.5.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.1
 [2.5.2]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.2
 [2.5.3]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.3
+[2.6.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.6.0

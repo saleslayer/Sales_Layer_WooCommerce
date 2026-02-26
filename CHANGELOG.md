@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.6.0] - 2026-02-27
+
+### Added
+
+- WordPress Multisite support: network-level activation, per-connector site targeting with multisite synchronization settings modal.
+- Multisite orchestrator: centralized sync queue with `switch_to_blog()` distribution to selected subsites.
+- Multi-connector reference counting system (`Multiconn`): prevents incorrect item deletion when multiple connectors share the same `comp_id`.
+- Add Connector modal dialog in the Connectors page, replacing the legacy standalone page.
+- AJAX-based connector creation with inline validation and feedback messages.
+- Empty state view in Connectors page when no connectors exist (no redirect).
+- Clean orphaned multiconn tool in Plugin Tools to remove records from deactivated sites.
+
+### Changed
+
+- Removed legacy Add Connector page and submenu entry.
+- Connector creation feedback now displays inline instead of as a WordPress admin notice.
+- Updated How To Start, FAQ and README documentation to reflect the new Add Connector flow.
+- Unified modal styling across Add Connector and Multisite modals (consistent header, buttons, theme colors).
+
+### Tested
+
+- Tested on WooCommerce 10.4.3 / WordPress 6.9 / PHP 8.5
+
 ## [2.5.3] - 2026-02-03
 
 ### Added
