@@ -45,8 +45,8 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | Branch         | Status     | WooCommerce version     | PHP compatibility | Changelog                             |
 |----------------|------------|-------------------------|-------------------|---------------------------------------|
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
-| [2.4.x]        | Fixes only | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
-| [2.5.x]        | Stable     | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
+| [2.4.x]        | EOL        | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
+| [2.5.x]        | Fixes only | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
 | [2.6.x]        | Stable     | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
 
 ## Branch 2.6.x Release recommended configuration
