@@ -54,11 +54,36 @@ class Format
 
     }
 
+    /** Blog ID being processed in the current queue row (0 in single-site mode). */
+    protected $sync_blog_id = 0;
+
+    /** Language code being processed in the current queue row ('' in legacy mode). */
+    protected $sync_lang_code = '';
+
     public function set_class_field_value($field_name, $field_value)
     {
 
         $this->$field_name = $field_value;
 
+    }
+
+    /**
+     * Build a debug context prefix for log messages.
+     * Returns e.g. "Blog_id: {1} - Lang: {ES} - " when context is set,
+     * or an empty string in legacy single-site / single-language mode.
+     *
+     * @return string
+     */
+    protected function getDebugContext(): string
+    {
+        $parts = [];
+        if (!empty($this->sync_blog_id)) {
+            $parts[] = 'Blog_id: {' . $this->sync_blog_id . '}';
+        }
+        if ($this->sync_lang_code !== '') {
+            $parts[] = 'Lang: {' . strtoupper($this->sync_lang_code) . '}';
+        }
+        return !empty($parts) ? implode(' - ', $parts) . ' - ' : '';
     }
 
     /**
@@ -73,26 +98,26 @@ class Format
         
         $format_params = $format_images_sizes = [];
 
-            $fixed_format_fields = array(
-                'ID',
-                'ID_products',
-                $this->format_field_sku,
-                $this->format_field_description,
-                $this->format_field_regular_price,
-                $this->format_field_sale_price,
-                $this->format_field_stock,
-                $this->format_field_manage_stock,
-                $this->format_field_stock_status,
-                $this->format_field_weight,
-                $this->format_field_length,
-                $this->format_field_width,
-                $this->format_field_height,
-                $this->format_field_enabled,
-                $this->format_field_downloadable,
-                $this->format_field_virtual,
-                $this->format_field_image,
-                $this->format_field_shipping_class
-            );
+        $fixed_format_fields = array(
+            'ID',
+            'ID_products',
+            $this->format_field_sku,
+            $this->format_field_description,
+            $this->format_field_regular_price,
+            $this->format_field_sale_price,
+            $this->format_field_stock,
+            $this->format_field_manage_stock,
+            $this->format_field_stock_status,
+            $this->format_field_weight,
+            $this->format_field_length,
+            $this->format_field_width,
+            $this->format_field_height,
+            $this->format_field_enabled,
+            $this->format_field_downloadable,
+            $this->format_field_virtual,
+            $this->format_field_image,
+            $this->format_field_shipping_class
+        );
 
         $data_schema = json_decode($this->sl_data_schema, true);
         $schema      = $data_schema['product_formats'];
@@ -140,14 +165,19 @@ class Format
 
         foreach ($field_names as $field_name){
 
-    	    if (isset($schema['fields'][$this->$field_name]) && $schema['fields'][$this->$field_name]['has_multilingual']) {
+            // Use a local variable to avoid mutating the instance property.
+            // This allows getProductFormatParamsToStore() to be called multiple times
+            // with different languages on the same instance (required for multilang queuing).
+            $resolved = $this->$field_name;
 
-    	        $this->$field_name .= '_'.$sl_language;
+    	    if (isset($schema['fields'][$resolved]) && $schema['fields'][$resolved]['has_multilingual']) {
+
+    	        $resolved .= '_'.$sl_language;
 
     	    }
 
-            $format_params['format_fields'][$field_name] = $this->$field_name;
-        
+            $format_params['format_fields'][$field_name] = $resolved;
+
         }
         
         foreach ($schema['fields'] as $field_name => $field_props) {
@@ -470,17 +500,22 @@ class Format
 
         $time_ini_formats_per_prod = microtime(true);
 
-        $sl_format_id        	= $format['format_data'][$this->format_id_field];
-        $sl_parent_product_id	= $format['format_data'][$this->format_id_products_field];
-        $format_data			= $format['format_data']['data'];
+        $sl_format_id         = $format['format_data'][$this->format_id_field];
+        $sl_parent_product_id = $format['format_data'][$this->format_id_products_field];
+        $format_data          = $format['format_data']['data'];
 
+        // In multilang mode each queue row carries '_sl_language' (WP/Polylang lang code).
+        // Empty string means legacy single-language mode — behaviour is unchanged.
+        $lang = $format['_sl_language'] ?? '';
+
+        // In multilang mode, find the specific language variant of the parent product.
         // $time_ini_find_saleslayer_parent_product = microtime(true);
-        $wp_parent_product = find_saleslayer_product($sl_parent_product_id, $this->comp_id);
+        $wp_parent_product = find_saleslayer_product($sl_parent_product_id, $this->comp_id, $lang);
         // sl_debug('## time_find_saleslayer_parent_product: '.(microtime(true) - $time_ini_find_saleslayer_parent_product).' seconds.', 'timer');
         
         if (!$wp_parent_product){
 
-            sl_debug('## Error. '.$format_data[$this->format_field_sku]." - The format parent does not exist.");
+            sl_debug('## Error. ' . $this->getDebugContext() . $format_data[$this->format_field_sku]." - The format parent does not exist.");
             return 'item_not_updated';
 
         }else{
@@ -535,27 +570,34 @@ class Format
 
         }
 
-        $wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id);
+        // In multilang mode, search for the specific language variant of this format.
+        $wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id, $lang);
         if (!$wp_format){
-            
-            $wp_format = $this->find_format_by_attributes($sl_parent_product_id, $this->comp_id, $sl_format_id, $sl_format_attributes);
+
+            // Attribute-based fallback only makes sense in legacy mode.
+            // In multilang mode it would match the wrong language variant.
+            if ($lang === '') {
+                $wp_format = $this->find_format_by_attributes($sl_parent_product_id, $this->comp_id, $sl_format_id, $sl_format_attributes);
+            }
+
             if (!$wp_format){
 
                     $time_ini_format_create = microtime(true);
-                $this->create_format($sl_parent_product_id, $this->comp_id, $sl_format_id, $wp_parent_product['ID'], $wp_parent_product['post_title']);
+                // Pass $lang so create_format() sets _slyr_wc_lang immediately.
+                $this->create_format($sl_parent_product_id, $this->comp_id, $sl_format_id, $wp_parent_product['ID'], $wp_parent_product['post_title'], $lang);
                     sl_debug('## time_format_create: '.(microtime(true) - $time_ini_format_create).' seconds.', 'timer');
-            
+
             }
-            
-            $wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id);
-            
+
+            $wp_format = find_saleslayer_format($sl_parent_product_id, $this->comp_id, $sl_format_id, $lang);
+
             if (!$wp_format){
-                
-                sl_debug('## Error. '.$format_data[$this->format_field_sku]." - The format could not been created.");
+
+                sl_debug('## Error. ' . $this->getDebugContext() . $format_data[$this->format_field_sku]." - The format could not been created.");
                 return 'item_not_updated';
-            
+
             }
-        
+
         }
 
         if ($this->debug_level) sl_debug(" > Updating product format ID: $sl_format_id (parent: $sl_parent_product_id)");
@@ -831,7 +873,7 @@ class Format
 
             }else{
 
-                sl_debug('## Error. Product shipping class taxonomy does not exist.');
+                sl_debug('## Error. ' . $this->getDebugContext() . 'Product shipping class taxonomy does not exist.');
 
             }
 
@@ -989,7 +1031,7 @@ class Format
 
             }catch(\Exception $e){
 
-                sl_debug('## Error. Clearing/refreshing the parent product price cache: '.$e->getMessage());
+                sl_debug('## Error. ' . $this->getDebugContext() . 'Clearing/refreshing the parent product price cache: '.$e->getMessage());
 
             }
 
@@ -1256,6 +1298,14 @@ class Format
         
         sl_debug('### time_formats_per_prod: '.(microtime(true) - $time_ini_formats_per_prod).' seconds.', 'timer');
 
+        // Multilang: assign the Polylang language and link all existing language variants
+        // of this variation as a Polylang translation group. Idempotent — safe on every sync.
+        if ($lang !== '' && class_exists('MultilangHelper')) {
+            $multilangHelper = new MultilangHelper();
+            $multilangHelper->set_product_language($wp_format['ID'], $lang);
+            $multilangHelper->link_all_post_translations($sl_format_id, $this->comp_id, ['product_variation']);
+        }
+
         return 'item_updated';
 
     }
@@ -1377,7 +1427,7 @@ class Format
 
         if( is_wp_error( $posts ) ) {
 
-            sl_debug('## Error. find_format_by_attributes: '.$posts->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'find_format_by_attributes: '.$posts->get_error_message());
 
             } elseif (!empty($posts)){
         	
@@ -1418,20 +1468,20 @@ class Format
      * @param string $parent_title 			format parent title
      * @return boolean 						result of creation
      */
-    public function create_format($sl_product_id, $comp_id, $sl_format_id, $parent_id, $parent_title)
+    public function create_format($sl_product_id, $comp_id, $sl_format_id, $parent_id, $parent_title, string $lang = '')
     {
 
         $children_args = array(
             'post_parent' => $parent_id,
-            'post_type'   => 'product_variation', 
+            'post_type'   => 'product_variation',
             'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
         );
 
         $children = get_children( $children_args );
         $count_children = count($children) + 1;
-        
+
         $post_name = 'product-'.$parent_id.'-variation-'.$count_children;
-        
+
         $format_id = wp_insert_post( array(
             'post_parent' => $parent_id,
             'post_status' => 'publish',
@@ -1441,10 +1491,10 @@ class Format
 
         if( is_wp_error( $format_id ) ) {
 
-            sl_debug('## Error. create_format: '.$format_id->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'create_format: '.$format_id->get_error_message());
 
             } elseif ($format_id){
-            
+
             $format_data = array('ID' => $format_id);
             $format_data['post_title'] = 'Variation #'.$format_id.' of '.$parent_title;
             wp_update_post($format_data);
@@ -1452,6 +1502,12 @@ class Format
             sl_update_post_meta($format_id, '_saleslayerid', $sl_product_id);
             sl_update_post_meta($format_id, '_saleslayercompid', $comp_id);
             sl_update_post_meta($format_id, '_saleslayerformatid', $sl_format_id);
+
+            // In multilang mode, tag the variation with its language variant immediately
+            // so that lang-aware queries (find_saleslayer_format with $lang) can locate it.
+            if ($lang !== '') {
+                sl_update_post_meta($format_id, '_slyr_wc_lang', $lang);
+            }
 
             if ($this->debug_level) sl_debug("Format created!");
             return true;
@@ -1672,20 +1728,28 @@ class Format
 
         sl_debug('Disabling product format with SL id: '.$format_to_delete.' comp_id: '.$this->comp_id. '. Setting it to private status.');
 
-        $wp_format = find_saleslayer_format(null, $this->comp_id, $format_to_delete);
-        
-        if ($wp_format){
-    
+        // In multilang mode there is one WP product_variation per language variant for each
+        // SL format. find_all_saleslayer_formats() returns ALL of them (no lang filter) so
+        // that every variant is disabled in a single delete operation.
+        // In legacy mode (no multilang) it also returns the one existing variation, so the
+        // behaviour is identical to the previous single-find approach.
+        $wp_formats = find_all_saleslayer_formats($this->comp_id, $format_to_delete);
+
+        if (empty($wp_formats)) {
+
+            sl_debug('## Error. ' . $this->getDebugContext() . 'The product format with id: '.$format_to_delete.' does not exist.');
+            return 'item_not_deleted';
+
+        }
+
+        foreach ($wp_formats as $wp_format) {
+
             sl_delete_post_meta($wp_format['ID'], '_saleslayerid');
             sl_delete_post_meta($wp_format['ID'], '_saleslayercompid');
             sl_delete_post_meta($wp_format['ID'], '_saleslayerformatid');
+            sl_delete_post_meta($wp_format['ID'], '_slyr_wc_lang');
 
             sl_wp_update_post(array('ID' => $wp_format['ID'], 'post_status' => 'private'), true);
-
-        }else{
-
-            sl_debug('## Error. The product format with id: '.$format_to_delete.' does not exist.');
-            return 'item_not_deleted';
 
         }
 

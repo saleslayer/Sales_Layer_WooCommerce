@@ -126,3 +126,29 @@ document.getElementById('clean_orphaned_multiconn').addEventListener('click', fu
 		}
 	});
 });
+
+document.getElementById('migrate_legacy_items').addEventListener('click', function()
+{
+	jQuery.ajax({
+		url: ajaxurl,
+		type: "POST",
+		dataType: "json",
+		data: {
+			action: 'sl_wc_execute_tool',
+			tool_to_execute: 'migrate_legacy_items'
+		},
+		success: function(response) {
+			if (response['message_type'] === 'success') {
+				var resultDiv = jQuery('#migration-result');
+				resultDiv.html(response['message']);
+				resultDiv.fadeIn();
+				showMessage('success', 'Migration process completed!');
+			} else {
+				showMessage('error', response['message']);
+			}
+		},
+		error: function(data_return){
+			showMessage('error', "Couldn't execute migration.");
+		}
+	});
+});

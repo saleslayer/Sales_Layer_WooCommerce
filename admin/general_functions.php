@@ -213,13 +213,23 @@ function sl_find_unassigned_product_cat_terms_by_name($value, string $output = O
 }
 
 /**
- * Find a term by Sales Layer identifiers and include term meta.
- * @param string $taxonomy Taxonomy
- * @param string $saleslayerid Sales Layer id
- * @param string $saleslayercompid Sales Layer company id
- * @return array|false Term array with meta or false when not found
+ * Find a WP term by Sales Layer identifiers and include term meta.
+ *
+ * When $lang is provided and a multilang plugin is active, the search is narrowed
+ * to the specific language variant identified by the slyr_wc_lang term meta.
+ * Omitting $lang (or passing '') preserves the original behaviour.
+ *
+ * Note: term meta keys use no underscore prefix (saleslayerid, saleslayercompid, slyr_wc_lang),
+ * following the existing convention used throughout the plugin for WP terms.
+ *
+ * @param string      $taxonomy        WP taxonomy (e.g. 'product_cat')
+ * @param string|null $saleslayerid    Sales Layer term ID
+ * @param string|null $saleslayercompid Sales Layer company ID
+ * @param string      $lang            Language code to filter by (e.g. 'es', 'en').
+ *                                     Empty string disables the language filter (default).
+ * @return array|false                 Term with merged meta, or false if not found
  */
-function find_saleslayer_term($taxonomy, ?string $saleslayerid = null, ?string $saleslayercompid = null)
+function find_saleslayer_term($taxonomy, ?string $saleslayerid = null, ?string $saleslayercompid = null, string $lang = '')
 {
 
     $meta_query = array();
@@ -227,13 +237,22 @@ function find_saleslayer_term($taxonomy, ?string $saleslayerid = null, ?string $
     if (!is_null($saleslayerid)) {
 
         array_push($meta_query, array('key' => 'saleslayerid', 'value' => $saleslayerid, 'compare' => '='));
-    
+
     }
 
     if (!is_null($saleslayercompid)) {
-    
+
         array_push($meta_query, array('key' => 'saleslayercompid', 'value' => $saleslayercompid, 'compare' => '='));
-    
+
+    }
+
+    // Narrow search to a specific language variant when a multilang plugin is active.
+    // Term meta keys have no underscore prefix — consistent with saleslayerid / saleslayercompid.
+    // Only applies when $lang is explicitly provided — preserves legacy behaviour otherwise.
+    if ($lang !== '' && function_exists('slyr_detect_active_multilang_plugin') && slyr_detect_active_multilang_plugin()) {
+
+        array_push($meta_query, array('key' => 'slyr_wc_lang', 'value' => $lang, 'compare' => '='));
+
     }
 
    	$terms = get_terms(
@@ -360,21 +379,48 @@ function sl_get_page_by_title($page_title, $post_type, string $output = OBJECT)
  * @param string $output Output type (OBJECT|ARRAY_A)
  * @return object|array|false Post (with meta) or false
  */
-function find_saleslayer_product(?string $saleslayerid = null, ?string $saleslayercompid = null, string $output = 'ARRAY_A')
-{
+/**
+ * Find a WooCommerce product by its Sales Layer identifiers.
+ *
+ * When $lang is provided and a multilang plugin is active, the search is narrowed
+ * to the specific language variant identified by the _slyr_wc_lang post meta.
+ * Omitting $lang (or passing '') preserves the original behaviour: returns the
+ * first product matching $saleslayerid + $saleslayercompid, regardless of language.
+ *
+ * @param string|null $saleslayerid    Sales Layer product ID
+ * @param string|null $saleslayercompid Sales Layer company ID
+ * @param string      $lang            Language code to filter by (e.g. 'es', 'en').
+ *                                     Empty string disables the language filter (default).
+ * @param string      $output          Return format: 'ARRAY_A' (default) or OBJECT
+ * @return array|object|false          Post with merged meta, or false if not found
+ */
+function find_saleslayer_product(
+    ?string $saleslayerid = null,
+    ?string $saleslayercompid = null,
+    string $lang = '',
+    string $output = 'ARRAY_A'
+) {
 
     $meta_query = array();
 
     if (!is_null($saleslayerid)){
 
         array_push($meta_query, array('key' => '_saleslayerid', 'value' => $saleslayerid, 'compare' => '='));
-    
+
     }
 
     if (!is_null($saleslayercompid)){
-    
+
         array_push($meta_query, array('key' => '_saleslayercompid', 'value' => $saleslayercompid, 'compare' => '='));
-    
+
+    }
+
+    // Narrow search to a specific language variant when a multilang plugin is active.
+    // Only applies when $lang is explicitly provided — preserves legacy behaviour otherwise.
+    if ($lang !== '' && function_exists('slyr_detect_active_multilang_plugin') && slyr_detect_active_multilang_plugin()) {
+
+        array_push($meta_query, array('key' => '_slyr_wc_lang', 'value' => $lang, 'compare' => '='));
+
     }
 
     // * 'publish' - a published post or page
@@ -636,27 +682,55 @@ function sl_validate_boolean($value)
  * @param string $output Output type (OBJECT|ARRAY_A)
  * @return object|array|false Post (with meta) or false
  */
-function find_saleslayer_format(?string $saleslayerid = null, ?string $saleslayercompid = null, ?string $saleslayerformatid = null, string $output = 'ARRAY_A')
-{
+/**
+ * Find a WooCommerce product variation by its Sales Layer identifiers.
+ *
+ * When $lang is provided and a multilang plugin is active, the search is narrowed
+ * to the specific language variant identified by the _slyr_wc_lang post meta.
+ * Omitting $lang (or passing '') preserves the original behaviour.
+ *
+ * @param string|null $saleslayerid     Sales Layer parent product ID
+ * @param string|null $saleslayercompid Sales Layer company ID
+ * @param string|null $saleslayerformatid Sales Layer format ID
+ * @param string      $lang             Language code to filter by (e.g. 'es', 'en').
+ *                                      Empty string disables the language filter (default).
+ * @param string      $output           Return format: 'ARRAY_A' (default) or OBJECT
+ * @return array|object|false           Post with merged meta, or false if not found
+ */
+function find_saleslayer_format(
+    ?string $saleslayerid = null,
+    ?string $saleslayercompid = null,
+    ?string $saleslayerformatid = null,
+    string $lang = '',
+    string $output = 'ARRAY_A'
+) {
 
     $meta_query = array();
 
     if (!is_null($saleslayerid)) {
 
         array_push($meta_query, array('key' => '_saleslayerid', 'value' => $saleslayerid, 'compare' => '='));
-    
+
     }
 
     if (!is_null($saleslayercompid)) {
-    
+
         array_push($meta_query, array('key' => '_saleslayercompid', 'value' => $saleslayercompid, 'compare' => '='));
-    
+
     }
 
     if (!is_null($saleslayerformatid)) {
-    
+
         array_push($meta_query, array('key' => '_saleslayerformatid', 'value' => $saleslayerformatid, 'compare' => '='));
-    
+
+    }
+
+    // Narrow search to a specific language variant when a multilang plugin is active.
+    // Only applies when $lang is explicitly provided — preserves legacy behaviour otherwise.
+    if ($lang !== '' && function_exists('slyr_detect_active_multilang_plugin') && slyr_detect_active_multilang_plugin()) {
+
+        array_push($meta_query, array('key' => '_slyr_wc_lang', 'value' => $lang, 'compare' => '='));
+
     }
 
     // * 'publish' - a published post or page
@@ -1029,6 +1103,117 @@ function pre_process_by_skus($type, $comp_id, $items)
  * @param array $params Parameters bound to placeholders in $query
  * @return array|int|true|false Array for reads; affected rows (int|true) for writes; false on failure
  */
+/**
+ * Return ALL WooCommerce products that match a Sales Layer ID + company ID.
+ *
+ * Unlike find_saleslayer_product() — which returns only the first match — this
+ * function returns every post (all language variants) so that delete/disable
+ * operations can affect ALL of them in a multilang environment.
+ *
+ * @param string $sl_id    Sales Layer item ID
+ * @param string $comp_id  Sales Layer company ID
+ * @return array[] Array of post arrays with merged meta (may be empty)
+ */
+function find_all_saleslayer_products(string $sl_id, string $comp_id): array
+{
+    $posts = get_posts([
+        'post_type'      => 'product',
+        'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
+        'posts_per_page' => -1,
+        'meta_query'     => [
+            'relation' => 'AND',
+            ['key' => '_saleslayerid',     'value' => $sl_id,   'compare' => '='],
+            ['key' => '_saleslayercompid', 'value' => $comp_id, 'compare' => '='],
+        ],
+    ]);
+
+    if (is_wp_error($posts) || empty($posts)) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($posts as $post) {
+        $post_array = json_decode(json_encode($post), true);
+        $result[]   = add_meta_to_post($post_array, 'ARRAY_A');
+    }
+
+    return $result;
+}
+
+/**
+ * Return ALL taxonomy terms that match a Sales Layer ID + company ID.
+ *
+ * Unlike find_saleslayer_term() — which returns only the first match — this
+ * function returns every term (all language variants) so that delete operations
+ * can affect ALL of them in a multilang environment.
+ *
+ * @param string $taxonomy WordPress taxonomy (e.g. 'product_cat')
+ * @param string $sl_id    Sales Layer item ID
+ * @param string $comp_id  Sales Layer company ID
+ * @return array[] Array of term arrays with merged meta (may be empty)
+ */
+function find_all_saleslayer_terms(string $taxonomy, string $sl_id, string $comp_id): array
+{
+    $terms = get_terms([
+        'hide_empty' => false,
+        'taxonomy'   => $taxonomy,
+        'number'     => 0,
+        'meta_query' => [
+            'relation' => 'AND',
+            ['key' => 'saleslayerid',     'value' => $sl_id,   'compare' => '='],
+            ['key' => 'saleslayercompid', 'value' => $comp_id, 'compare' => '='],
+        ],
+    ]);
+
+    if (is_wp_error($terms) || empty($terms)) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($terms as $term) {
+        $result[] = json_decode(json_encode($term), true);
+    }
+
+    return $result;
+}
+
+/**
+ * Return ALL product variations that match a Sales Layer format ID + company ID.
+ *
+ * Unlike find_saleslayer_format() — which returns only the first match — this
+ * function returns every variation (all language variants) so that delete/disable
+ * operations can affect ALL of them in a multilang environment.
+ *
+ * @param string $comp_id       Sales Layer company ID
+ * @param string $sl_format_id  Sales Layer format ID
+ * @return array[] Array of post arrays with merged meta (may be empty)
+ */
+function find_all_saleslayer_formats(string $comp_id, string $sl_format_id): array
+{
+    $posts = get_posts([
+        'post_type'      => 'product_variation',
+        'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
+        'posts_per_page' => -1,
+        'meta_query'     => [
+            'relation' => 'AND',
+            ['key' => '_saleslayercompid',   'value' => $comp_id,      'compare' => '='],
+            ['key' => '_saleslayerformatid', 'value' => $sl_format_id, 'compare' => '='],
+        ],
+    ]);
+
+    if (is_wp_error($posts) || empty($posts)) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($posts as $post) {
+        $post_array = json_decode(json_encode($post), true);
+        $result[]   = add_meta_to_post($post_array, 'ARRAY_A');
+    }
+
+    return $result;
+}
+
 function sl_connection_query($type, $query, array $params = array())
 {
 

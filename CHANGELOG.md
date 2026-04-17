@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.6.1] - 2026-04-17
+
+### Added
+
+- Multilanguage support: plugin architecture compatible with Polylang.
+- Per-language synchronization queuing: one database row per (item, language) pair for independent language processing.
+- Language-aware sync executors: Product, Category, and Format classes now support language context injection via `sync_blog_id` and `sync_lang_code` properties.
+- Multilingual field filtering: automatic detection and filtering of language variants in item data to reduce database payload size.
+- Language mapping configuration in modal: per-site language-to-Sales Layer language mapping with real-time validation.
+- "Migrate Legacy Items" tool: idempotent migration tool for items created before multilanguage support was enabled.
+- Language and blog context in sync logs: all "initialized" and error messages now include blog_id and language code for easier debugging in multisite/multilang scenarios.
+- Migration utility class (`Migration`): handles legacy item metadata assignment and Polylang translation group linking.
+- Enhanced Site & Language Configuration modal: unified title for multisite-only, multilang-only, and combined scenarios.
+
+### Changed
+
+- Counter calculation in sync queue: multiplied by language count to reflect actual database rows inserted in multilang mode.
+- Language mapping dropdowns now only show available Sales Layer languages per connector.
+- Updated FAQ with multilanguage setup instructions and "Migrate Legacy Items" tool documentation.
+
+### Fixed
+
+- Multi-site target assignment: `lang_code` now correctly assigned only to targets whose blog_id has that language configured.
+- Empty targets in queue rows: language-specific queue rows only include the blog_id that needs that language (no empty targets).
+
+### Tested
+
+- Tested on WooCommerce 10.6.1 / WordPress 6.9.4 / PHP 8.5 / Polylang 3.7.8
+
 ## [2.6.0] - 2026-02-27
 
 ### Added

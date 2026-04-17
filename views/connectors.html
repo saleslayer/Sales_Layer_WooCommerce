@@ -76,9 +76,9 @@
 				</td>
 				<td class="tags column-tags col-actions">
 						<button type="button" class="button button-primary button-sync" connectorid="<?php echo esc_attr($connector['conn_code']); ?>" secretkey="<?php echo esc_attr($connector['conn_secret']); ?>" onclick="sync_conn(this)" id="sync_<?php echo esc_attr($connector['conn_code']); ?>">Synchronize!</button>
-					<?php if (slyr_is_multisite_mode()): ?>
-						<button type="button" class="button button-multisite" onclick="openMultisiteModal('<?php echo esc_attr($connector['conn_code']); ?>')" id="multisite_<?php echo esc_attr($connector['conn_code']); ?>">Multisite</button>
-					<?php endif; ?>
+						<?php if (slyr_is_multisite_mode() || slyr_detect_active_multilang_plugin()): ?>
+							<button type="button" class="button button-multisite" onclick="openMultisiteModal('<?php echo esc_attr($connector['conn_code']); ?>')" id="multisite_<?php echo esc_attr($connector['conn_code']); ?>">Settings</button>
+						<?php endif; ?>
 					<button type="button" class="button button-forget" onclick="deleteConnector('<?php echo esc_attr($connector['conn_code']); ?>')">Forget Me!</button>
 				</td>
 			</tr>

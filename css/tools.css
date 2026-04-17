@@ -59,6 +59,34 @@
     font-size: 13px;
 }
 
+#migration-result {
+    display: none;
+    margin-top: 16px;
+    padding: 12px;
+    background: #f0f6f4;
+    border: 1px solid #8cdb90;
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    color: #0d423e;
+}
+
+#migration-result strong {
+    color: #0d423e;
+    font-weight: 600;
+}
+
+.migration-timestamp {
+    display: block;
+    margin-top: 12px;
+    font-size: 11px;
+    color: rgba(13, 66, 62, 0.6);
+    font-style: italic;
+    font-weight: 400;
+}
+
 @media (max-width: 600px) {
     .action-group {
         width: 100%;

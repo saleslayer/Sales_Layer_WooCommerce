@@ -3,7 +3,7 @@
 Plugin Name:    Sales Layer WooCommerce
 Plugin URI:     http://support.saleslayer.com/
 Description:    Plugin that allows you to synchronize your catalogue from Sales Layer to WooCommerce.
-Version:        2.6.0
+Version:        2.6.1
 Author:         Sales Layer
 Author URI:     http://saleslayer.com/
 License:        GPL2
@@ -11,10 +11,10 @@ License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
 Text Domain:    saleslayer_woocommerce
 Requires PHP:   8.0
 Requires at least: 6.4
-Tested up to:   6.9
+Tested up to:   6.9.4
 Requires Plugins: woocommerce
 WC requires at least: 8.2.0
-WC tested up to: 10.4.3
+WC tested up to: 10.6.1
 */
 
 defined( 'ABSPATH' ) or die( '¡Sin trampas!' );
@@ -228,11 +228,12 @@ function slyr_wc_plugin_init()
 {
 
     global $debug_level;
-    
+
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Multiconn.class.php');
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Connector.class.php');
     include_once(SLYR_WC__PLUGIN_DIR.'admin/GeneralParameters.class.php');
-    
+    include_once(SLYR_WC__PLUGIN_DIR.'admin/MultilangHelper.class.php');
+
     $connector = new Connector();
     $general_params = new GeneralParameters();
 
@@ -245,6 +246,14 @@ function slyr_wc_plugin_init()
     // 2. Load styles and scripts
     add_action( 'wp_enqueue_scripts', 'slyr_wc_enqueue_stylesheets' );
     add_action( 'wp_enqueue_scripts', 'slyr_wc_enqueue_scripts'     );
+
+    // 3. Disable WooCommerce unique SKU constraint when a multilang plugin is active.
+    // With Polylang/WPML, N WP products share the same SKU (one per language variant)
+    // because the SKU is a language-agnostic field (has_multilingual: 0 in SL schema).
+    // This filter is intentionally scoped to the plugin's active context only.
+    if (slyr_detect_active_multilang_plugin()) {
+        add_filter('wc_product_has_unique_sku', '__return_false');
+    }
 
 }
 add_action('init','slyr_wc_plugin_init');
@@ -457,33 +466,30 @@ function slyr_wc_connectors()
             $conn_content = ob_get_clean();
             echo wp_kses($conn_content, getAllowedTags());
 
-            // Render multisite modal outside wp_kses() — plugin-generated HTML, not user input
-            if (slyr_is_multisite_mode()) {
+            // Render multisite/multilang modal outside wp_kses() — plugin-generated HTML, not user input
+            if (slyr_is_multisite_mode() || slyr_detect_active_multilang_plugin()) {
+                // Generic title works for all scenarios: multisite only, multilang only, or both
+                $modalTitle = 'Site & Language Configuration';
                 ?>
                 <div id="slyr-multisite-overlay" class="slyr-multisite-overlay" style="display:none;">
                     <div class="slyr-multisite-modal">
                         <div class="slyr-multisite-modal-header">
-                            <h3>Multisite Synchronization Settings</h3>
+                            <h3><?php echo esc_html($modalTitle); ?></h3>
                             <button type="button" class="slyr-multisite-close" onclick="closeMultisiteModal()">&times;</button>
                         </div>
                         <div class="slyr-multisite-modal-body">
-                            <div id="slyr-multisite-languages-info" class="slyr-multisite-info"></div>
-                            <table class="wp-list-table widefat fixed striped" id="slyr-multisite-sites-table">
-                                <thead>
-                                    <tr>
-                                        <th>Site</th>
-                                        <th class="col-modal-active">Activate</th>
-                                        <th class="col-modal-lang">Language</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="slyr-multisite-sites-body">
-                                    <tr><td colspan="3">Loading sites...</td></tr>
-                                </tbody>
-                            </table>
+                            <!-- Sales Layer Languages Info (populated by JS) -->
+                            <div id="slyr-sl-languages-info" class="slyr-sl-languages-info" style="display:none;"></div>
+                            <!-- Validation errors appear below SL info, above sites -->
+                            <div id="slyr-validation-errors" class="slyr-validation-errors" style="display:none;"></div>
+                            <!-- Sites list with language dropdowns -->
+                            <div id="slyr-sites-list" class="slyr-sites-list">
+                                <div class="slyr-loading">Loading sites...</div>
+                            </div>
                         </div>
                         <div class="slyr-multisite-modal-footer">
                             <button type="button" class="button" onclick="closeMultisiteModal()">Cancel</button>
-                            <button type="button" class="button button-primary" id="slyr-multisite-save">Save Configuration</button>
+                            <button type="button" class="button button-primary" id="slyr-multisite-save" disabled>Save Configuration</button>
                         </div>
                         <input type="hidden" id="slyr-multisite-connector-id" value="" />
                     </div>
@@ -514,6 +520,7 @@ function slyr_enqueue_connectors_script()
         wp_localize_script('slyr_wc_script_connectors', 'ajax_object', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'is_multisite_mode' => slyr_is_multisite_mode() ? 1 : 0,
+            'has_multilang_plugin' => slyr_detect_active_multilang_plugin() ? 1 : 0,
             'multisite_nonce' => wp_create_nonce('slyr_multisite_nonce'),
             'create_connector_nonce' => wp_create_nonce('sl_wc_create_connector_nonce'),
         ));
@@ -635,6 +642,108 @@ function slyr_wc_plugin_uninstall()
 
 register_uninstall_hook(__FILE__, 'slyr_wc_plugin_uninstall');
 
+/**
+ * Validate connector's multilang configuration before synchronization.
+ * Checks if sites with Polylang have languages configured in connector.
+ *
+ * @param string $connector_id Connector code
+ * @return array ['valid' => bool, 'errors' => array of error messages]
+ */
+function slyr_validate_sync_configuration($connector_id)
+{
+    $errors = [];
+
+    // Get connector data
+    include_once(SLYR_WC__PLUGIN_DIR . 'admin/Connector.class.php');
+    include_once(SLYR_WC__PLUGIN_DIR . 'admin/MultilangHelper.class.php');
+    $connector = Connector::get_instance();
+    $connectorRow = $connector->get_connector($connector_id);
+
+    if (empty($connectorRow)) {
+        return ['valid' => false, 'errors' => ['Connector not found: ' . $connector_id]];
+    }
+
+    $connectorArray = is_object($connectorRow) ? (array) $connectorRow : $connectorRow;
+    $connExtra = !empty($connectorArray['conn_extra'])
+        ? json_decode($connectorArray['conn_extra'], true)
+        : [];
+    
+    // Get saved site targets
+    $savedTargets = $connExtra['multisite_targets'] ?? [];
+
+    // Get multilang config (site_mappings)
+    $multilangConfig = $connExtra['multilang_config'] ?? [];
+    $siteMappings = $multilangConfig['site_mappings'] ?? [];
+
+    // Convert site_mappings array to keyed by blog_id for easier lookup
+    $siteMappingsKeyed = [];
+    foreach ($siteMappings as $mapping) {
+        if (isset($mapping['blog_id'])) {
+            $siteMappingsKeyed[$mapping['blog_id']] = $mapping['languages'] ?? [];
+        }
+    }
+
+    // Iterate directly over multisite_targets (sites mapped in the connector)
+    // Note: We validate ALL sites in multisite_targets, regardless of 'active' status
+    // because multisite_targets represents the sites that were configured in the connector
+
+    // Iterate over sites to validate
+    foreach ($savedTargets as $target) {
+        $blogId = $target['blog_id'] ?? null;
+        sl_debug("Processing target with blogId: {$blogId}");
+
+        if (!$blogId && $blogId !== 0) {
+            sl_debug("Skipping target - no valid blogId");
+            continue;
+        }
+
+        // Switch to site context to check for Polylang
+        if (is_multisite()) {
+            switch_to_blog($blogId);
+        }
+
+        // Check if Polylang is active on this site
+        $pluginType = function_exists('slyr_detect_active_multilang_plugin')
+            ? slyr_detect_active_multilang_plugin()
+            : false;
+
+        if ($pluginType === 'polylang') {
+            // Check if site has languages configured in Polylang
+            $hasPolylangLanguages = false;
+            if (function_exists('pll_languages_list')) {
+                $polylangLangs = pll_languages_list(['fields' => 'slug']);
+                $hasPolylangLanguages = !empty($polylangLangs);
+            }
+
+            if ($hasPolylangLanguages) {
+                // Polylang has languages - check if connector has languages saved for this site
+                $savedLanguages = $siteMappingsKeyed[$blogId] ?? [];
+
+                if (empty($savedLanguages)) {
+                    // Get site name for error message
+                    $siteDetails = get_blog_details($blogId);
+                    $siteName = $siteDetails ? $siteDetails->blogname : "Site ID {$blogId}";
+
+                    $errors[] = sprintf(
+                        'Site "%s" (ID: %d) has Polylang active with languages configured, but no languages are selected in the connector. Please configure languages in Settings.',
+                        $siteName,
+                        $blogId
+                    );
+                }
+            }
+        }
+
+        if (is_multisite()) {
+            restore_current_blog();
+        }
+    }
+
+    return [
+        'valid' => empty($errors),
+        'errors' => $errors
+    ];
+}
+
 function synchronize_connector($connector_id, $secret_key)
 {
 
@@ -643,7 +752,7 @@ function synchronize_connector($connector_id, $secret_key)
     $sync_class = new Synchronize();
     $return_message = $sync_class->store_sync_data($connector_id, $secret_key);
     return $return_message;
-    
+
 }
 
 function sl_wc_process_pending_meta()
@@ -693,12 +802,36 @@ function sl_wc_synchronize_connector()
 
     $connector_id = $_POST['connector_id'];
     $secret_key = $_POST['secret_key'];
-    
+
     if (isset($connector_id) && !empty($connector_id)){
 
         $result_check_plugins_requirements = check_plugin_requirements();
-        
+
         if ($result_check_plugins_requirements['error'] === 0){
+            // Validate multilang configuration before sync (manual sync)
+            $validationResult = slyr_validate_sync_configuration($connector_id);
+
+            if (!$validationResult['valid']) {
+                // Log errors to sl_debug
+                foreach ($validationResult['errors'] as $error) {
+                    sl_debug('## Error. Sync validation failed: ' . $error);
+                }
+
+                // Build error message for frontend
+                $errorHtml = '<div class="dialog dialog-warning">';
+                $errorHtml .= '<strong>Synchronization blocked - Language configuration required:</strong><ul>';
+                foreach ($validationResult['errors'] as $error) {
+                    $errorHtml .= '<li>' . esc_html($error) . '</li>';
+                }
+                $errorHtml .= '</ul></div>';
+
+                $result_check_plugins_requirements['error'] = 1;
+                $result_check_plugins_requirements['message'] = $errorHtml;
+                echo json_encode($result_check_plugins_requirements);
+                wp_die();
+
+            }
+
             $result_check_plugins_requirements['message'] = synchronize_connector($connector_id, $secret_key);
         }
         echo json_encode($result_check_plugins_requirements);
@@ -998,6 +1131,20 @@ function sl_wc_execute_tool()
                 $response['message'] = "Couldn't clean orphaned multiconn records.";
             }
             break;
+        case 'migrate_legacy_items':
+            include_once(SLYR_WC__PLUGIN_DIR.'admin/Migration.class.php');
+            $migration = new Migration();
+            $counts = $migration->migrate_legacy_items();
+
+            $response['message_type'] = 'success';
+            $response['message'] = sprintf(
+                '<strong>Migration Completed!</strong><br/>Categories migrated: <strong>%d</strong><br/>Products migrated: <strong>%d</strong><br/>Variations migrated: <strong>%d</strong><br/><span class="migration-timestamp">%s</span>',
+                $counts['categories'],
+                $counts['products'],
+                $counts['variations'],
+                $counts['timestamp']
+            );
+            break;
         default:
             $response['message_type'] = 'error';
             $response['message'] = 'Unknown tool executed.';
@@ -1032,20 +1179,34 @@ function sl_wc_auto_sync_connectors()
                                             " ORDER BY last_update_unix ASC, auto_sync DESC LIMIT 1 ", ARRAY_A);
         
         if (!empty($connector)){
-     
+
             $conn_code = $connector[0]['conn_code'];
             $conn_secret = $connector[0]['conn_secret'];
 
             sl_debug("Connector to auto-synchronize: ".$conn_code, 'autosync');
-            
-            $time_ini_cron_sync = microtime(true);
-            
-            $time_random = rand(20,50);
-            sleep($time_random);
-            $return_message['message'] = synchronize_connector($conn_code, $conn_secret);
-            
-            sl_debug("#### time_random: ".$time_random.' seconds.', 'autosync');
-            sl_debug("#### time_cron_sync: ".(microtime(true) - $time_ini_cron_sync - $time_random).' seconds.', 'autosync');
+
+            // Validate multilang configuration before sync (autosync - log only, no frontend)
+            $validationResult = slyr_validate_sync_configuration($conn_code);
+
+            if (!$validationResult['valid']) {
+                // Log errors to sl_debug only (autosync mode)
+                sl_debug('## Error. Autosync validation failed for connector: ' . $conn_code, 'autosync');
+                foreach ($validationResult['errors'] as $error) {
+                    sl_debug('## Error. ' . $error, 'autosync');
+                }
+                sl_debug('Autosync ABORTED due to language configuration errors.', 'autosync');
+
+                // Don't proceed with sync - abort
+            } else {
+                $time_ini_cron_sync = microtime(true);
+
+                $time_random = rand(20,50);
+                sleep($time_random);
+                $return_message['message'] = synchronize_connector($conn_code, $conn_secret);
+
+                sl_debug("#### time_random: ".$time_random.' seconds.', 'autosync');
+                sl_debug("#### time_cron_sync: ".(microtime(true) - $time_ini_cron_sync - $time_random).' seconds.', 'autosync');
+            }
 
         }else{
 
@@ -1265,7 +1426,7 @@ add_action('wp_ajax_slyr_save_multisite_config', 'slyr_ajax_save_multisite_confi
 /**
  * AJAX handler: Save multisite configuration to a connector's conn_extra column.
  *
- * Expects POST params: connector_id, multisite_enabled (0|1), targets (JSON array).
+ * Expects POST params: connector_id, targets (JSON array), site_mappings (JSON array).
  * Merges multisite keys into existing conn_extra JSON without overwriting other data.
  *
  * @return void Sends JSON response via wp_send_json_success/wp_send_json_error
@@ -1307,8 +1468,8 @@ function slyr_ajax_save_multisite_config()
         foreach ($rawTargets as $target) {
             if (!empty($target['active'])) {
                 $activeTargets[] = [
-                    'blog_id'   => (int) ($target['blog_id'] ?? 0),
-                    'lang_code' => sanitize_text_field($target['lang_code'] ?? ''),
+                    'blog_id' => (int) ($target['blog_id'] ?? 0),
+                    'active'  => true,
                 ];
             }
         }
@@ -1317,20 +1478,63 @@ function slyr_ajax_save_multisite_config()
     // Fallback: if no site is active, ensure the main site is included
     if (empty($activeTargets)) {
         $activeTargets[] = [
-            'blog_id'   => (int) get_main_site_id(),
-            'lang_code' => '',
+            'blog_id' => (int) get_main_site_id(),
+            'active'  => true,
         ];
     }
 
-    // Remove legacy multisite_enabled key if present
+    // Remove legacy keys if present
     unset($connExtra['multisite_enabled']);
     $connExtra['multisite_targets'] = $activeTargets;
+
+    // Process site_mappings (language configuration per site)
+    $rawSiteMappings = isset($_POST['site_mappings']) ? json_decode(stripslashes($_POST['site_mappings']), true) : [];
+    $sanitizedSiteMappings = [];
+
+    if (is_array($rawSiteMappings)) {
+        foreach ($rawSiteMappings as $mapping) {
+            $blogId = (int) ($mapping['blog_id'] ?? 0);
+            if ($blogId === 0) {
+                continue;
+            }
+
+            $languages = [];
+            if (is_array($mapping['languages'] ?? null)) {
+                foreach ($mapping['languages'] as $langCode => $slLangCode) {
+                    $sanitizedLangCode = sanitize_text_field($langCode);
+                    $sanitizedSlLangCode = sanitize_text_field($slLangCode);
+                    if (!empty($sanitizedLangCode)) {
+                        $languages[$sanitizedLangCode] = $sanitizedSlLangCode;
+                    }
+                }
+            }
+
+            if (!empty($languages)) {
+                $sanitizedSiteMappings[] = [
+                    'blog_id'   => $blogId,
+                    'languages' => $languages,
+                ];
+            }
+        }
+    }
+
+    // Store multilang config
+    if (!empty($sanitizedSiteMappings)) {
+        $activeMultilangPlugin = slyr_detect_active_multilang_plugin();
+        $connExtra['multilang_config'] = [
+            'plugin_type'   => $activeMultilangPlugin ?: 'polylang',
+            'site_mappings' => $sanitizedSiteMappings,
+        ];
+    } else {
+        // Remove multilang config if no mappings
+        unset($connExtra['multilang_config']);
+    }
 
     $connector->update_connector($connectorId, [
         'conn_extra' => json_encode($connExtra, JSON_UNESCAPED_UNICODE),
     ]);
 
-    wp_send_json_success(['message' => 'Multisite configuration saved']);
+    wp_send_json_success(['message' => 'Configuration saved successfully']);
 }
 
 add_action('wp_ajax_slyr_get_multisite_config', 'slyr_ajax_get_multisite_config');
@@ -1352,11 +1556,16 @@ function slyr_ajax_get_multisite_config()
         return;
     }
 
+    $debug = [];
+    $debug[] = '=== slyr_ajax_get_multisite_config CALLED ===';
+
     $connectorId = isset($_GET['connector_id']) ? sanitize_text_field($_GET['connector_id']) : '';
     if (empty($connectorId)) {
         wp_send_json_error(['message' => 'Missing connector_id']);
         return;
     }
+
+    $debug[] = "Connector ID: {$connectorId}";
 
     $connector = new Connector();
     $connData = $connector->get_connector($connectorId);
@@ -1371,7 +1580,7 @@ function slyr_ajax_get_multisite_config()
         $connExtra = [];
     }
 
-    // Parse available languages from connector's languages field
+    // Parse available languages from connector's languages field (Sales Layer languages)
     $availableLanguages = [];
     if (!empty($connData->languages)) {
         $languagesParts = explode(',', $connData->languages);
@@ -1383,9 +1592,113 @@ function slyr_ajax_get_multisite_config()
         }
     }
 
+    // Get plugin languages if multilang plugin is active (e.g., Polylang, WPML)
+    $pluginLanguages = [];
+    $pluginLanguagesPerSite = [];
+    $defaultLanguages = [];  // Default language per site
+    $defaultLanguage = null; // Global default (for single site mode)
+
+    $debug[] = "Checking for multilang plugin...";
+    $activatedPlugin = slyr_detect_active_multilang_plugin();
+    $debug[] = "Active multilang plugin: " . ($activatedPlugin ?: 'NONE');
+
+    if ($activatedPlugin) {
+        try {
+            $debug[] = "Creating MultilangHelper instance...";
+            $multilangHelper = new MultilangHelper();
+            $defaultLanguage = $multilangHelper->get_default_language();
+            $debug[] = "Default language (current site): {$defaultLanguage}";
+
+            // Save original blog ID to restore later
+            $originalBlogId = is_multisite() ? get_current_blog_id() : 1;
+            $debug[] = "Original blog ID: {$originalBlogId}";
+            $debug[] = "Is multisite: " . (is_multisite() ? 'YES' : 'NO');
+
+            // Get ALL sites, not just active targets, so we can fetch languages for modal
+            $sitesToProcess = [];
+            if (is_multisite()) {
+                $allSites = get_sites(['number' => 100]);
+                foreach ($allSites as $site) {
+                    $sitesToProcess[] = ['blog_id' => (int) $site->blog_id];
+                }
+            } else {
+                $sitesToProcess = [['blog_id' => 1]];
+            }
+            $debug[] = "Sites to process: " . count($sitesToProcess);
+
+            // Fetch languages for each site
+            foreach ($sitesToProcess as $siteData) {
+                $blogId = (int) $siteData['blog_id'];
+                if ($blogId === 0) {
+                    continue;
+                }
+
+                $debug[] = "Processing site {$blogId}...";
+
+                // Switch to site if multisite and different from original
+                if (is_multisite() && $blogId !== $originalBlogId) {
+                    $debug[] = "  → Switching to blog {$blogId}";
+                    switch_to_blog($blogId);
+                }
+
+                // Create new MultilangHelper instance after switching to blog
+                $helperForSite = new MultilangHelper();
+                $siteLanguages = $helperForSite->get_multilang_languages();
+                $siteDefaultLang = $helperForSite->get_default_language();
+
+                $debug[] = "  → Languages for site {$blogId}: " . json_encode($siteLanguages);
+                $debug[] = "  → Default language for site {$blogId}: {$siteDefaultLang}";
+
+                $pluginLanguagesPerSite[$blogId] = $siteLanguages;
+                $defaultLanguages[$blogId] = $siteDefaultLang;
+
+                // If not multisite, use a common list for all (will be site 1)
+                if (!is_multisite() && empty($pluginLanguages)) {
+                    $pluginLanguages = $siteLanguages;
+                    $debug[] = "  → Set as global pluginLanguages (single-site)";
+                }
+
+                // Restore to original blog if switched
+                if (is_multisite() && $blogId !== $originalBlogId) {
+                    restore_current_blog();
+                    $debug[] = "  → Restored to blog {$originalBlogId}";
+                }
+            }
+
+            $debug[] = "Final pluginLanguages: " . json_encode($pluginLanguages);
+            $debug[] = "Final pluginLanguagesPerSite: " . json_encode($pluginLanguagesPerSite);
+            $debug[] = "Final defaultLanguages: " . json_encode($defaultLanguages);
+
+        } catch (Exception $e) {
+            // If MultilangHelper fails, continue without language data
+            $debug[] = 'MultilangHelper error: ' . $e->getMessage();
+        }
+    }
+
+    // Get current per-site language mappings (NEW STRUCTURE: site_mappings)
+    $siteMappings = [];
+    if (!empty($connExtra['multilang_config']['site_mappings'])) {
+        $siteMappings = $connExtra['multilang_config']['site_mappings'];
+    }
+
+    $debug[] = "=== FINAL RESPONSE ===";
+    $debug[] = "available_languages: " . json_encode($availableLanguages);
+    $debug[] = "plugin_languages: " . json_encode($pluginLanguages);
+    $debug[] = "plugin_languages_per_site: " . json_encode($pluginLanguagesPerSite);
+    $debug[] = "default_languages: " . json_encode($defaultLanguages);
+    $debug[] = "site_mappings: " . json_encode($siteMappings);
+    $debug[] = "has_multilang: " . ((!empty($pluginLanguages) || !empty($pluginLanguagesPerSite)) ? 'YES' : 'NO');
+
     wp_send_json_success([
-        'multisite_targets' => $connExtra['multisite_targets'] ?? [],
-        'available_languages' => $availableLanguages,
+        'multisite_targets'         => $connExtra['multisite_targets'] ?? [],
+        'available_languages'       => $availableLanguages,
+        'plugin_languages'          => $pluginLanguages,
+        'plugin_languages_per_site' => $pluginLanguagesPerSite,
+        'default_languages'         => $defaultLanguages,
+        'site_mappings'             => $siteMappings,
+        'has_multilang'             => !empty($pluginLanguages) || !empty($pluginLanguagesPerSite),
+        'default_language'          => $defaultLanguage, // Legacy: single default
+        'debug'                     => $debug,
     ]);
 }
 

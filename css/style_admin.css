@@ -63,6 +63,36 @@
     border-color: rgba(214, 54, 56, 0.2);
 }
 
+/* --- Initial Loading Spinner --- */
+.slyr-initial-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #eff7f3 0%, #e8f4fd 100%);
+    border: 1px solid rgba(13, 66, 62, 0.12);
+    border-radius: 8px;
+    color: #0d423e;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.slyr-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(13, 66, 62, 0.15);
+    border-top-color: #8cdb90;
+    border-radius: 50%;
+    animation: slyr-spin 0.8s linear infinite;
+}
+
+@keyframes slyr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 #slyr_catalogue_admin h1 { font-size: 28px; line-height: 1.3; margin: 0 0 20px 0; font-weight: 600; color: #0d423e; }
 #slyr_catalogue_admin h2 { font-size: 24px; line-height: 1.3; margin: 0 0 20px 0; font-weight: 600; color: #0d423e; }
 #slyr_catalogue_admin h3 { font-size: 20px; line-height: 1.4; margin: 0 0 16px 0; font-weight: 600; color: #0d423e; }
@@ -443,11 +473,430 @@
 
 #slyr-multisite-sites-table .slyr-site-lang { width: 100%; }
 
-/* --- Multilanguage column: hidden until feature is implemented.
-   Remove these 3 rules to re-enable the language column. --- */
-#slyr-multisite-languages-info { display: none; }
-#slyr-multisite-sites-table .col-modal-lang { display: none; }
-#slyr-multisite-sites-table td:nth-child(3) { display: none; }
+/* --- Card-Based Sites List (Accordion) --- */
+.slyr-sites-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.slyr-loading {
+    text-align: center;
+    padding: 40px;
+    color: rgba(13, 66, 62, 0.5);
+    font-style: italic;
+}
+
+.slyr-site-card {
+    border: 1px solid rgba(13, 66, 62, 0.15);
+    border-radius: 8px;
+    background: #fff;
+    /* overflow: visible allows tooltips to render outside the card bounds */
+    overflow: visible;
+    transition: box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.slyr-site-card:hover {
+    box-shadow: 0 2px 8px rgba(13, 66, 62, 0.08);
+}
+
+.slyr-site-card.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Inactive (not activated) sites appear dimmed but toggle still works */
+.slyr-site-card.slyr-inactive {
+    opacity: 0.5;
+}
+
+.slyr-site-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: #f8fbfa;
+    border-bottom: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+}
+
+.slyr-site-card-header:hover {
+    background: #eff7f3;
+}
+
+.slyr-site-card.expanded .slyr-site-card-header {
+    border-bottom-color: rgba(13, 66, 62, 0.1);
+    border-radius: 8px 8px 0 0;
+}
+
+/* Cards without accordion (no languages) — header not clickable */
+.slyr-site-card.no-accordion .slyr-site-card-header {
+    cursor: default;
+}
+
+.slyr-site-card.no-accordion .slyr-site-card-header:hover {
+    background: #f8fbfa;
+}
+
+/* Compensate for the absent chevron (20px) so the toggle aligns
+   horizontally with cards that do have a chevron */
+.slyr-site-card.no-accordion .slyr-site-controls {
+    margin-right: 20px;
+}
+
+.slyr-site-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.slyr-site-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #0d423e;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.slyr-site-url {
+    font-size: 12px;
+    color: rgba(13, 66, 62, 0.45);
+}
+
+.slyr-site-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.slyr-site-active-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(13, 66, 62, 0.7);
+    cursor: pointer;
+}
+
+/* --- Toggle Switch (replaces checkbox) --- */
+.slyr-toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+    /* Clip the hidden input so no native checkbox renders outside the track */
+    overflow: hidden;
+}
+
+.slyr-toggle-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    pointer-events: none;
+    clip: rect(0, 0, 0, 0);
+}
+
+.slyr-toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    background: #ccc;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.slyr-toggle-track::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.slyr-toggle-switch input:checked + .slyr-toggle-track {
+    background: #0d423e;
+}
+
+.slyr-toggle-switch input:checked + .slyr-toggle-track::after {
+    transform: translateX(16px);
+}
+
+.slyr-toggle-switch input:disabled + .slyr-toggle-track {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Chevron (replaces Languages button) --- */
+.slyr-site-chevron {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(13, 66, 62, 0.4);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.slyr-site-chevron svg {
+    width: 14px;
+    height: 14px;
+}
+
+.slyr-site-card.expanded .slyr-site-chevron {
+    transform: rotate(180deg);
+}
+
+/* --- Language Accordion Body --- */
+.slyr-site-accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #fafffe;
+    border-radius: 0 0 8px 8px;
+}
+
+.slyr-site-card.expanded .slyr-site-accordion-body {
+    max-height: 600px;
+    /* Switch to visible so tooltips inside the accordion are not clipped.
+       overflow: hidden is only needed while closed (max-height: 0). */
+    overflow: visible;
+}
+
+.slyr-language-list {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 16px 14px;
+}
+
+/* --- Language rows: fixed columns for alignment --- */
+.slyr-language-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(13, 66, 62, 0.06);
+}
+
+.slyr-language-item:last-child {
+    border-bottom: none;
+}
+
+.slyr-language-item.mapped {
+    /* no background change needed, keep it clean */
+}
+
+.slyr-language-name {
+    width: 110px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #0d423e;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.slyr-language-code {
+    width: 44px;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(13, 66, 62, 0.5);
+    background: #eff7f3;
+    border: 1px solid rgba(13, 66, 62, 0.15);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    text-align: center;
+    margin-right: 12px;
+}
+
+/* --- Primary language tooltip (? icon) --- */
+.slyr-lang-primary-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.slyr-lang-primary-icon {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(13, 66, 62, 0.35);
+    color: rgba(13, 66, 62, 0.5);
+    font-size: 9px;
+    font-weight: 700;
+    font-style: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.slyr-lang-primary-tipbox {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d423e;
+    color: #eff7f3;
+    font-size: 11px;
+    font-weight: 400;
+    padding: 5px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 99999;
+    pointer-events: none;
+}
+
+.slyr-lang-primary-tipbox::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #0d423e;
+}
+
+.slyr-lang-primary-tooltip:hover .slyr-lang-primary-tipbox {
+    display: block;
+}
+
+/* --- Sales Layer Languages Info Box --- */
+.slyr-sl-languages-info {
+    margin-bottom: 16px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(13, 66, 62, 0.06) 0%, rgba(140, 219, 144, 0.08) 100%);
+    border: 1px solid rgba(13, 66, 62, 0.15);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #0d423e;
+}
+
+.slyr-sl-languages-info .slyr-info-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.slyr-sl-languages-info .slyr-info-title::before {
+    content: "ℹ️";
+    font-size: 14px;
+}
+
+.slyr-sl-languages-info .slyr-sl-lang-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.slyr-sl-languages-info .slyr-sl-lang-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #0d423e;
+    color: #8cdb90;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: monospace;
+}
+
+/* --- Validation Errors --- */
+.slyr-validation-errors {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: rgba(214, 54, 56, 0.08);
+    border: 1px solid rgba(214, 54, 56, 0.3);
+    border-radius: 6px;
+    color: #d63638;
+    font-size: 13px;
+}
+
+.slyr-validation-errors .slyr-error-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.slyr-validation-errors ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+/* --- Language Mapping Dropdown --- */
+.slyr-language-mapping-select {
+    width: 170px;
+    flex-shrink: 0;
+    padding: 5px 10px;
+    border: 1px solid rgba(13, 66, 62, 0.2);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    color: #0d423e;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.slyr-language-mapping-select:hover {
+    border-color: rgba(13, 66, 62, 0.4);
+}
+
+.slyr-language-mapping-select:focus {
+    outline: none;
+    border-color: #0d423e;
+    box-shadow: 0 0 0 2px rgba(13, 66, 62, 0.1);
+}
+
+.slyr-language-mapping-select option[value=""] {
+    color: #999;
+}
+
+/* --- Site Badges --- */
+.slyr-multisite-main-site-badge,
+.slyr-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 30px;
+    margin-left: 6px;
+}
+
+.slyr-badge-main {
+    background: #0d423e;
+    color: #8cdb90;
+}
+
+.slyr-badge-no-woo {
+    background: #d63638;
+    color: #fff;
+}
+
+.slyr-badge-no-polylang {
+    background: #dba617;
+    color: #fff;
+}
 
 .slyr-multisite-modal-footer {
     padding: 16px 24px;

@@ -784,10 +784,36 @@ class Synchronize
     {
         $resultUpdate = '';
 
+        // Prop. 2: sync_params.targets[0].lang_code is the single source of truth for the
+        // language of this queue row. Inject it into item_data['_sl_language'] so that the
+        // executor methods (sync_stored_product, sync_stored_category, sync_stored_product_format)
+        // can read it without any signature change. Empty string is the correct fallback for
+        // legacy single-language mode where lang_code is not set.
+        $lang   = isset($syncParams['targets'][0]['lang_code']) ? $syncParams['targets'][0]['lang_code'] : '';
+        $blogId = isset($syncParams['targets'][0]['blog_id'])   ? $syncParams['targets'][0]['blog_id']   : 0;
+
+        // DEBUG: uncomment to see what's being read
+        // sl_debug('DEBUG syncParams targets: ' . print_r($syncParams['targets'] ?? 'MISSING', true));
+        if ($lang !== '') {
+            $itemData['_sl_language'] = $lang;
+        }
+
+        // Build the context suffix used in "initialized" log messages.
+        // e.g. " Blog_id: {2} - Lang: {EN}"
+        $syncCtx = '';
+        if ($blogId !== 0 && $blogId !== '') {
+            $syncCtx .= ' Blog_id: {' . $blogId . '}';
+        }
+        if ($lang !== '' && $lang !== null) {
+            $syncCtx .= ' - Lang: {' . strtoupper($lang) . '}';
+        }
+
         switch ($itemType) {
             case 'category':
 
                 $this->cat_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $this->cat_class->set_class_field_value('sync_blog_id',   $blogId);
+                $this->cat_class->set_class_field_value('sync_lang_code', $lang);
 
                 foreach ($this->category_fields as $category_field) {
                     if (isset($syncParams['category_fields'][$category_field])) {
@@ -796,15 +822,17 @@ class Synchronize
                 }
 
                 $time_ini = microtime(true);
-                sl_debug(' >> Category synchronization initialized << ');
+                sl_debug(' >> Category synchronization initialized.' . $syncCtx . ' <<');
                 $resultUpdate = $this->cat_class->sync_stored_category($itemData);
-                sl_debug(' >> Category synchronization finished << ');
+                sl_debug(' >> Category synchronization finished.' . $syncCtx . ' <<');
                 sl_debug('#### time_sync_stored_category: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
                 break;
 
             case 'product':
 
                 $this->prod_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $this->prod_class->set_class_field_value('sync_blog_id',   $blogId);
+                $this->prod_class->set_class_field_value('sync_lang_code', $lang);
 
                 foreach ($this->product_fields as $product_field) {
                     if (isset($syncParams['product_fields'][$product_field])) {
@@ -825,15 +853,17 @@ class Synchronize
                 }
 
                 $time_ini = microtime(true);
-                sl_debug(' >> Product synchronization initialized << ');
+                sl_debug(' >> Product synchronization initialized.' . $syncCtx . ' <<');
                 $resultUpdate = $this->prod_class->sync_stored_product($itemData);
-                sl_debug(' >> Product synchronization finished << ');
+                sl_debug(' >> Product synchronization finished.' . $syncCtx . ' <<');
                 sl_debug('#### time_sync_stored_product: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
                 break;
 
             case 'product_format':
 
                 $this->form_class->comp_id = $syncParams['conn_params']['comp_id'];
+                $this->form_class->set_class_field_value('sync_blog_id',   $blogId);
+                $this->form_class->set_class_field_value('sync_lang_code', $lang);
 
                 foreach ($this->product_format_fields as $product_format_field) {
                     if (isset($syncParams['format_fields'][$product_format_field])) {
@@ -854,18 +884,18 @@ class Synchronize
                 }
 
                 $time_ini = microtime(true);
-                sl_debug(' >> Format synchronization initialized << ');
+                sl_debug(' >> Format synchronization initialized.' . $syncCtx . ' <<');
                 $resultUpdate = $this->form_class->sync_stored_product_format($itemData);
-                sl_debug(' >> Format synchronization finished << ');
+                sl_debug(' >> Format synchronization finished.' . $syncCtx . ' <<');
                 sl_debug('#### time_sync_stored_product_format: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
                 break;
 
             case 'product_links':
 
                 $time_ini = microtime(true);
-                sl_debug(' >> Product links synchronization initialized << ');
+                sl_debug(' >> Product links synchronization initialized.' . $syncCtx . ' <<');
                 $this->prod_class->sync_stored_product_links($itemData);
-                sl_debug(' >> Product links synchronization finished << ');
+                sl_debug(' >> Product links synchronization finished.' . $syncCtx . ' <<');
                 $resultUpdate = 'item_updated';
                 sl_debug('#### time_sync_stored_product_links: ' . (microtime(true) - $time_ini) . ' seconds.', 'timer');
                 break;
@@ -1269,6 +1299,29 @@ class Synchronize
         $connectorArray = is_object($connectorRow) ? (array) $connectorRow : $connectorRow;
         $sync_params['targets'] = slyr_build_sync_targets($connectorArray);
 
+        // When a multilang plugin (Polylang/WPML) is active, extract the WP→SL language
+        // mapping from the connector's multilang_config so we can queue one row per language.
+        // Structure: ['en' => 'en', 'es' => 'es'] (WP lang code => SL lang code).
+        // Empty when no multilang plugin is active or no mappings are configured —
+        // in that case the existing single-language queuing path is used unchanged.
+        $multilangLanguages = [];
+        // Maps each WP language code to the blog_id that has it configured.
+        // Required to assign lang_code to the correct target in a multi-site setup.
+        $langBlogMap = [];
+        if (function_exists('slyr_detect_active_multilang_plugin') && slyr_detect_active_multilang_plugin()) {
+            $connExtra    = json_decode($connectorArray['conn_extra'] ?? '{}', true);
+            $siteMappings = $connExtra['multilang_config']['site_mappings'] ?? [];
+            foreach ($siteMappings as $mapping) {
+                foreach (($mapping['languages'] ?? []) as $wpLang => $slLang) {
+                    // Collect unique WP→SL pairs; first occurrence per WP lang code wins.
+                    if (!isset($multilangLanguages[$wpLang])) {
+                        $multilangLanguages[$wpLang] = (string) $slLang;
+                        $langBlogMap[$wpLang]        = (int) $mapping['blog_id'];
+                    }
+                }
+            }
+        }
+
         set_time_limit('0');
         
         $get_data_schema = $this->get_data_schema($slconn);
@@ -1292,7 +1345,7 @@ class Synchronize
         
         do {	
 
-            $pagination_response_data = $slconn->get_response_table_data();			
+            $pagination_response_data = $slconn->get_response_table_data();
             
             $this->loadAnalyticsAPIItemCount($pagination_response_data);
             
@@ -1303,13 +1356,29 @@ class Synchronize
             if ($this->checkIfResponseDataHasData($pagination_response_data)){
 
                 if (!$sl_schemas_read){
-                
-                    $category_params = array_merge($this->cat_class->getCategoryParamsToStore($language_to_sync), $sync_params);
-                    $product_params = array_merge($this->prod_class->getProductParamsToStore($language_to_sync), $sync_params);
-                    $product_format_params = array_merge($this->form_class->getProductFormatParamsToStore($language_to_sync), $sync_params);
-                
+
+                    if (!empty($multilangLanguages)) {
+                        // Build a dedicated set of field-name params for each language.
+                        // The getXxxParamsToStore() methods now use local variables for the
+                        // language suffix instead of mutating $this properties, so the shared
+                        // class instances can be called multiple times safely.
+                        $categoryParamsByLang      = [];
+                        $productParamsByLang       = [];
+                        $productFormatParamsByLang = [];
+
+                        foreach ($multilangLanguages as $wpLang => $slLang) {
+                            $categoryParamsByLang[$wpLang]      = array_merge($this->cat_class->getCategoryParamsToStore($slLang), $sync_params);
+                            $productParamsByLang[$wpLang]        = array_merge($this->prod_class->getProductParamsToStore($slLang), $sync_params);
+                            $productFormatParamsByLang[$wpLang]  = array_merge($this->form_class->getProductFormatParamsToStore($slLang), $sync_params);
+                        }
+                    } else {
+                        $category_params       = array_merge($this->cat_class->getCategoryParamsToStore($language_to_sync), $sync_params);
+                        $product_params        = array_merge($this->prod_class->getProductParamsToStore($language_to_sync), $sync_params);
+                        $product_format_params = array_merge($this->form_class->getProductFormatParamsToStore($language_to_sync), $sync_params);
+                    }
+
                     $sl_schemas_read = true;
-                    
+
                 }
 
                 foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {
@@ -1406,7 +1475,10 @@ class Synchronize
                                 $item_type = 'category';
                                 
                                 if (!isset($arrayReturn['categories_to_sync'])) $arrayReturn['categories_to_sync'] = 0;
-                                $arrayReturn['categories_to_sync'] += count($modified_data);
+                                // In multilang mode each item generates one DB row per language,
+                                // so the counter must reflect the actual number of rows inserted.
+                                $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                $arrayReturn['categories_to_sync'] += count($modified_data) * $langMultiplier;
 
                                 if (($modified_data = $this->storeCategoriesPaginated($pagination_response_data, $is_next_page)) !== false){
         
@@ -1417,15 +1489,40 @@ class Synchronize
                                     if (!empty($category_data_to_store)){
 
                                         foreach ($category_data_to_store as $category_to_sync) {
-                                            
-                                            $item_data_to_insert = json_encode($category_to_sync);
-                                            $sync_params_to_insert = json_encode($category_params);
 
-                                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
-                                            $this->insert_syncdata_sql();
-                                            
+                                            if (!empty($multilangLanguages)) {
+                                                // Multilang: one row per language.
+                                                // lang_code in sync_params.targets[0] is the single source
+                                                // of truth — no _sl_language injected into item_data.
+                                                foreach ($multilangLanguages as $wpLang => $slLang) {
+                                                    $langItemData = $category_to_sync;
+                                                    if (isset($langItemData['data'])) {
+                                                        $langItemData['data'] = $this->filter_lang_fields($langItemData['data'], $slLang);
+                                                    }
+                                                    $langSyncParams = $categoryParamsByLang[$wpLang];
+                                                    // Keep only the target for the blog that has this language configured.
+                                                    // Each language row is self-contained: the AF row handles blog_id 1,
+                                                    // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                    $langSyncParams['targets'] = array_values(array_filter(
+                                                        $langSyncParams['targets'],
+                                                        function ($target) use ($wpLang, $langBlogMap) {
+                                                            return isset($langBlogMap[$wpLang])
+                                                                && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                        }
+                                                    ));
+                                                    if (isset($langSyncParams['targets'][0])) {
+                                                        $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                    }
+                                                    $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                    $this->insert_syncdata_sql();
+                                                }
+                                            } else {
+                                                $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($category_to_sync))."', '".addslashes(json_encode($category_params))."')";
+                                                $this->insert_syncdata_sql();
+                                            }
+
                                         }
-                                        
+
                                     }
 
                                 }
@@ -1437,30 +1534,62 @@ class Synchronize
 
                                 if ($this->debug_level > 1) sl_debug('Sync products data to store: '.print_r($modified_data, true));
 
-                                $product_data_to_store = $this->prod_class->prepareProductDataToStore($modified_data, $product_params);
+                                // For category-membership validation, any language's params will do
+                                // (the check is language-agnostic: it verifies SL category link).
+                                $validationParams = !empty($multilangLanguages)
+                                    ? reset($productParamsByLang)
+                                    : $product_params;
+
+                                $product_data_to_store = $this->prod_class->prepareProductDataToStore($modified_data, $validationParams);
 
                                 if (isset($product_data_to_store['not_synced_products']) && !empty($product_data_to_store['not_synced_products'])){
                                     if (!isset($arrayReturn['products_not_synced'])) $arrayReturn['products_not_synced'] = [];
                                     $arrayReturn['products_not_synced'] = array_merge($arrayReturn['products_not_synced'], $product_data_to_store['not_synced_products']);
-                                
+
                                     unset($product_data_to_store['not_synced_products']);
                                 }
 
                                 if (isset($product_data_to_store['product_data']) && !empty($product_data_to_store['product_data'])){
 
                                     if (!isset($arrayReturn['products_to_sync'])) $arrayReturn['products_to_sync'] = 0;
-                                    $arrayReturn['products_to_sync'] += count($product_data_to_store['product_data']);
+                                    // In multilang mode each item generates one DB row per language,
+                                    // so the counter must reflect the actual number of rows inserted.
+                                    $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                    $arrayReturn['products_to_sync'] += count($product_data_to_store['product_data']) * $langMultiplier;
 
                                     foreach ($product_data_to_store['product_data'] as $product_to_sync) {
 
-                                        $item_data_to_insert = json_encode($product_to_sync); 
-                                        $sync_params_to_insert = json_encode($product_params);
+                                        if (!empty($multilangLanguages)) {
+                                            // Multilang: one row per language.
+                                            foreach ($multilangLanguages as $wpLang => $slLang) {
+                                                $langItemData = $product_to_sync;
+                                                if (isset($langItemData['data'])) {
+                                                    $langItemData['data'] = $this->filter_lang_fields($langItemData['data'], $slLang);
+                                                }
+                                                $langSyncParams = $productParamsByLang[$wpLang];
+                                                // Keep only the target for the blog that has this language configured.
+                                                // Each language row is self-contained: the AF row handles blog_id 1,
+                                                // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                $langSyncParams['targets'] = array_values(array_filter(
+                                                    $langSyncParams['targets'],
+                                                    function ($target) use ($wpLang, $langBlogMap) {
+                                                        return isset($langBlogMap[$wpLang])
+                                                            && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                    }
+                                                ));
+                                                if (isset($langSyncParams['targets'][0])) {
+                                                    $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                }
+                                                $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                $this->insert_syncdata_sql();
+                                            }
+                                        } else {
+                                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($product_to_sync))."', '".addslashes(json_encode($product_params))."')";
+                                            $this->insert_syncdata_sql();
+                                        }
 
-                                        $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
-                                        $this->insert_syncdata_sql();
-                                        
                                     }
-                                    
+
                                 }else{
 
                                     if (!isset($arrayReturn['products_to_sync'])) $arrayReturn['products_to_sync'] = 0;
@@ -1520,15 +1649,42 @@ class Synchronize
                                     unset($product_format_data_to_store['product_format_data']);
                                     
                                     if (!isset($arrayReturn['product_formats_to_sync'])) $arrayReturn['product_formats_to_sync'] = 0;
-                                    $arrayReturn['product_formats_to_sync'] += count($product_formats_to_sync);
+                                    // In multilang mode each item generates one DB row per language,
+                                    // so the counter must reflect the actual number of rows inserted.
+                                    $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                    $arrayReturn['product_formats_to_sync'] += count($product_formats_to_sync) * $langMultiplier;
 
                                     foreach ($product_formats_to_sync as $product_format_to_sync) {
-                                        
-                                        $item_data_to_insert = json_encode($product_format_to_sync);
-                                        $sync_params_to_insert = json_encode($product_format_params);
-                                        
-                                        $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes($item_data_to_insert)."', '".addslashes($sync_params_to_insert)."')";
-                                        $this->insert_syncdata_sql();
+
+                                        if (!empty($multilangLanguages)) {
+                                            // Multilang: one row per language.
+                                            // Formats nest their payload under format_data.data.
+                                            foreach ($multilangLanguages as $wpLang => $slLang) {
+                                                $langItemData = $product_format_to_sync;
+                                                if (isset($langItemData['format_data']['data'])) {
+                                                    $langItemData['format_data']['data'] = $this->filter_lang_fields($langItemData['format_data']['data'], $slLang);
+                                                }
+                                                $langSyncParams = $productFormatParamsByLang[$wpLang];
+                                                // Keep only the target for the blog that has this language configured.
+                                                // Each language row is self-contained: the AF row handles blog_id 1,
+                                                // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                $langSyncParams['targets'] = array_values(array_filter(
+                                                    $langSyncParams['targets'],
+                                                    function ($target) use ($wpLang, $langBlogMap) {
+                                                        return isset($langBlogMap[$wpLang])
+                                                            && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                    }
+                                                ));
+                                                if (isset($langSyncParams['targets'][0])) {
+                                                    $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                }
+                                                $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                $this->insert_syncdata_sql();
+                                            }
+                                        } else {
+                                            $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($product_format_to_sync))."', '".addslashes(json_encode($product_format_params))."')";
+                                            $this->insert_syncdata_sql();
+                                        }
 
                                     }
                                     
@@ -1806,6 +1962,57 @@ class Synchronize
      * @param  boolean $force_insert             forces sql to be inserted
      * @return void
      */
+    /**
+     * Filter out multilingual field variants that do not belong to the target SL language.
+     *
+     * Strategy: self-detection from the data itself. If 'section_description_ru' exists and
+     * $targetSlLang = 'ru', then 'section_description' is identified as a multilingual base.
+     * Every other variant of that base ('section_description_de', '_en', '_es', etc.) is removed
+     * regardless of whether those languages are configured in the connector mapping.
+     *
+     * This correctly handles:
+     *   - A single configured language (e.g. only 'ru') where $allSlLangs would otherwise be empty
+     *   - API responses that include more languages than are configured in the site mapping
+     *
+     * Fields with no language suffix (has_multilingual: 0) are always preserved.
+     *
+     * @param array  $fields        Flat field-value array from the SL API response.
+     * @param string $targetSlLang  SL lang code for the row being built (e.g. 'ru').
+     * @return array Filtered array with only target-language and language-agnostic fields.
+     */
+    private function filter_lang_fields(array $fields, string $targetSlLang): array
+    {
+        $targetSuffix = '_' . $targetSlLang;
+
+        // Step 1: collect base names of multilingual fields by finding target-lang variants.
+        // e.g. 'section_description_ru' → base 'section_description'
+        $multilangBases = [];
+        foreach (array_keys($fields) as $fieldKey) {
+            if (str_ends_with($fieldKey, $targetSuffix)) {
+                $multilangBases[] = substr($fieldKey, 0, -strlen($targetSuffix));
+            }
+        }
+
+        if (empty($multilangBases)) {
+            return $fields;
+        }
+
+        // Step 2: remove every field that shares a multilingual base but is NOT the target variant.
+        foreach (array_keys($fields) as $fieldKey) {
+            if (str_ends_with($fieldKey, $targetSuffix)) {
+                continue; // Always keep target-language fields
+            }
+            foreach ($multilangBases as $base) {
+                if (str_starts_with($fieldKey, $base . '_')) {
+                    unset($fields[$fieldKey]);
+                    break;
+                }
+            }
+        }
+
+        return $fields;
+    }
+
     private function insert_syncdata_sql(bool $force_insert = false)
     {
 

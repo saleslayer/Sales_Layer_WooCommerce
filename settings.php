@@ -7,7 +7,7 @@
         error_reporting(E_ALL ^ E_NOTICE);
     }
 
-    define('SLYR_WC_version', "2.6.0");
+    define('SLYR_WC_version', "2.6.1");
     define('SLYR_WC_latest_version', "");
     define('SLYR_WC_connector_type', 'CN_WOOCOMM');
     define('SLYR_WC_url_API', 'api.saleslayer.com/');

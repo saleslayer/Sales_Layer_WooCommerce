@@ -83,11 +83,36 @@ class Product
 
     }
 
+    /** Blog ID being processed in the current queue row (0 in single-site mode). */
+    protected $sync_blog_id = 0;
+
+    /** Language code being processed in the current queue row ('' in legacy mode). */
+    protected $sync_lang_code = '';
+
     public function set_class_field_value($field_name, $field_value)
     {
 
         $this->$field_name = $field_value;
 
+    }
+
+    /**
+     * Build a debug context prefix for log messages.
+     * Returns e.g. "Blog_id: {1} - Lang: {ES} - " when context is set,
+     * or an empty string in legacy single-site / single-language mode.
+     *
+     * @return string
+     */
+    protected function getDebugContext(): string
+    {
+        $parts = [];
+        if (!empty($this->sync_blog_id)) {
+            $parts[] = 'Blog_id: {' . $this->sync_blog_id . '}';
+        }
+        if ($this->sync_lang_code !== '') {
+            $parts[] = 'Lang: {' . strtoupper($this->sync_lang_code) . '}';
+        }
+        return !empty($parts) ? implode(' - ', $parts) . ' - ' : '';
     }
 
     /**
@@ -191,14 +216,19 @@ class Product
 
         foreach ($field_names as $field_name){
 
-            if (isset($schema['fields'][$this->$field_name]) && $schema['fields'][$this->$field_name]['has_multilingual']) {
+            // Use a local variable to avoid mutating the instance property.
+            // This allows getProductParamsToStore() to be called multiple times
+            // with different languages on the same instance (required for multilang queuing).
+            $resolved = $this->$field_name;
 
-                $this->$field_name .= '_'.$sl_language;
+            if (isset($schema['fields'][$resolved]) && $schema['fields'][$resolved]['has_multilingual']) {
+
+                $resolved .= '_'.$sl_language;
 
             }
 
-            $product_params['product_fields'][$field_name] = $this->$field_name;
-        
+            $product_params['product_fields'][$field_name] = $resolved;
+
         }
 
         foreach ($schema['fields'] as $field_name => $field_props) {
@@ -322,21 +352,27 @@ class Product
         $sl_product_parent_ids	= $product[$this->product_id_catalogue_field];
         $product_data        	= $product['data'];
 
+        // In multilang mode each queue row carries '_sl_language' (WP/Polylang lang code).
+        // Empty string means legacy single-language mode — behaviour is unchanged.
+        $lang = $product['_sl_language'] ?? '';
+
         $wp_category_ids = array();
 
         if (!is_array($sl_product_parent_ids)){
 
             $sl_product_parent_ids = array($sl_product_parent_ids);
-        
+
         }
 
         foreach ($sl_product_parent_ids as $sl_product_parent_id) {
-            
-            if (intval($sl_product_parent_id) != 0){							
+
+            if (intval($sl_product_parent_id) != 0){
 
                 do {
 
-                    $wp_product_parent_category = find_saleslayer_term('product_cat' , $sl_product_parent_id, $this->comp_id);
+                    // In multilang mode, look for the category variant that matches the
+                    // same language as this product so the association is correct.
+                    $wp_product_parent_category = find_saleslayer_term('product_cat', $sl_product_parent_id, $this->comp_id, $lang);
 
                     if ($wp_product_parent_category){
                         
@@ -382,26 +418,36 @@ class Product
         }
 
         $wp_category_ids = array_keys($wp_category_ids);
-        $wp_product = find_saleslayer_product($sl_product_id, $this->comp_id);
-        
+
+        // In multilang mode, search for the specific language variant of this product.
+        // In legacy mode ($lang === ''), behaviour is identical to before.
+        $wp_product = find_saleslayer_product($sl_product_id, $this->comp_id, $lang);
+
         if (!$wp_product){
-        
-            $wp_product = $this->find_product_by_sku_or_name($product_data[$this->product_field_sku], $product_data[$this->product_field_name], $sl_product_id, $this->comp_id);
-            if (!$wp_product){
-                $time_ini_product_create = microtime(true);
-                $this->create_product($sl_product_id, $this->comp_id, $wp_category_ids, $product_data);
-                sl_debug('## time_product_create: '.(microtime(true) - $time_ini_product_create).' seconds.', 'timer');
+
+            // SKU / name fallback only makes sense in legacy mode.
+            // In multilang mode it would match the wrong language variant (same SKU, different lang).
+            if ($lang === '') {
+                $wp_product = $this->find_product_by_sku_or_name($product_data[$this->product_field_sku], $product_data[$this->product_field_name], $sl_product_id, $this->comp_id);
             }
-            
-            $wp_product = find_saleslayer_product($sl_product_id, $this->comp_id);
 
             if (!$wp_product){
-            
-                sl_debug('## Error. SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not been created.");
-                return 'item_not_updated';
-            
+                $time_ini_product_create = microtime(true);
+                // Pass $lang so create_product() sets _slyr_wc_lang immediately,
+                // making the subsequent lang-aware find work correctly.
+                $this->create_product($sl_product_id, $this->comp_id, $wp_category_ids, $product_data, $lang);
+                sl_debug('## time_product_create: '.(microtime(true) - $time_ini_product_create).' seconds.', 'timer');
             }
-        
+
+            $wp_product = find_saleslayer_product($sl_product_id, $this->comp_id, $lang);
+
+            if (!$wp_product){
+
+                sl_debug('## Error. ' . $this->getDebugContext() . 'SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not been created.");
+                return 'item_not_updated';
+
+            }
+
         }
 
         $wp_product_type = '';
@@ -698,7 +744,7 @@ class Product
 
             }else{
 
-                sl_debug('## Error. Product shipping class taxonomy does not exist.');
+                sl_debug('## Error. ' . $this->getDebugContext() . 'Product shipping class taxonomy does not exist.');
 
             }
 
@@ -1350,7 +1396,15 @@ class Product
         $time_ini_product_attributes = microtime(true);
         $this->sync_product_attributes($wp_product['ID'], $product_data, $sl_product_id);
         sl_debug('## time_product_attributes: '.(microtime(true) - $time_ini_product_attributes).' seconds.', 'timer');
-        
+
+        // Multilang: assign the Polylang language and link all existing language variants
+        // as a Polylang translation group. This is idempotent — safe to call on every sync.
+        if ($lang !== '' && class_exists('MultilangHelper')) {
+            $multilangHelper = new MultilangHelper();
+            $multilangHelper->set_product_language($wp_product['ID'], $lang);
+            $multilangHelper->link_all_post_translations($sl_product_id, $this->comp_id);
+        }
+
         if ($this->debug_level) sl_debug("Product updated!");
 
         return 'item_updated';
@@ -1365,7 +1419,7 @@ class Product
             $wp_product = wc_get_product($wp_product_id);
         
             if (!$wp_product){ 
-                sl_debug('## Error. Product with WP ID does not exist: '.$wp_product_id);
+                sl_debug('## Error. ' . $this->getDebugContext() . 'Product with WP ID does not exist: '.$wp_product_id);
                 continue; 
             }
 
@@ -1393,7 +1447,7 @@ class Product
 
                 	if ($linked_type == '_children' && $linked_reference == $wp_product_sku){
 
-                	    sl_debug('## Error. Grouping product reference is the same as the current product: '.$linked_reference);
+                	    sl_debug('## Error. ' . $this->getDebugContext() . 'Grouping product reference is the same as the current product: '.$linked_reference);
                 	    continue;
 
                 	}
@@ -1680,7 +1734,7 @@ class Product
      * @param array $sl_product_data 		product data
      * @return boolean 						result of creation
      */
-    public function create_product($sl_product_id, $comp_id, $category_ids, $sl_product_data)
+    public function create_product($sl_product_id, $comp_id, $category_ids, $sl_product_data, string $lang = '')
     {
 
         ($sl_product_data[$this->product_field_description] != '') ? $post_content = $sl_product_data[$this->product_field_description] : $post_content = 'Product '.$sl_product_id.' description.';
@@ -1695,7 +1749,7 @@ class Product
 
         if( is_wp_error( $product_id ) ) {
 
-            sl_debug('## Error. create_product: '.$product_id->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'create_product: '.$product_id->get_error_message());
 
             } elseif ($product_id){
 
@@ -1703,6 +1757,12 @@ class Product
 
             sl_update_post_meta($product_id, '_saleslayerid', $sl_product_id);
             sl_update_post_meta($product_id, '_saleslayercompid', $comp_id);
+
+            // In multilang mode, tag the product with its language variant immediately
+            // so that lang-aware queries (find_saleslayer_product with $lang) can locate it.
+            if ($lang !== '') {
+                sl_update_post_meta($product_id, '_slyr_wc_lang', $lang);
+            }
 
             sl_update_post_meta($product_id, '_stock_status', 'outofstock');
             sl_update_post_meta($product_id, '_manage_stock', 'no' );
@@ -1779,7 +1839,7 @@ class Product
 
         if( is_wp_error( $posts ) ) {
 
-            sl_debug('## Error. find_product_by_sku: '.$posts->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'find_product_by_sku: '.$posts->get_error_message());
 
         }else{
 
@@ -1837,7 +1897,7 @@ class Product
 
         if( is_wp_error( $posts ) ) {
 
-            sl_debug('## Error. sl_find_product_id_by_sku: '.$posts->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'sl_find_product_id_by_sku: '.$posts->get_error_message());
 
         }else{
 
@@ -1868,7 +1928,7 @@ class Product
 
         if( is_wp_error( $wp_product ) ) {
 
-            sl_debug('## Error. find_product_by_name: '.$wp_product->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'find_product_by_name: '.$wp_product->get_error_message());
 
         }else{
 
@@ -1910,18 +1970,27 @@ class Product
 
         sl_debug('Disabling product with SL id: '.$product_to_delete.' comp_id: '.$this->comp_id. '. Setting it to draft status.');
 
-        $wp_product = find_saleslayer_product($product_to_delete, $this->comp_id);
-        if ($wp_product){
+        // In multilang mode there is one WP product per language variant for each SL item.
+        // find_all_saleslayer_products() returns ALL of them (no lang filter) so that every
+        // variant is disabled in a single delete operation.
+        // In legacy mode (no multilang) it also returns the one existing product, so the
+        // behaviour is identical to the previous single-find approach.
+        $wp_products = find_all_saleslayer_products($product_to_delete, $this->comp_id);
+
+        if (empty($wp_products)) {
+
+            sl_debug('## Error. ' . $this->getDebugContext() . 'The product with id: '.$product_to_delete.' does not exist.');
+            return 'item_not_deleted';
+
+        }
+
+        foreach ($wp_products as $wp_product) {
 
             sl_delete_post_meta($wp_product['ID'], '_saleslayerid');
             sl_delete_post_meta($wp_product['ID'], '_saleslayercompid');
+            sl_delete_post_meta($wp_product['ID'], '_slyr_wc_lang');
 
             sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'draft'), true);
-            
-        }else{
-
-            sl_debug('## Error. The product with id: '.$product_to_delete.' does not exist.');
-            return 'item_not_deleted';
 
         }
 

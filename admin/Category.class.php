@@ -28,6 +28,12 @@ class Category
 
     protected $debug_level;
 
+    /** Blog ID being processed in the current queue row (0 in single-site mode). */
+    protected $sync_blog_id = 0;
+
+    /** Language code being processed in the current queue row ('' in legacy mode). */
+    protected $sync_lang_code = '';
+
     public function __construct()
     {
         global $debug_level;
@@ -46,6 +52,25 @@ class Category
 
         $this->$field_name = $field_value;
 
+    }
+
+    /**
+     * Build a debug context prefix for log messages.
+     * Returns e.g. "Blog_id: {1} - Lang: {ES} - " when context is set,
+     * or an empty string in legacy single-site / single-language mode.
+     *
+     * @return string
+     */
+    protected function getDebugContext(): string
+    {
+        $parts = [];
+        if (!empty($this->sync_blog_id)) {
+            $parts[] = 'Blog_id: {' . $this->sync_blog_id . '}';
+        }
+        if ($this->sync_lang_code !== '') {
+            $parts[] = 'Lang: {' . strtoupper($this->sync_lang_code) . '}';
+        }
+        return !empty($parts) ? implode(' - ', $parts) . ' - ' : '';
     }
 
     /**
@@ -101,14 +126,18 @@ class Category
         ];
 
         foreach ($field_names as $field_name) {
+            // Use a local variable to avoid mutating the instance property.
+            // This allows getCategoryParamsToStore() to be called multiple times
+            // with different languages on the same instance (required for multilang queuing).
+            $resolved = $this->$field_name;
             if (
-                isset($schema['fields'][$this->$field_name])
-                && $schema['fields'][$this->$field_name]['has_multilingual']
+                isset($schema['fields'][$resolved])
+                && $schema['fields'][$resolved]['has_multilingual']
             ) {
-                $this->$field_name .= '_' . $sl_language;
+                $resolved .= '_' . $sl_language;
             }
 
-            $category_params['category_fields'][$field_name] = $this->$field_name;
+            $category_params['category_fields'][$field_name] = $resolved;
         }
 
         return $category_params;
@@ -145,16 +174,22 @@ class Category
 
         $time_ini_category_core_data = microtime(true);
 
-        $sl_category_id = $category[$this->category_id_field];
+        $sl_category_id        = $category[$this->category_id_field];
         $sl_category_parent_id = $category[$this->category_id_parent_field];
-        $category_data = $category['data'];
+        $category_data         = $category['data'];
+
+        // In multilang mode each queue row carries '_sl_language' (WP/Polylang lang code).
+        // Empty string means legacy single-language mode — behaviour is unchanged.
+        $lang = $category['_sl_language'] ?? '';
 
         if ($sl_category_parent_id != '0') {
-            $wp_parent_category = find_saleslayer_term('product_cat', $sl_category_parent_id, $this->comp_id);
+            // In multilang mode, find the parent category for this specific language.
+            $wp_parent_category = find_saleslayer_term('product_cat', $sl_category_parent_id, $this->comp_id, $lang);
 
             if (!$wp_parent_category) {
                 sl_debug(
-                    '## Error. SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
+                    '## Error. ' . $this->getDebugContext()
+                    . 'SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
                     . ' - Error creating the category, category parent not found.'
                 );
 
@@ -166,29 +201,37 @@ class Category
             $category_parent_id = $this->default_cat_id;
         }
 
-        $wp_category = find_saleslayer_term('product_cat', $sl_category_id, $this->comp_id);
+        // Find the specific language variant of this category.
+        $wp_category = find_saleslayer_term('product_cat', $sl_category_id, $this->comp_id, $lang);
 
         if (!$wp_category) {
-            $wp_category = $this->find_category_by_name(
-                $category_data[$this->category_field_name],
-                $sl_category_id,
-                $this->comp_id
-            );
+            // Name-based fallback only makes sense in legacy mode.
+            // In multilang mode it would match the wrong language variant (same name).
+            if ($lang === '') {
+                $wp_category = $this->find_category_by_name(
+                    $category_data[$this->category_field_name],
+                    $sl_category_id,
+                    $this->comp_id
+                );
+            }
 
             if (!$wp_category) {
                 $time_ini_create_category = microtime(true);
-                $this->create_category($sl_category_id, $this->comp_id, $category_parent_id, $category_data);
+                // Pass $lang so create_category() can set slyr_wc_lang meta immediately
+                // and handle the slug-disambiguation when term_exists is returned.
+                $this->create_category($sl_category_id, $this->comp_id, $category_parent_id, $category_data, $lang);
                 sl_debug(
                     '## time_create_category: ' . (microtime(true) - $time_ini_create_category) . ' seconds.',
                     'timer'
                 );
             }
 
-            $wp_category = find_saleslayer_term('product_cat', $sl_category_id, $this->comp_id);
+            $wp_category = find_saleslayer_term('product_cat', $sl_category_id, $this->comp_id, $lang);
 
             if (!$wp_category) {
                 sl_debug(
-                    '## Error. SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
+                    '## Error. ' . $this->getDebugContext()
+                    . 'SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
                     . ' - Error while creating the category.'
                 );
 
@@ -342,7 +385,7 @@ class Category
                 $resultado = wp_update_term($wp_category['term_id'], 'product_cat', $category_data_modified);
 
                 if (is_wp_error($resultado)) {
-                    sl_debug('## Error. sync_category category_modified: ' . $resultado->get_error_message());
+                    sl_debug('## Error. ' . $this->getDebugContext() . 'sync_category category_modified: ' . $resultado->get_error_message());
                 }
 
                 if ($this->debug_level) {
@@ -351,7 +394,8 @@ class Category
             } catch (\Exception $e) {
                 if ($this->debug_level) {
                     sl_debug(
-                        '## Error. SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
+                        '## Error. ' . $this->getDebugContext()
+                        . 'SL ID: ' . $sl_category_id . ' : ' . $category_data[$this->category_field_name]
                         . ' - ' . $e->getMessage()
                     );
                 }
@@ -364,6 +408,15 @@ class Category
             '## time_category_save: ' . (microtime(true) - $time_ini_category_save) . ' seconds.',
             'timer'
         );
+
+        // Multilang: assign the Polylang language and link all existing language variants
+        // as a Polylang translation group. Idempotent — safe to call on every sync.
+        if ($lang !== '' && class_exists('MultilangHelper')) {
+            $multilangHelper = new MultilangHelper();
+            $multilangHelper->set_category_language($wp_category['term_id'], $lang);
+            sl_update_woocommerce_term_meta($wp_category['term_id'], 'slyr_wc_lang', $lang);
+            $multilangHelper->link_all_term_translations('product_cat', $sl_category_id, $this->comp_id);
+        }
 
         return 'item_updated';
 
@@ -378,17 +431,38 @@ class Category
      * @param array  $sl_category_data Category data
      * @return bool True on success, false otherwise
      */
-    public function create_category($sl_category_id, $comp_id, $category_parent_id, $sl_category_data)
+    public function create_category($sl_category_id, $comp_id, $category_parent_id, $sl_category_data, string $lang = '')
     {
+        $category_name = $sl_category_data[$this->category_field_name];
+        $base_slug     = sanitize_title($category_name);
+
         $category = wp_insert_term(
-            $sl_category_data[$this->category_field_name],
+            $category_name,
             'product_cat',
             array(
                 'description' => $sl_category_data[$this->category_field_description],
-                'parent' => $category_parent_id,
-                'slug' => sanitize_title($sl_category_data[$this->category_field_name]),
+                'parent'      => $category_parent_id,
+                'slug'        => $base_slug,
             )
         );
+
+        // In multilang mode, two language variants can share the same category name
+        // (e.g. "Sport" in ES and "Sport" in EN). WordPress enforces term-name uniqueness
+        // within a taxonomy, so the second insert returns WP_Error: term_exists.
+        // We retry with a language-disambiguated slug (e.g. 'sport-en') to let both
+        // coexist. The visible name stays identical; only the internal slug differs.
+        if (is_wp_error($category) && $lang !== '' && $category->get_error_code() === 'term_exists') {
+            $lang_slug = $base_slug . '-' . $lang;
+            $category  = wp_insert_term(
+                $category_name,
+                'product_cat',
+                array(
+                    'description' => $sl_category_data[$this->category_field_description],
+                    'parent'      => $category_parent_id,
+                    'slug'        => $lang_slug,
+                )
+            );
+        }
 
         if (!is_wp_error($category)) {
             if (is_object($category)) {
@@ -401,6 +475,11 @@ class Category
                 sl_update_woocommerce_term_meta($category_id, 'saleslayerid', $sl_category_id);
                 sl_update_woocommerce_term_meta($category_id, 'saleslayercompid', $comp_id);
 
+                // Tag the term with its language variant for lang-aware queries.
+                if ($lang !== '') {
+                    sl_update_woocommerce_term_meta($category_id, 'slyr_wc_lang', $lang);
+                }
+
                 if ($this->debug_level) {
                     sl_debug('Category created!');
                 }
@@ -408,7 +487,7 @@ class Category
                 return true;
             }
         } else {
-            sl_debug('## Error. create_category: ' . $category->get_error_message());
+            sl_debug('## Error. ' . $this->getDebugContext() . 'create_category: ' . $category->get_error_message());
         }
 
         return false;
@@ -446,9 +525,20 @@ class Category
     {
         sl_debug('Deleting category with SL id: ' . $category_to_delete . ' comp_id: ' . $this->comp_id);
 
-        $wp_category = find_saleslayer_term('product_cat', $category_to_delete, $this->comp_id);
+        // In multilang mode there is one WP term per language variant for each SL category.
+        // find_all_saleslayer_terms() returns ALL of them (no lang filter) so that every
+        // variant is permanently deleted in a single operation.
+        // In legacy mode (no multilang) it also returns the one existing term, so the
+        // behaviour is identical to the previous single-find approach.
+        $wp_categories = find_all_saleslayer_terms('product_cat', $category_to_delete, $this->comp_id);
 
-        if ($wp_category) {
+        if (empty($wp_categories)) {
+            sl_debug('## Error. ' . $this->getDebugContext() . 'The category with id: ' . $category_to_delete . ' does not exist.');
+
+            return 'item_not_deleted';
+        }
+
+        foreach ($wp_categories as $wp_category) {
             if (SLYR_WP_DEPRECATE_WOOCOMMERCE_TERM_META) {
                 $wp_thumbnail_id = get_term_meta($wp_category['term_id'], 'thumbnail_id', true);
             } else {
@@ -466,10 +556,6 @@ class Category
                     }
                 }
             }
-        } else {
-            sl_debug('## Error. The category with id: ' . $category_to_delete . ' does not exist.');
-
-            return 'item_not_deleted';
         }
 
         return 'item_deleted';

@@ -34,6 +34,14 @@
                             <li>Once the SL channel is configured and fields are mapped, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click the <strong>Add connector</strong> button to enter your credentials.</li>
                             <li>You should test synchronization before leaving it automated to validate the configuration. This should be done in a staging environment.</li>
                             <li>Before starting, make sure logs are enabled in your WooCommerce store under the Sales Layer menu <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a>.</li>
+                            <li><strong style="color: #666;">[Optional] Configure Multisite and Multilanguage settings</strong> (if enabled in your installation):
+                                <ul style="margin-top: 8px; margin-bottom: 12px;">
+                                    <li><strong>Multisite:</strong> If you have a WordPress multisite installation and want to synchronize products across multiple sites, you can configure which sites should receive the synchronized items. Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a>, select your connector, and in the settings panel you will find the multisite configuration section where you can select which blogs (sites) should be active for this connector.</li>
+                                    <p><img alt="multisite settings" src="<?php echo SLYR_WC__IMAGES_DIR.'multisite_settings.png'; ?>"/></p>
+                                    <li><strong>Multilanguage:</strong> If you are using a multilanguage plugin (Polylang) and want to synchronize items in multiple languages, you need to configure the language mappings in the connector settings. This ensures that each product variant is correctly synchronized to its corresponding language. The mapping section will show your available languages from Sales Layer and allow you to assign them to the languages configured in your WooCommerce store.</li>
+                                    <p><img alt="multilanguage settings" src="<?php echo SLYR_WC__IMAGES_DIR.'multilanguage_settings.png'; ?>"/></p>
+                                </ul>
+                            </li>
                             <li>We suggest beginning with a test synchronization using a few items: set their status as visible (only these items) and add a tag, which you also need to add in the <strong>Products</strong> tab under <strong>Output data</strong>. This will narrow the scope of items. Remember to include categories and variants for the selected items to avoid sync errors and make more complete tests.</li>
                             <li>To test a synchronization, we recommend using the <strong>"Synchronize!"</strong> button in the plugin <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> panel. This is a more controlled and faster approach than setting up auto synchronization.</li>
                             <li>After the sync has ended, verify the results by downloading the SL logs. These messages will help you adjust the configuration.</li>
@@ -84,6 +92,26 @@
                 <div class="faq-item">
                     <div class="faq-question">Clean orphaned multiconn</div>
                     <div class="faq-answer">Removes multiconn records whose site (blog_id) has been deactivated from the connector's multisite targets. This is useful to clean up leftover data after disabling sites in the multisite synchronization settings.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">Migrate Legacy Items</div>
+                    <div class="faq-answer">
+                        <p>This tool migrates items that were synchronized before multilanguage support was enabled in the plugin. It is useful when you are transitioning from a single-language setup to a multilanguage installation (with Polylang).</p>
+                        <p><strong>What does it do:</strong></p>
+                        <ul>
+                            <li>Identifies all products, categories, and variants that do not yet have language metadata assigned.</li>
+                            <li>Assigns the primary language of your site (configured in Polylang settings) to these items.</li>
+                            <li>If Polylang is active, creates language translation links so that variants are properly grouped by language.</li>
+                        </ul>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>After activating Polylang on a site that already has synchronized products.</li>
+                            <li>When you are setting up multilanguage synchronization for the first time.</li>
+                            <li>To ensure existing items are compatible with the new multilanguage queuing system.</li>
+                        </ul>
+                        <p><strong>How to use it:</strong> Click the <strong>Migrate Legacy Items</strong> button in the <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools panel</a>. The process will run in the background and display a summary of how many items were migrated (categories, products, and variants).</p>
+                        <p><strong>Note:</strong> This tool is <strong>idempotent</strong>, meaning it can be run multiple times without causing issues. Items that have already been migrated will not be processed again.</p>
+                    </div>
                 </div>
             </div>
             <div class="faq-group">
