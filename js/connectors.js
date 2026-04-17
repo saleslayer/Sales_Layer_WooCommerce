@@ -418,7 +418,12 @@ function renderSlLanguagesInfo(slLanguages)
 {
     var $infoBox = $('#slyr-sl-languages-info');
 
-    if (!slLanguages || slLanguages.length === 0) {
+    // Check if multilang plugin is active. WordPress may stringify boolean values from DB/AJAX,
+    // so we check for both boolean false and string "0" or "false".
+    var hasMultilang = ajax_object.has_multilang_plugin;
+    var isMultilangActive = hasMultilang && hasMultilang !== "0" && hasMultilang !== "false";
+
+    if (!isMultilangActive || !slLanguages || slLanguages.length === 0) {
         $infoBox.hide();
         return;
     }

@@ -1144,34 +1144,48 @@ class Synchronize
         $get_response_default_language = $slconn->get_response_default_language();
 
         if (!is_null($get_response_default_language)){
-            
+
             $conn_data['default_language'] = $get_response_default_language;
             $language_to_sync = $get_response_default_language;
 
         }
 
         $get_response_languages_used = $slconn->get_response_languages_used();
-        
+
         if (!is_null($get_response_languages_used)){
 
-            if (is_array($get_response_languages_used)){
+            // if (is_array($get_response_languages_used)){
 
-                $language_to_sync = reset($get_response_languages_used);
+            //     // When a multilang plugin is active the mapping handles language routing,
+            //     // so any value is acceptable here — use the first one as before.
+            //     // Without a multilang plugin, keep $language_to_sync as the default_language
+            //     // already set above: using reset() would pick the first alphabetical language
+            //     // (e.g. 'de') instead of the connector's configured default (e.g. 'es').
+            //     if (slyr_detect_active_multilang_plugin()) {
+            //         $language_to_sync = reset($get_response_languages_used);
+            //     }
 
-            }else{
+            // }else{
 
-                $language_to_sync = $get_response_languages_used;				
+            //     $language_to_sync = $get_response_languages_used;
 
+            // }
+
+            // Only use languages_used as fallback when no default_language was returned by the API.
+            if ($language_to_sync == '') {
+                $language_to_sync = is_array($get_response_languages_used)
+                    ? reset($get_response_languages_used)
+                    : $get_response_languages_used;
             }
 
-            $get_response_languages_used = implode(',', $get_response_languages_used);
+            $get_response_languages_used = implode(',', (array) $get_response_languages_used);
 
             $conn_data['languages'] = $get_response_languages_used;
 
         }
-        
+
         $conn_data['comp_id'] = $slconn->get_response_company_ID();
-        
+
         // $conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
         $last_update = $slconn->get_response_time();
 
@@ -1256,34 +1270,48 @@ class Synchronize
         $get_response_default_language = $slconn->get_response_default_language();
 
         if (!is_null($get_response_default_language)){
-            
+
             $conn_data['default_language'] = $get_response_default_language;
             $language_to_sync = $get_response_default_language;
 
         }
 
         $get_response_languages_used = $slconn->get_response_languages_used();
-        
+
         if (!is_null($get_response_languages_used)){
 
-            if (is_array($get_response_languages_used)){
+            // if (is_array($get_response_languages_used)){
 
-                $language_to_sync = reset($get_response_languages_used);
+            //     // When a multilang plugin is active the mapping handles language routing,
+            //     // so any value is acceptable here — use the first one as before.
+            //     // Without a multilang plugin, keep $language_to_sync as the default_language
+            //     // already set above: using reset() would pick the first alphabetical language
+            //     // (e.g. 'de') instead of the connector's configured default (e.g. 'es').
+            //     if (slyr_detect_active_multilang_plugin()) {
+            //         $language_to_sync = reset($get_response_languages_used);
+            //     }
 
-            }else{
+            // }else{
 
-                $language_to_sync = $get_response_languages_used;				
+            //     $language_to_sync = $get_response_languages_used;
 
+            // }
+
+            // Only use languages_used as fallback when no default_language was returned by the API.
+            if ($language_to_sync == '') {
+                $language_to_sync = is_array($get_response_languages_used)
+                    ? reset($get_response_languages_used)
+                    : $get_response_languages_used;
             }
 
-            $get_response_languages_used = implode(',', $get_response_languages_used);
+            $get_response_languages_used = implode(',', (array) $get_response_languages_used);
 
             $conn_data['languages'] = $get_response_languages_used;
 
         }
-        
+
         $conn_data['comp_id'] = $slconn->get_response_company_ID();
-        
+
         $conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
         $last_update = $slconn->get_response_time();
 
