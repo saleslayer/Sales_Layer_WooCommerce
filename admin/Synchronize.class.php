@@ -1350,6 +1350,20 @@ class Synchronize
             }
         }
 
+        // Identify active targets that have no language mapping configured.
+        // Example: site 4 is active but has no Polylang installed/configured.
+        // These sites still need to receive items, but without a lang_code —
+        // they sync from a single default-language row alongside the multilang rows.
+        $blogIdsWithMapping = array_unique(array_values($langBlogMap));
+        $noLangTargets = [];
+        if (!empty($multilangLanguages)) {
+            foreach ($sync_params['targets'] as $target) {
+                if (!in_array((int) $target['blog_id'], $blogIdsWithMapping, true)) {
+                    $noLangTargets[] = $target;
+                }
+            }
+        }
+
         set_time_limit('0');
         
         $get_data_schema = $this->get_data_schema($slconn);
@@ -1398,6 +1412,14 @@ class Synchronize
                             $categoryParamsByLang[$wpLang]      = array_merge($this->cat_class->getCategoryParamsToStore($slLang), $sync_params);
                             $productParamsByLang[$wpLang]        = array_merge($this->prod_class->getProductParamsToStore($slLang), $sync_params);
                             $productFormatParamsByLang[$wpLang]  = array_merge($this->form_class->getProductFormatParamsToStore($slLang), $sync_params);
+                        }
+
+                        // Build base params for targets without a language mapping (e.g. site 4 with no Polylang).
+                        // These targets must still receive items using the default language, without a lang suffix.
+                        if (!empty($noLangTargets)) {
+                            $category_params       = array_merge($this->cat_class->getCategoryParamsToStore($language_to_sync), $sync_params);
+                            $product_params        = array_merge($this->prod_class->getProductParamsToStore($language_to_sync), $sync_params);
+                            $product_format_params = array_merge($this->form_class->getProductFormatParamsToStore($language_to_sync), $sync_params);
                         }
                     } else {
                         $category_params       = array_merge($this->cat_class->getCategoryParamsToStore($language_to_sync), $sync_params);
@@ -1504,8 +1526,10 @@ class Synchronize
                                 
                                 if (!isset($arrayReturn['categories_to_sync'])) $arrayReturn['categories_to_sync'] = 0;
                                 // In multilang mode each item generates one DB row per language,
-                                // so the counter must reflect the actual number of rows inserted.
-                                $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                // plus one extra row for targets without a language mapping (if any).
+                                $langMultiplier = !empty($multilangLanguages)
+                                    ? count($multilangLanguages) + (!empty($noLangTargets) ? 1 : 0)
+                                    : 1;
                                 $arrayReturn['categories_to_sync'] += count($modified_data) * $langMultiplier;
 
                                 if (($modified_data = $this->storeCategoriesPaginated($pagination_response_data, $is_next_page)) !== false){
@@ -1542,6 +1566,14 @@ class Synchronize
                                                         $langSyncParams['targets'][0]['lang_code'] = $wpLang;
                                                     }
                                                     $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                    $this->insert_syncdata_sql();
+                                                }
+                                                // One extra row for targets without a language mapping (e.g. site 4 with no Polylang).
+                                                // Item data is not filtered (no language suffix) and no lang_code is set.
+                                                if (!empty($noLangTargets)) {
+                                                    $noLangSyncParams = $category_params;
+                                                    $noLangSyncParams['targets'] = $noLangTargets;
+                                                    $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($category_to_sync))."', '".addslashes(json_encode($noLangSyncParams))."')";
                                                     $this->insert_syncdata_sql();
                                                 }
                                             } else {
@@ -1581,8 +1613,10 @@ class Synchronize
 
                                     if (!isset($arrayReturn['products_to_sync'])) $arrayReturn['products_to_sync'] = 0;
                                     // In multilang mode each item generates one DB row per language,
-                                    // so the counter must reflect the actual number of rows inserted.
-                                    $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                    // plus one extra row for targets without a language mapping (if any).
+                                    $langMultiplier = !empty($multilangLanguages)
+                                        ? count($multilangLanguages) + (!empty($noLangTargets) ? 1 : 0)
+                                        : 1;
                                     $arrayReturn['products_to_sync'] += count($product_data_to_store['product_data']) * $langMultiplier;
 
                                     foreach ($product_data_to_store['product_data'] as $product_to_sync) {
@@ -1609,6 +1643,13 @@ class Synchronize
                                                     $langSyncParams['targets'][0]['lang_code'] = $wpLang;
                                                 }
                                                 $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                $this->insert_syncdata_sql();
+                                            }
+                                            // One extra row for targets without a language mapping (e.g. site 4 with no Polylang).
+                                            if (!empty($noLangTargets)) {
+                                                $noLangSyncParams = $product_params;
+                                                $noLangSyncParams['targets'] = $noLangTargets;
+                                                $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($product_to_sync))."', '".addslashes(json_encode($noLangSyncParams))."')";
                                                 $this->insert_syncdata_sql();
                                             }
                                         } else {
@@ -1678,8 +1719,10 @@ class Synchronize
                                     
                                     if (!isset($arrayReturn['product_formats_to_sync'])) $arrayReturn['product_formats_to_sync'] = 0;
                                     // In multilang mode each item generates one DB row per language,
-                                    // so the counter must reflect the actual number of rows inserted.
-                                    $langMultiplier = !empty($multilangLanguages) ? count($multilangLanguages) : 1;
+                                    // plus one extra row for targets without a language mapping (if any).
+                                    $langMultiplier = !empty($multilangLanguages)
+                                        ? count($multilangLanguages) + (!empty($noLangTargets) ? 1 : 0)
+                                        : 1;
                                     $arrayReturn['product_formats_to_sync'] += count($product_formats_to_sync) * $langMultiplier;
 
                                     foreach ($product_formats_to_sync as $product_format_to_sync) {
@@ -1707,6 +1750,13 @@ class Synchronize
                                                     $langSyncParams['targets'][0]['lang_code'] = $wpLang;
                                                 }
                                                 $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
+                                                $this->insert_syncdata_sql();
+                                            }
+                                            // One extra row for targets without a language mapping (e.g. site 4 with no Polylang).
+                                            if (!empty($noLangTargets)) {
+                                                $noLangSyncParams = $product_format_params;
+                                                $noLangSyncParams['targets'] = $noLangTargets;
+                                                $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($product_format_to_sync))."', '".addslashes(json_encode($noLangSyncParams))."')";
                                                 $this->insert_syncdata_sql();
                                             }
                                         } else {
