@@ -99,10 +99,14 @@ class Migration
     private function migrate_products(string $default_lang, bool $multilang_active): int
     {
         $products = get_posts([
-            'post_type'      => 'product',
-            'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
-            'posts_per_page' => -1,
-            'meta_query'     => [
+            'post_type'        => 'product',
+            'post_status'      => ['publish', 'pending', 'draft', 'private', 'trash'],
+            'posts_per_page'   => -1,
+            // 'lang' => '' disables Polylang's automatic language filter so that posts
+            // without a language assigned (i.e. the legacy items we need to migrate) are included.
+            'lang'             => '',
+            'suppress_filters' => false,
+            'meta_query'       => [
                 'relation' => 'AND',
                 ['key' => '_saleslayerid', 'compare' => 'EXISTS'],
                 ['key' => '_slyr_wc_lang', 'compare' => 'NOT EXISTS'],
@@ -146,6 +150,9 @@ class Migration
             'hide_empty' => false,
             'taxonomy'   => 'product_cat',
             'number'     => 0,
+            // 'lang' => '' disables Polylang's automatic language filter so that terms
+            // without a language assigned (i.e. the legacy items we need to migrate) are included.
+            'lang'       => '',
             'meta_query' => [
                 'relation' => 'AND',
                 ['key' => 'saleslayerid', 'compare' => 'EXISTS'],
