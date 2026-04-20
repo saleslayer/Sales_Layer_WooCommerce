@@ -1389,8 +1389,21 @@ function slyr_ajax_get_network_sites()
         return;
     }
 
+    // In single-site mode (no multisite), return current site as the only available site.
+    // This supports monosite + multilang plugin (e.g. Polylang on a standard WP install).
     if (!is_multisite()) {
-        wp_send_json_error(['message' => 'Not a multisite installation']);
+        $siteActivePlugins = (array) get_option('active_plugins', []);
+        $hasWooCommerce = in_array('woocommerce/woocommerce.php', $siteActivePlugins, true);
+        $sitesData = [
+            [
+                'blog_id'         => 1,
+                'blogname'        => get_bloginfo('name'),
+                'siteurl'         => get_bloginfo('url'),
+                'has_woocommerce' => $hasWooCommerce,
+                'is_main_site'    => true,
+            ]
+        ];
+        wp_send_json_success(['sites' => $sitesData, 'main_site_id' => 1]);
         return;
     }
 
