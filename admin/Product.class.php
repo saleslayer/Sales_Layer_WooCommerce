@@ -481,11 +481,15 @@ class Product
         
         }
 
-        if (!isset($wp_product['post_excerpt']) || (isset($wp_product['post_excerpt']) && $wp_product['post_excerpt'] != $product_data[$this->product_field_description_short])){
-            
-            $product_data_modified['post_excerpt'] = $product_data[$this->product_field_description_short];
-            $product_modified = true;
-        
+        if (isset($product_data[$this->product_field_description_short])) {
+
+            if (!isset($wp_product['post_excerpt']) || $wp_product['post_excerpt'] != $product_data[$this->product_field_description_short]) {
+
+                $product_data_modified['post_excerpt'] = wp_kses_post($product_data[$this->product_field_description_short]);
+                $product_modified = true;
+
+            }
+
         }
 
         if (isset($product_data[$this->product_field_menu_order])){

@@ -1022,10 +1022,14 @@ function pre_process_by_skus($type, $comp_id, $items)
 
         		        		$counter = 0;
         		        		sl_update_post_meta($wp_format['ID'], '_sku', $sl_item_sku);
-        		        		$wp_post = $wp_posts[$wp_format_old_sku];
-        						$wp_post['sku'] = $sl_item_sku;
-        		        		unset($wp_posts[$wp_format_old_sku]);
-        		        		$wp_posts[$sl_item_sku] = $wp_post;
+        		        		// Guard: old SKU may not exist in $wp_posts if the variation was
+        		        		// created without a SKU or was already reassigned in a previous pass.
+        		        		if (isset($wp_posts[$wp_format_old_sku])) {
+        		        		    $wp_post = $wp_posts[$wp_format_old_sku];
+        		        		    $wp_post['sku'] = $sl_item_sku;
+        		        		    unset($wp_posts[$wp_format_old_sku]);
+        		        		    $wp_posts[$sl_item_sku] = $wp_post;
+        		        		}
         		        	
         		        	}
 
