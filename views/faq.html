@@ -31,67 +31,334 @@
                     <div class="faq-question">How to do a first synchronization</div>
                     <div class="faq-answer">
                         <ol>
-                            <li>Once the SL channel is configured and fields are mapped, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click the <strong>Add connector</strong> button to enter your credentials.</li>
-                            <li>You should test synchronization before leaving it automated to validate the configuration. This should be done in a staging environment.</li>
-                            <li>Before starting, make sure logs are enabled in your WooCommerce store under the Sales Layer menu <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a>.</li>
+                            <li><strong>Add the connector in WooCommerce:</strong> Once your Sales Layer channel is fully configured with field mappings, go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and click <strong>Add connector</strong>. Enter the <strong>Connector ID</strong> and <strong>Channel private key</strong> from Sales Layer. The plugin will validate your credentials and connect to your Sales Layer account.
+                            </li>
+                            <li><strong>Enable logging before testing:</strong> Before running any synchronization, you must enable debug logging so you can review what happens. Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a> and ensure the <strong>Debug Level</strong> is set to at least <strong>1</strong> (or higher for more detail). Logging is essential for diagnosing issues.
+                            </li>
+                            <li><strong>Test in a staging environment:</strong> <strong>Never test synchronization on a production site.</strong> If you don't have a staging environment, create a backup of your WooCommerce database first. Synchronization can create many items, and you need a safe space to validate your configuration before going live.
+                            </li>
                             <li><strong style="color: #666;">[Optional] Configure Multisite and Multilanguage settings</strong> (if enabled in your installation):
                                 <ul style="margin-top: 8px; margin-bottom: 12px;">
                                     <li><strong>Multisite:</strong> If you have a WordPress multisite installation and want to synchronize products across multiple sites, you can configure which sites should receive the synchronized items. Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a>, select your connector, and in the settings panel you will find the multisite configuration section where you can select which blogs (sites) should be active for this connector.</li>
                                     <p><img alt="multisite settings" src="<?php echo SLYR_WC__IMAGES_DIR.'multisite_settings.png'; ?>"/></p>
                                     <li><strong>Multilanguage:</strong> If you are using a multilanguage plugin (Polylang) and want to synchronize items in multiple languages, you need to configure the language mappings in the connector settings. This ensures that each product variant is correctly synchronized to its corresponding language. The mapping section will show your available languages from Sales Layer and allow you to assign them to the languages configured in your WooCommerce store.</li>
                                     <p><img alt="multilanguage settings" src="<?php echo SLYR_WC__IMAGES_DIR.'multilanguage_settings.png'; ?>"/></p>
+                                    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin-top: 12px; border-radius: 4px;">
+                                        <p style="margin: 0; color: #856404;"><strong>⚠️ Important:</strong> If you have already synchronized data using a version prior to 2.6.1 (without multilanguage support), you will have duplicate items after enabling multilanguage features. To resolve this, use the <strong>Migrate Legacy Items</strong> tool in the <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools panel</a>. This will assign language metadata to your existing items and prevent duplication.</p>
+                                    </div>
                                 </ul>
                             </li>
-                            <li>We suggest beginning with a test synchronization using a few items: set their status as visible (only these items) and add a tag, which you also need to add in the <strong>Products</strong> tab under <strong>Output data</strong>. This will narrow the scope of items. Remember to include categories and variants for the selected items to avoid sync errors and make more complete tests.</li>
-                            <li>To test a synchronization, we recommend using the <strong>"Synchronize!"</strong> button in the plugin <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> panel. This is a more controlled and faster approach than setting up auto synchronization.</li>
-                            <li>After the sync has ended, verify the results by downloading the SL logs. These messages will help you adjust the configuration.</li>
-                            <li>In the logs, if you find an error file, you will need to correct the issues reported before the next synchronization.</li>
-                            <li>If no errors arise, you can increase the quantity of items gradually until all information is synchronized.</li>
-                            <li>Then, configure the connector on the production site and synchronize.</li>
+                            <li><strong>Create a small test batch:</strong> In Sales Layer, filter and prepare a small set of items to test (e.g., 5-10 products with their categories and variants). To synchronize only these items:
+                                <ul>
+                                    <li>In Sales Layer, mark only your test items as <strong>visible</strong>.</li>
+                                    <li>Create a tag or filter in Sales Layer to identify them (e.g., "test_sync").</li>
+                                    <li>Go to your Sales Layer WooCommerce channel's <strong>Output data</strong> tab and add a filter for this tag in the <strong>Products</strong> section.</li>
+                                    <li><strong>Include related items:</strong> Make sure to include the parent categories and variants for your test products, otherwise the sync may fail with "parent not found" errors.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Run the first test synchronization:</strong> Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a>, click <strong>"Synchronize!"</strong> on your connector. <strong>Do not set up automated synchronization yet.</strong> Manual synchronization allows you to control when items are processed and review results immediately.
+                            </li>
+                            <li><strong>Review the synchronization results:</strong> After the synchronization completes (check the progress counters in the grid), go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools</a> and click <strong>Download SL Logs</strong>. Extract the logs and search for:
+                                <ul>
+                                    <li><strong>"Error"</strong> entries — these indicate failures. Note the exact error messages.</li>
+                                    <li><strong>"initialized"</strong> messages — confirm that categories, products, and variants were processed.</li>
+                                    <li><strong>Blog_id and Language context</strong> — verify the correct sites and languages were targeted.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Fix errors and repeat:</strong> If you find errors in the logs:
+                                <ul>
+                                    <li>Common issues: missing required fields, invalid category relationships, duplicate product SKUs.</li>
+                                    <li>Go back to your Sales Layer channel and fix the data or field mappings.</li>
+                                    <li>Remove the test items from your WooCommerce store (or mark them as draft).</li>
+                                    <li>Run the synchronization again to re-test. Repeat until no errors appear.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Expand the test batch:</strong> Once your small test batch syncs successfully, gradually increase the number of items:
+                                <ul>
+                                    <li>Test with 50 items, then 200, then 500.</li>
+                                    <li>Monitor each run for new errors.</li>
+                                    <li>This incremental approach helps identify configuration issues before syncing thousands of items.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Deploy to production:</strong> When you're confident the configuration is correct:
+                                <ul>
+                                    <li>Remove the test tag/filter from your Sales Layer channel configuration.</li>
+                                    <li>Log in to your <strong>production WooCommerce site</strong> and add your connector using the same credentials.</li>
+                                    <li>Run the first production synchronization with the full item set.</li>
+                                    <li>Monitor logs closely during and after the sync.</li>
+                                    <li>Once complete, you can enable automated synchronization if desired (set via Sales Layer channel settings).</li>
+                                </ul>
+                            </li>
                         </ol>
                     </div>
                 </div>
                 <div class="faq-item">
-                    <div class="faq-question">My connector is stuck</div>
+                    <div class="faq-question">My connector appears to be stuck or not synchronizing</div>
                     <div class="faq-answer">
-                        <p>When the connector has started its synchronization and stored the data, a recount of items will be shown in the grid view. While it has pending information to synchronize, the grid information will be reloaded frequently to update this recount:</p>
+                        <p><strong>Normal behavior during synchronization:</strong> When a connector is processing data, you will see a progress indicator in the grid view. While there are pending items to process, the item counts will update automatically:</p>
                         <p><img alt="synchronization counters" src="<?php echo SLYR_WC__IMAGES_DIR.'synchronization_counters.png'; ?>"/></p>
-                        <p>If an uncontrolled error occurs during cron execution, the error message will be displayed in your server error log or in the WooCommerce error system. Note it down so you can notify SL in order to get help.</p>
+                        <p>The synchronization runs in the background via a scheduled task (WP-Cron). Depending on your server configuration and the volume of items, synchronization can take anywhere from a few minutes to several hours.</p>
+                        <p><strong>Troubleshooting steps:</strong></p>
+                        <ol>
+                            <li><strong>Check the logs:</strong> Download the SL logs from <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools</a> and review them for error messages. Error logs will show exactly where the synchronization failed.</li>
+                            <li><strong>Check your server's WP-Cron:</strong> Some hosting providers disable WordPress scheduled tasks. Contact your hosting provider to ensure WP-Cron is enabled.</li>
+                            <li><strong>Review server error logs:</strong> If WP-Cron is working but items aren't processing, check your server's PHP error logs for timeout or memory errors. Note any error messages.</li>
+                            <li><strong>Contact Sales Layer Support:</strong> If none of the above resolve the issue, provide the error logs and describe what you've verified. This will help diagnose the root cause.</li>
+                        </ol>
                     </div>
                 </div>
             </div>
             <div class="faq-group">
-                <h2>Logs</h2>
+                <h2>Multilanguage Setup (Polylang)</h2>
                 <div class="faq-item">
-                    <div class="faq-question">How to download logs</div>
-                    <div class="faq-answer">Download them from <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools</a>.</div>
+                    <div class="faq-question">Setting up Polylang for multilanguage synchronization</div>
+                    <div class="faq-answer">
+                        <p>Polylang is a lightweight multilanguage plugin that allows Sales Layer WooCommerce to synchronize products in multiple languages. Here's how to set it up:</p>
+                        <ol>
+                            <li><strong>Install and activate Polylang:</strong> Download the <strong>Polylang</strong> plugin from the WordPress plugin directory (free version is sufficient for e-commerce use). Activate it from your <strong>Plugins</strong> menu.</li>
+                            <li><strong>Configure your site's languages:</strong> Go to <strong>Languages → Languages</strong> in the WordPress admin menu. You will see a list of available languages to add:
+                                <p><img alt="polylang languages settings" src="<?php echo SLYR_WC__IMAGES_DIR.'polylang_languages_settings.png'; ?>"/></p>
+                                <ul>
+                                    <li>Click <strong>"Add new language"</strong> for each language your store will use.</li>
+                                    <li><strong>Language code:</strong> This must match exactly the Sales Layer language codes. For example, if Sales Layer has 'es', 'en', and 'de', add those codes in Polylang. Check your Sales Layer connector to see which languages are available.</li>
+                                    <li><strong>Locale:</strong> Auto-populated based on your language selection. This controls date/number formatting.</li>
+                                    <li><strong>Default language:</strong> Set one language as <strong>default</strong> (usually your primary/main market language).</li>
+                                </ul>
+                            </li>
+                            <li><strong>Enable language management for Products and Categories:</strong> Go to <strong>Languages → Settings</strong> and scroll down to find the content type management section. This is where you tell Polylang which WordPress content types should be multilingual:
+                                <p><img alt="polylang posts terms translation" src="<?php echo SLYR_WC__IMAGES_DIR.'polylang_posts_terms_translation.png'; ?>"/></p>
+                                <ul>
+                                    <li>Ensure <strong>"Products" (Posts)</strong> is <strong>checked</strong> — this allows Polylang to manage language variants of WooCommerce products.</li>
+                                    <li>Ensure <strong>"Product Categories" (Terms)</strong> is <strong>checked</strong> — this allows Polylang to manage language variants of product categories.</li>
+                                    <li>If unchecked, Polylang will not track language metadata for these content types, and multilanguage synchronization will fail.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Map Sales Layer languages to Polylang languages:</strong> Once Polylang is fully configured, go to your Sales Layer connector in <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a>. Click <strong>Settings</strong> to open the <strong>Site & Language Configuration</strong> modal. The modal will show:
+                                <ul>
+                                    <li>Available Sales Layer languages at the top (in a badge list).</li>
+                                    <li>A dropdown for each Polylang language you created, allowing you to map each WP language to a Sales Layer language.</li>
+                                </ul>
+                                Complete the language mapping and save.
+                            </li>
+                            <li><strong>Verify the configuration:</strong> After mapping, run a test synchronization with a few products (see "How to do a first synchronization"). Monitor the logs to ensure products are being created with correct language metadata.</li>
+                        </ol>
+                    </div>
                 </div>
                 <div class="faq-item">
-                    <div class="faq-question">Where are logs stored</div>
-                    <div class="faq-answer">They are stored inside the WooCommerce logs folder, in a folder named logs.</div>
+                    <div class="faq-question">Why Polylang is sufficient (you don't need Polylang for WooCommerce)</div>
+                    <div class="faq-answer">
+                        <p>You may see "Polylang for WooCommerce" in the plugin directory.  You do <strong>not</strong> need to install it. The Sales Layer WooCommerce plugin handles all WooCommerce-specific multilanguage requirements natively. Polylang (free version) alone is sufficient. Here's why:</p>
+                        <ul>
+                            <li><strong>Stock management is per-item:</strong> Unlike some multilanguage approaches that share stock across variants, Sales Layer synchronizes stock separately for each language variant. This means inventory is replicated and managed independently, ensuring accurate stock levels across all language versions without requiring additional WooCommerce extensions.</li>
+                            <li><strong>Product data is language-aware:</strong> The plugin automatically detects and filters product fields (title, description, attributes, custom fields, etc.) based on the language suffix from Sales Layer. Each variant receives only the data for its language, eliminating data confusion.</li>
+                            <li><strong>Variants are properly linked:</strong> Polylang's translation groups automatically link all language variants of the same product as a cohesive translation set. The Sales Layer plugin leverages this during synchronization to keep variants grouped together.</li>
+                            <li><strong>Polylang handles language infrastructure only:</strong> Polylang manages:
+                                <ul style="margin-top: 4px;">
+                                    <li>Language configuration and assignment (which content uses which language)</li>
+                                    <li>URL structure and locale handling</li>
+                                    <li>WordPress admin language switcher</li>
+                                </ul>
+                                <p style="margin-top: 4px;">It does <strong>not</strong> handle synchronization, data mapping, or WooCommerce-specific logic — that's where Sales Layer comes in.</p>
+                            </li>
+                            <li><strong>Reduced complexity:</strong> Avoiding additional plugins reduces maintenance overhead, potential conflicts, and licensing costs. Polylang (free) is lightweight and well-maintained.</li>
+                        </ul>
+                        <p><strong>Summary:</strong> Polylang (free) provides the language layer. Sales Layer WooCommerce provides the e-commerce sync layer. Together, they form a complete multilanguage e-commerce solution at no additional cost.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="faq-group">
+                <h2>Multisite Setup</h2>
+                <div class="faq-item">
+                    <div class="faq-question">Configuring the plugin for WordPress Multisite</div>
+                    <div class="faq-answer">
+                        <p>WordPress Multisite allows you to manage multiple WooCommerce sites (blogs) under a single WordPress installation and database. The Sales Layer plugin supports multisite synchronization, enabling you to distribute products from a single Sales Layer connector across multiple sites simultaneously.</p>
+                        <ol>
+                            <li><strong>Network Activation is Required (Critical Step):</strong> The Sales Layer WooCommerce plugin <strong>must</strong> be activated at the <strong>network level</strong>, not individually on each site. This enables the plugin to coordinate synchronization across all sites in the network.
+                                <p style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 12px; border-radius: 4px;">
+                                    <strong>⚠️ Critical:</strong> If you activate the plugin on individual sites instead of the network, multisite features will not work. Go to <strong>My Sites → Network Admin → Plugins</strong> and activate the Sales Layer WooCommerce plugin at the network level only. Do not activate it on individual sites.
+                                </p>
+                            </li>
+                            <li><strong>What network activation enables:</strong> Once network-activated, the plugin will automatically:
+                                <ul>
+                                    <li>Create network-level settings accessible from the main WordPress dashboard.</li>
+                                    <li>Register the <strong>Connectors</strong> menu at the network level (visible when logged in as network admin).</li>
+                                    <li>Allow configuration of connectors that can target any site within the network.</li>
+                                    <li>Enable intelligent per-site and per-language routing during synchronization.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Configure which sites should receive items:</strong> Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_connectors">Connectors</a> and select your connector. Click <strong>Settings</strong> to open the <strong>Site & Language Configuration</strong> modal. Here you can:
+                                <ul>
+                                    <li>See a list of all sites in your network (with checkmarks showing which have WooCommerce installed).</li>
+                                    <li>Toggle the <strong>"Activate"</strong> checkbox to select which sites should receive items from this connector.</li>
+                                    <li>Each site can receive items independently — you don't have to include all sites.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Multisite + Multilanguage (optional):</strong> If you're running multilanguage sites within your multisite network using Polylang:
+                                <ul>
+                                    <li>In the <strong>Site & Language Configuration</strong> modal, each site will show its configured languages.</li>
+                                    <li>You can map Sales Layer languages to each site's languages independently.</li>
+                                    <li>Example: Site 1 (Spain) receives 'es', Site 2 (Germany) receives 'de'.</li>
+                                </ul>
+                            </li>
+                            <li><strong>How synchronization works:</strong> When you click <strong>"Synchronize!"</strong> on a connector:
+                                <ul>
+                                    <li>The plugin fetches items from Sales Layer.</li>
+                                    <li>For each item and each selected site, it creates a queue entry.</li>
+                                    <li>The background task processes each entry, automatically <strong>switching to the correct site context</strong> before creating/updating items.</li>
+                                    <li>Each site receives only the products and variants you configured for it.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="faq-group">
+                <h2>Logs & Debugging</h2>
+                <div class="faq-item">
+                    <div class="faq-question">How to download and review logs</div>
+                    <div class="faq-answer">
+                        <p>Logs are essential for debugging synchronization issues. The Sales Layer plugin generates detailed logs for every synchronization attempt, including success messages and error details.</p>
+                        <p><strong>To download logs:</strong></p>
+                        <ol>
+                            <li>Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Tools</a> → <strong>Download SL Logs</strong></li>
+                            <li>A <strong>zip file</strong> containing all plugin logs will be generated and downloaded to your computer.</li>
+                            <li>Extract the zip and review the log files. The most recent synchronization will be in the newest files.</li>
+                        </ol>
+                        <p><strong>What to look for in logs:</strong></p>
+                        <ul>
+                            <li><strong>"initialized"</strong> messages — indicate that a product/category/variant sync has started. Look for these to confirm items are being processed.</li>
+                            <li><strong>"Error"</strong> messages — show what went wrong. Include exact error messages when contacting support.</li>
+                            <li><strong>"Blog_id: X - Lang: XX"</strong> context — shows which site and language variant was being processed when an error occurred (useful in multisite/multilang setups).</li>
+                            <li><strong>Timestamps</strong> — help you correlate log entries with when you initiated the synchronization and understand how long processing took.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">Where logs are stored and enabling debug mode</div>
+                    <div class="faq-answer">
+                        <p><strong>Default storage location:</strong> Logs are stored in your WordPress installation's WooCommerce logs folder: <code>/wp-content/plugins/woocommerce/logs/</code></p>
+                        <p><strong>Enabling higher debug verbosity:</strong> By default, the plugin logs synchronization events. To increase logging detail and capture more information:</p>
+                        <ol>
+                            <li>Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a></li>
+                            <li>Set the <strong>Debug Level</strong> to a higher value:
+                                <ul>
+                                    <li>Level <strong>0</strong>: Minimal logging (only errors)</li>
+                                    <li>Level <strong>1</strong>: Standard logging (recommended)</li>
+                                    <li>Level <strong>2</strong>: Verbose logging (more detail)</li>
+                                    <li>Level <strong>3</strong>: Maximum verbosity (very detailed, generates large logs)</li>
+                                </ul>
+                            </li>
+                            <li>Run your synchronization again. More detailed debug information will be logged.</li>
+                            <li>Download and review the logs to find additional context about what's happening.</li>
+                        </ol>
+                        <p><strong>⚠️ Note:</strong> Higher debug levels generate significantly larger log files. In production environments with frequent synchronizations, remember to disable debug mode (set to 0) or clean logs periodically to avoid filling disk space.</p>
+                    </div>
                 </div>
             </div>
             <div class="faq-group">
                 <h2><a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_tools">Plugin Tools</a></h2>
                 <div class="faq-item">
                     <div class="faq-question">Download SL Logs</div>
-                    <div class="faq-answer">Creates a zip file with existing SL logs on the server and downloads it.</div>
+                    <div class="faq-answer">
+                        <p>Generates a compressed zip file containing all Sales Layer synchronization logs currently stored on your server, then automatically downloads it to your computer.</p>
+                        <p><strong>What it includes:</strong> All plugin logs from every synchronization run, including success messages, error details, and timestamps.</p>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>When you need to review synchronization history and identify issues.</li>
+                            <li>Before contacting Support — always provide downloaded logs with your issue description.</li>
+                            <li>To archive logs before clearing them (see "Remove SL Logs" below).</li>
+                            <li>To analyze performance and synchronization patterns over time.</li>
+                        </ul>
+                        <p><strong>How to use it:</strong> Click the button, wait a few seconds, and the zip file will download. Extract it on your computer and open the log files in any text editor.</p>
+                    </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Remove SL Logs</div>
-                    <div class="faq-answer">Removes Sales Layer logs from the server.</div>
+                    <div class="faq-answer">
+                        <p>Permanently deletes all Sales Layer logs from your server. This frees up disk space.</p>
+                        <p><strong>⚠️ Warning:</strong> This action cannot be undone. Deleted logs are gone forever.</p>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>After you've downloaded and archived logs (see "Download SL Logs" above).</li>
+                            <li>As part of regular maintenance on high-volume production environments.</li>
+                        </ul>
+                        <p><strong>⚠️ Best practice:</strong> Always download logs before removing them. If synchronization issues occur after deletion, you won't have historical logs to reference for debugging.</p>
+                    </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Delete SL items pending to process</div>
-                    <div class="faq-answer">Deletes Sales Layer items pending processing from the plugin's queue table. This tool may be useful when identifying problems in the middle of a synchronization.</div>
+                    <div class="faq-answer">
+                        <p>Removes all items currently queued in the synchronization table that haven't been processed yet. This clears the internal queue completely.</p>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Finds all queue entries for categories, products, and variants waiting to be synchronized.</li>
+                            <li>Deletes them from the queue table immediately.</li>
+                            <li>Does NOT delete already-synchronized items from your WooCommerce store — only removes pending queue entries.</li>
+                        </ul>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>When a synchronization is stuck and not making progress (items remain in "pending" state for hours).</li>
+                            <li>When you've identified errors in your configuration and want to clear the queue before resyncing.</li>
+                        </ul>
+                        <p><strong>⚠️ Warning:</strong> Once you delete pending items, they must be requeued by running synchronization again. Any partial work is lost.</p>
+                        <p><strong>How to recover:</strong> After clearing the queue and modifying the deleted pending items again, run the synchronization again. Sales Layer will re-fetch the items and requeue them.</p>
+                    </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Delete SL credentials</div>
-                    <div class="faq-answer">Deletes Sales Layer credentials from existing items. This will affect categories, products and variants.</div>
+                    <div class="faq-answer">
+                        <p>Removes all Sales Layer metadata (SL IDs and tracking information) from existing products, categories, and variants in your WooCommerce store. This breaks the link between your store and Sales Layer.</p>
+                        <p><strong>What metadata is deleted:</strong></p>
+                        <ul>
+                            <li><code>_saleslayerid</code> — the Sales Layer product ID</li>
+                            <li><code>_saleslayercompid</code> — the Sales Layer company ID</li>
+                            <li><code>_saleslayerformatid</code> — the Sales Layer variant/format ID</li>
+                            <li><code>saleslayerid</code> (terms) — Sales Layer category ID</li>
+                            <li><code>saleslayercompid</code> (terms) — Sales Layer company ID</li>
+                            <li>Other Sales Layer tracking fields</li>
+                        </ul>
+                        <p><strong>Impact:</strong> Without this metadata, your WooCommerce store can no longer recognize which items came from Sales Layer. Future synchronizations will treat these items as new and links them if their keys matches.</p>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>You are migrating to a different Sales Layer connector.</li>
+                            <li>You want to "reset" your store and start fresh synchronization.</li>
+                        </ul>
+                        <p><strong>🔴 Critical Warning:</strong> This is a destructive operation. The link between your items and Sales Layer might not be easily restored. Before proceeding:</p>
+                        <ol>
+                            <li><strong>Test in staging first</strong> if you're unsure.</li>
+                        </ol>
+                    </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Clean orphaned multiconn</div>
-                    <div class="faq-answer">Removes multiconn records whose site (blog_id) has been deactivated from the connector's multisite targets. This is useful to clean up leftover data after disabling sites in the multisite synchronization settings.</div>
+                    <div class="faq-answer">
+                        <p>Removes "orphaned" multiconn records from the database. Multiconn records are internal references that track which connectors have synchronized which items to which sites.</p>
+                        <p><strong>What is a multiconn record:</strong> In a multisite setup, the plugin maintains a reference table (multiconn) with one row per (connector, item, site) combination. This allows the plugin to:
+                        <ul style="margin-top: 4px;">
+                            <li>Track which connectors have synchronized a specific item to a specific site.</li>
+                            <li>Safely delete items only when NO remaining connectors reference them on that site.</li>
+                            <li>Prevent premature deletion when multiple connectors share the same product IDs.</li>
+                        </ul>
+                        </p>
+                        <p><strong>When records become orphaned:</strong> Records become orphaned in two scenarios:</p>
+                        <ol>
+                            <li><strong>Deactivated sites:</strong> If you remove a site from a connector's <strong>Site & Language Configuration</strong>, the multiconn records for that connector-site pair are no longer needed.</li>
+                            <li><strong>Deleted connectors:</strong> If a connector is completely removed from the system, its multiconn records are no longer referenced by any active connector.</li>
+                        </ol>
+                        <p><strong>What this tool does:</strong></p>
+                        <ul>
+                            <li>For each configured connector, identifies multiconn records pointing to sites that are NOT in its current active targets.</li>
+                            <li>Deletes those orphaned records per-connector and per-site.</li>
+                            <li>Returns the total number of rows deleted.</li>
+                        </ul>
+                        <p><strong>When to use it:</strong></p>
+                        <ul>
+                            <li>After removing sites from a connector's <strong>Site & Language Configuration</strong> to clean up leftover database entries.</li>
+                            <li>As part of regular database maintenance in production multisite environments.</li>
+                            <li>Optional — not required for normal operation, but helps keep the database clean.</li>
+                        </ul>
+                        <p><strong>Safety:</strong> This tool is safe. It only removes records for deactivated site/connector combinations and will not affect items on currently active sites or impact item deletion logic.</p>
+                    </div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Migrate Legacy Items</div>
