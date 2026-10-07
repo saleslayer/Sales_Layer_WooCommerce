@@ -1,10 +1,10 @@
 
 
-<a href="https://support.saleslayer.com"><p align="center"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer Wordpress plugin for WooCommerce" width="230"></p></a>
+<a href="https://support.saleslayer.com"><p align="center"><img src="https://saleslayer.com/assets/images/logo.svg" alt="Sales Layer WordPress plugin for WooCommerce" width="230"></p></a>
 
 # Sales Layer WooCommerce plugin
 
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%208.1-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%208.0-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/Wordpress-%3E%3D%206.0-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/github/v/release/saleslayer/Sales_Layer_WooCommerce)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
+[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%208.0-8892BF.svg?style=flat-square)](https://php.net/) [![Minimum WooCommerce Version](https://img.shields.io/badge/WooCommerce-%3E%3D%208.2-AA92BF.svg?style=flat-square)](https://wordpress.org/plugins/woocommerce/) [![Minimum WordPress Version](https://img.shields.io/badge/WordPress-%3E%3D%206.4-4892BF.svg?style=flat-square)](https://wordpress.org/Download/) [![GitHub release](https://img.shields.io/github/v/release/saleslayer/Sales_Layer_WooCommerce)](https://github.com/saleslayer/Sales_Layer_WooCommerce)
 
 WordPress plugin that allows you to easily synchronize your Sales Layer catalogue information with WooCommerce.
 [Sales Layer - Global Leading PIM][saleslayer-home]
@@ -15,14 +15,14 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 ## How To Start
 
-1. Install the package in a Wordpress site instance.
+1. Install the plugin on a WordPress site.
 
 	* Go to *Plugins > Add new > Upload plugin*.
 	* Select and upload our plugin zip file.
 
 2. Create a Sales Layer WooCommerce connector and map the fields
 
-	* The plugin needs the connector ID code and the private key, you will find them in the connector details of Sales Layer.
+	* The plugin needs the connector ID code and the private key. You will find them in the connector details of Sales Layer.
     
 3. Add the connector credentials in WooCommerce
 
@@ -31,14 +31,14 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 ## Requirements for synchronization
 
-- Working WooCommerce plugin installed on Wordpress site (see version guidance).
+- A working WooCommerce plugin installed on a WordPress site (see version guidance).
 
-- PHP cUrl extension installed and enabled; In order to call and obtain the information from Sales Layer.
+- PHP cURL extension installed and enabled, in order to call and obtain the information from Sales Layer.
 
 - Define the fields relationship in the Sales Layer WooCommerce connector:
 	- One size for image fields.
-	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be<br/> *Admin > Product > Attributes* and they must have been created in WooCommerce in order to synchronize.
-	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations, then, attribute values from the product and variants will be combined and assigned to the parnet product. Variations must have only one value for each attribute.
+	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be treated as attributes<br/> (*Admin > Product > Attributes*) and they must be created in WooCommerce beforehand in order to synchronize.
+	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations. Then, attribute values from the product and variants will be combined and assigned to the parent product. Variations must have only one value for each attribute.
 	
 ## Version Guidance
 
@@ -47,31 +47,32 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
 | [2.4.x]        | EOL        | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
 | [2.5.x]        | Fixes only | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
-| [2.6.x]        | Stable     | >= 8.0.2, <= 10.6.1     | >= 8.1, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
+| [2.6.x]        | Stable     | >= 8.0.2, <= 11.1.2     | >= 8.1, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
 
 ## Branch 2.6.x Release recommended configuration
 
 | Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
 |----------------|---------------------|-------------------|----------------|------------|
-| [2.6.0][2.6.0] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache2.4  |
-| [2.6.1][2.6.1] | WooCommerce 10.6.1  | WordPress 6.9.4   | PHP 8.5        | Apache2.4  |
+| [2.6.0][2.6.0] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache 2.4 |
+| [2.6.1][2.6.1] | WooCommerce 10.6.1  | WordPress 6.9.4   | PHP 8.5        | Apache 2.4 |
+| [2.6.2][2.6.2] | WooCommerce 11.1.2  | WordPress 7.1.2   | PHP 8.5        | Apache 2.4 |
 
 
 ## Branch 2.5.x Release recommended configuration
 
 | Release        | WooCommerce version | WordPress version | PHP version    | Web Server | 
 |----------------|---------------------|-------------------|----------------|------------|
-| [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
-| [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache2.4  |
-| [2.5.2][2.5.2] | WooCommerce 9.3.3   | WordPress 6.6.2   | PHP 8.2        | Apache2.4  |
-| [2.5.3][2.5.3] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache2.4  |
+| [2.5.0][2.5.0] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache 2.4 |
+| [2.5.1][2.5.1] | WooCommerce 8.0.2   | WordPress 6.2     | PHP 8.1        | Apache 2.4 |
+| [2.5.2][2.5.2] | WooCommerce 9.3.3   | WordPress 6.6.2   | PHP 8.2        | Apache 2.4 |
+| [2.5.3][2.5.3] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache 2.4 |
 
 > **Warning**.
 > WooCommerce frequently releases new plugin versions to fix bugs and introduce new functionality. Some of these versions may conflict with this plugin. We highly encourage you to configure the WooCommerce plugin according to the recommendations provided in the guidance table to ensure the correct functioning of this plugin.
 
 > **Install**.
-> If the server is set behind a NAT and you're getting redirection loops between the public IP(domain) and the local private IP of the VM when executing the CRON services.
-> - A new entry has to be created in etc/hosts, with the local private IP address and the domain, to properly rout the internal curl calls so they work properly.
+> If the server is behind a NAT and you get redirection loops between the public IP (domain) and the local private IP of the VM when executing the cron jobs:
+> - Create a new entry in /etc/hosts with the local private IP address and the domain, to properly route the internal cURL calls.
 
 > **Note**. 
 > Refer to [WooCommerce Server Recommendations][woo-server-recomm] for version requirement details. Refer to the [WooCommerce GitHub repository][woo-github] for additional information about the extension (recommended for developers).
@@ -95,3 +96,4 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [2.5.3]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.5.3
 [2.6.0]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.6.0
 [2.6.1]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.6.1
+[2.6.2]:https://github.com/saleslayer/Sales_Layer_WooCommerce/releases/tag/2.6.2

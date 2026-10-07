@@ -468,7 +468,7 @@ class Format
 
             }else{
 
-                $error_message = $format_data[$this->format_field_sku]." - The format attribute data is empty/wrong.";
+                $error_message = $format_data[$this->format_field_sku]." - The format attribute data is empty or invalid.";
                 
                 if (!empty($attribute_data_empty)){
 
@@ -593,7 +593,7 @@ class Format
 
             if (!$wp_format){
 
-                sl_debug('## Error. ' . $this->getDebugContext() . $format_data[$this->format_field_sku]." - The format could not been created.");
+                sl_debug('## Error. ' . $this->getDebugContext() . $format_data[$this->format_field_sku]." - The format could not be created.");
                 return 'item_not_updated';
 
             }

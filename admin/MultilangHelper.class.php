@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Multiidioma Integration Helper - Agnóstica de Plugin
+ * Multilanguage Integration Helper - Plugin agnostic
  *
- * Proporciona métodos auxiliares para interactuar con cualquier plugin de multiidioma:
- * - Listar idiomas disponibles (Polylang, WPML, etc.)
- * - Mapear idiomas de Sales Layer a idiomas del plugin
- * - Crear/actualizar traducciones de productos
- * - Sincronizar términos (categorías) multiidioma
+ * Provides helper methods to interact with any multilanguage plugin:
+ * - List available languages (Polylang, WPML, etc.)
+ * - Map Sales Layer languages to plugin languages
+ * - Create/update product translations
+ * - Synchronize multilanguage terms (categories)
  */
 class MultilangHelper
 {
@@ -15,7 +15,7 @@ class MultilangHelper
 
     public function __construct()
     {
-        // Debe haber al menos un plugin de multiidioma activo
+        // At least one multilanguage plugin must be active
         $active = slyr_detect_active_multilang_plugin();
         if (!$active) {
             throw new Exception('No multilang plugin detected (Polylang, etc.)');
@@ -31,9 +31,9 @@ class MultilangHelper
     }
 
     /**
-     * Obtener lista de idiomas del plugin de multiidioma activo (agnóstica)
+     * Get the language list from the active multilanguage plugin (plugin agnostic)
      *
-     * @return array Ej: [
+     * @return array E.g. [
      *     ['code' => 'en', 'name' => 'English'],
      *     ['code' => 'es', 'name' => 'Español']
      * ]
@@ -68,16 +68,16 @@ class MultilangHelper
                 ];
             }
         }
-        // Agregar soporte para WPML aquí
+        // Add WPML support here
         // elseif ($plugin_type === 'wpml') { ... }
 
         return $languages;
     }
 
     /**
-     * Obtener el idioma por defecto del plugin de multiidioma
+     * Get the default language of the multilanguage plugin
      *
-     * @return string|null Código del idioma por defecto (ej: 'es', 'en'), o null si no hay
+     * @return string|null Default language code (e.g. 'es', 'en'), or null if there is none
      */
     public function get_default_language()
     {
@@ -141,11 +141,11 @@ class MultilangHelper
     }
 
     /**
-     * Asignar idioma a un producto (post) - agnóstica
+     * Assign a language to a product (post) - plugin agnostic
      *
-     * @param int $post_id ID del producto
-     * @param string $language Código de idioma (en, es, fr)
-     * @param string $plugin_type Tipo de plugin ('polylang', 'wpml', etc.)
+     * @param int $post_id Product ID
+     * @param string $language Language code (en, es, fr)
+     * @param string $plugin_type Plugin type ('polylang', 'wpml', etc.)
      * @return bool
      */
     public function set_product_language($post_id, $language, $plugin_type = null)
@@ -160,18 +160,18 @@ class MultilangHelper
             }
             pll_set_post_language($post_id, $language);
         }
-        // Agregar soporte para otros plugins aquí
+        // Add support for other plugins here
         
         return true;
     }
 
     /**
-     * Obtener traducción existente de un producto - agnóstica
+     * Get an existing product translation - plugin agnostic
      *
-     * @param int $post_id ID del producto
-     * @param string $language Código de idioma objetivo
-     * @param string $plugin_type Tipo de plugin ('polylang', 'wpml', etc.)
-     * @return int|null ID del post traducido, o null si no existe
+     * @param int $post_id Product ID
+     * @param string $language Target language code
+     * @param string $plugin_type Plugin type ('polylang', 'wpml', etc.)
+     * @return int|null Translated post ID, or null if it does not exist
      */
     public function get_product_translation($post_id, $language, $plugin_type = null)
     {
@@ -185,19 +185,19 @@ class MultilangHelper
             }
             return pll_get_post($post_id, $language);
         }
-        // Agregar soporte para otros plugins aquí
+        // Add support for other plugins here
         
         return null;
     }
 
     /**
-     * Crear traducción vinculada de un producto
+     * Create a linked product translation
      *
-     * @param int $original_post_id ID del producto original
-     * @param int $translated_post_id ID del producto traducido
-     * @param string $original_lang Idioma del original (en, es)
-     * @param string $translated_lang Idioma de la traducción
-     * @param string $plugin_type Tipo de plugin ('polylang', 'wpml', etc.)
+     * @param int $original_post_id Original product ID
+     * @param int $translated_post_id Translated product ID
+     * @param string $original_lang Original language (en, es)
+     * @param string $translated_lang Translation language
+     * @param string $plugin_type Plugin type ('polylang', 'wpml', etc.)
      * @return bool
      */
     public function link_product_translations(
@@ -223,17 +223,17 @@ class MultilangHelper
 
             pll_save_post_translations($translations);
         }
-        // Agregar soporte para otros plugins aquí
+        // Add support for other plugins here
         
         return true;
     }
 
     /**
-     * Sincronizar categoría multiidioma
+     * Synchronize a multilanguage category
      *
-     * @param int $term_id ID de la categoría (término)
-     * @param string $language Código de idioma
-     * @param string $plugin_type Tipo de plugin ('polylang', 'wpml', etc.)
+     * @param int $term_id Category (term) ID
+     * @param string $language Language code
+     * @param string $plugin_type Plugin type ('polylang', 'wpml', etc.)
      * @return bool
      */
     public function set_category_language($term_id, $language, $plugin_type = null)
@@ -248,7 +248,7 @@ class MultilangHelper
             }
             pll_set_term_language($term_id, $language);
         }
-        // Agregar soporte para otros plugins aquí
+        // Add support for other plugins here
         
         return true;
     }
@@ -433,11 +433,11 @@ class MultilangHelper
     }
 
     /**
-     * Validar que una configuración de mapeo de idiomas es válida - agnóstica
+     * Validate that a language mapping configuration is valid - plugin agnostic
      *
-     * @param array $language_mappings Ej: ['en' => 'en', 'es' => 'es']
-     * @param array $sl_languages Idiomas disponibles de Sales Layer
-     * @param string $plugin_type Tipo de plugin ('polylang', 'wpml', etc.)
+     * @param array $language_mappings E.g. ['en' => 'en', 'es' => 'es']
+     * @param array $sl_languages Available Sales Layer languages
+     * @param string $plugin_type Plugin type ('polylang', 'wpml', etc.)
      * @return array ['valid' => bool, 'errors' => []]
      */
     public function validate_language_mappings($language_mappings, $sl_languages, $plugin_type = null)
@@ -451,13 +451,13 @@ class MultilangHelper
         if ($plugin_type === 'polylang') {
             $plugin_langs = pll_languages_list(['fields' => 'locale']);
         }
-        // Agregar soporte para otros plugins aquí
+        // Add support for other plugins here
         // elseif ($plugin_type === 'wpml') { ... }
         else {
             $plugin_langs = [];
         }
 
-        // Validar cada mapeo: Idioma de SL → Idioma del plugin
+        // Validate each mapping: SL language → plugin language
         foreach ($language_mappings as $sl_lang => $plugin_lang) {
             if (!in_array($sl_lang, $sl_languages)) {
                 $errors[] = "Sales Layer language '{$sl_lang}' not available";
@@ -558,9 +558,9 @@ class MultilangHelper
 }
 
 /**
- * Helper function: Detectar qué plugin de multiidioma está activo
+ * Helper function: detect which multilanguage plugin is active
  *
- * @return string|false 'polylang', 'wpml', o false si ninguno
+ * @return string|false 'polylang', 'wpml', or false if none
  */
 function slyr_detect_active_multilang_plugin()
 {

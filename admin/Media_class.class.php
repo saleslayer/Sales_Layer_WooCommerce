@@ -373,7 +373,7 @@ class Media_class
 
                 $termmeta_count = sl_connection_query(
                     'read',
-                    " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."termmeta WHERE meta_key = %s AND meta_value = %d",
+                    " SELECT count(*) as sl_records_count FROM ".slyr_get_wpdb_prefix()."termmeta WHERE meta_key = %s AND meta_value = %d",
                     ['thumbnail_id', (int)$attachment_id]
                 );
             
@@ -383,7 +383,7 @@ class Media_class
 
         }
 
-        if (isset($termmeta_count['sl_cuenta_registros']) && $termmeta_count['sl_cuenta_registros'] > 0){
+        if (isset($termmeta_count['sl_records_count']) && $termmeta_count['sl_records_count'] > 0){
         
             return false;
         
@@ -393,7 +393,7 @@ class Media_class
 
                 $postmeta_thumbnail_count = sl_connection_query(
                     'read',
-                    " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = %s AND meta_value = %d",
+                    " SELECT count(*) as sl_records_count FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = %s AND meta_value = %d",
                     ['_thumbnail_id', (int)$attachment_id]
                 );
             
@@ -403,7 +403,7 @@ class Media_class
 
         }
 
-        if (isset($postmeta_thumbnail_count['sl_cuenta_registros']) && $postmeta_thumbnail_count['sl_cuenta_registros'] > 0){
+        if (isset($postmeta_thumbnail_count['sl_records_count']) && $postmeta_thumbnail_count['sl_records_count'] > 0){
         
             return false;
         
@@ -572,7 +572,7 @@ class Media_class
 
             }catch(\Exception $e){
 
-                sl_debug("## Error. Remote image with URL ".$url." couldn't been synchronized: ".$e->getMessage());
+                sl_debug("## Error. Remote image with URL ".$url." couldn't be synchronized: ".$e->getMessage());
                 return false;
 
             }
@@ -630,7 +630,7 @@ class Media_class
 
         try{
 
-            $sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
+            $sql_meta_count = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1");
         
         }catch(\Exception $e){
 
@@ -638,9 +638,9 @@ class Media_class
 
         }
 
-        if (isset($sql_meta_count['sl_cuenta_registros']) && $sql_meta_count['sl_cuenta_registros'] > 0){
+        if (isset($sql_meta_count['sl_records_count']) && $sql_meta_count['sl_records_count'] > 0){
         
-            sl_debug('Pending media meta items to process: '.$sql_meta_count['sl_cuenta_registros'], 'mediameta');
+            sl_debug('Pending media meta items to process: '.$sql_meta_count['sl_records_count'], 'mediameta');
 
             $sql_meta_required = " SELECT * FROM ".slyr_get_wpdb_prefix()."postmeta WHERE meta_key = '_meta_required' AND meta_value NOT LIKE '%start_meta_process%' LIMIT 1";
 
@@ -754,7 +754,7 @@ class Media_class
     }
 
     /**
-     * Check current process time to avoid exceding the limit.
+     * Check current process time to avoid exceeding the limit.
      * @return void
      */
     private function check_media_meta_process_time()

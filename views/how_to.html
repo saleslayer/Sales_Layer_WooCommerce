@@ -1,14 +1,14 @@
 <div id="slyr_catalogue_admin">
 	<header>
 		<div id="logo-container">
-			<img alt="logo sales layer" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
+			<img alt="Sales Layer logo" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
 		</div>
 		<h3>How To Start</h3>
 		<div id="version-message-container" style="display: none;"></div>
 	</header>
 	<main id="slyr-catalogue-main">
 		<div class="faq-container">
-			<p><strong><?php echo SLYR_WC_name; ?></strong> plugin allows you to add your entire catalogue to your WordPress website seamlessly. The plugin automatically imports and syncs all the product information.</p>
+			<p><strong><?php echo SLYR_WC_name; ?></strong> plugin allows you to add your entire catalogue to your WordPress website seamlessly. The plugin automatically imports and synchronizes all product information.</p>
 			<p>First of all the plugin needs the <strong>connector ID code</strong> and the <strong>private key</strong>. You will find them in the connector details of <strong><?php echo SLYR_WC_company_name; ?></strong>.</p>
 
 			<div class="faq-group">
@@ -26,12 +26,12 @@
 					<div class="faq-question">Requirements for synchronization</div>
 					<div class="faq-answer">
 						<ol>
-							<li><strong>cUrl</strong> extension installed; in order to call and obtain the information from <strong><?php echo SLYR_WC_company_name; ?></strong>.</li>
+							<li><strong>cURL</strong> extension installed, in order to call and obtain the information from <strong><?php echo SLYR_WC_company_name; ?></strong>.</li>
 							<li>Define the fields relationship in the <strong><?php echo SLYR_WC_company_name; ?></strong> WooCommerce connector:
 								<ol>
-									<li>One size for image fields.</li>
-									<li>Most WooCommerce fields are already defined in each section, extra fields for products or product variants will be <strong><a href="<?php echo admin_url() ?>edit.php?post_type=product&page=product_attributes">attributes</a></strong> and they must have been created in WooCommerce in order to synchronize.</li>
-									<li>When synchronizing a product that has variants, WooCommerce attributes that are synchronized will be marked as <strong>Used for variations</strong>, then, attribute values from the product and product variants will be combined and assigned to the product. Variations must have only one value for each attribute.</li>
+									<li>Define one size for image fields.</li>
+									<li>Most WooCommerce fields are already defined in each section, extra fields for products or product variants will be treated as <strong><a href="<?php echo admin_url() ?>edit.php?post_type=product&page=product_attributes">attributes</a></strong> and they must be created in WooCommerce beforehand in order to synchronize.</li>
+									<li>When synchronizing a product that has variants, WooCommerce attributes that are synchronized will be marked as <strong>Used for variations</strong>. Then, attribute values from the product and product variants will be combined and assigned to the product. Variations must have only one value for each attribute.</li>
 								</ol>
 							</li>
 						</ol>

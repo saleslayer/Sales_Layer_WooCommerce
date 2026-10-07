@@ -1,23 +1,23 @@
 <?php
 /*
 Plugin Name:    Sales Layer WooCommerce
-Plugin URI:     http://support.saleslayer.com/
+Plugin URI:     https://support.saleslayer.com/
 Description:    Plugin that allows you to synchronize your catalogue from Sales Layer to WooCommerce.
-Version:        2.6.1
+Version:        2.6.2
 Author:         Sales Layer
-Author URI:     http://saleslayer.com/
+Author URI:     https://saleslayer.com/
 License:        GPL2
 License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
 Text Domain:    saleslayer_woocommerce
 Requires PHP:   8.0
 Requires at least: 6.4
-Tested up to:   6.9.4
+Tested up to:   7.1.2
 Requires Plugins: woocommerce
 WC requires at least: 8.2.0
-WC tested up to: 10.6.1
+WC tested up to: 11.1.2
 */
 
-defined( 'ABSPATH' ) or die( '¡Sin trampas!' );
+defined( 'ABSPATH' ) or die( 'Direct access is not allowed.' );
 require_once(ABSPATH . 'wp-admin/includes/file.php');
 
 // Declaring compatibility with HPOS (High-Performance Order Storage) - MUST go really early
@@ -179,7 +179,7 @@ function slyr_wc_activate()
         if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
             deactivate_plugins(plugin_basename(__FILE__));
             wp_die(
-                __('This plugin needs WooComerce plugin installed and activated', 'slyr-wc-plugin'),
+                __('This plugin requires the WooCommerce plugin to be installed and activated.', 'slyr-wc-plugin'),
                 __('Activation error', 'slyr-wc-plugin'),
                 array('back_link' => true)
             );
@@ -189,7 +189,7 @@ function slyr_wc_activate()
     if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '8.2', '<' ) ) {
         deactivate_plugins( plugin_basename( __FILE__ ) );
         wp_die(
-            __( 'This plugin requires WooCommerce version 8.2 o higher.', 'slyr-wc-plugin' ),
+            __( 'This plugin requires WooCommerce version 8.2 or higher.', 'slyr-wc-plugin' ),
             __( 'Activation error', 'slyr-wc-plugin' ),
             array(
                 'back_link' => true
@@ -200,7 +200,7 @@ function slyr_wc_activate()
     if ( version_compare( PHP_VERSION, '8.0', '<' ) ) {
         deactivate_plugins( plugin_basename( __FILE__ ) );
         wp_die(
-            __( 'This plugin requires PHP version 8.0 o higher.', 'slyr-wc-plugin' ),
+            __( 'This plugin requires PHP version 8.0 or higher.', 'slyr-wc-plugin' ),
             __( 'Activation error', 'slyr-wc-plugin' ),
             array(
                 'back_link' => true
@@ -214,13 +214,41 @@ function slyr_wc_activate()
 }
 register_activation_hook( __FILE__, 'slyr_wc_activate' );
 
-function slyr_wc_deactivate()
+function slyr_wc_deactivate($network_wide = false)
 {
     $stored_version = get_site_option('SLYR_WC_latest_version', '');
     if ($stored_version !== '') {
         delete_site_option('SLYR_WC_latest_version');
     }
+
+    // Remove the plugin cron events: their custom intervals (5min, 15min) only
+    // exist while the plugin is loaded, so WP-Cron logs "invalid_schedule"
+    // errors if they are left behind. They are scheduled again on load.
+    if (is_multisite() && $network_wide) {
+        foreach (get_sites(array('fields' => 'ids', 'number' => 0)) as $blog_id) {
+            switch_to_blog($blog_id);
+            slyr_wc_clear_scheduled_hooks();
+            restore_current_blog();
+        }
+    } else {
+        slyr_wc_clear_scheduled_hooks();
+    }
+
     flush_rewrite_rules();
+}
+
+function slyr_wc_clear_scheduled_hooks()
+{
+    $hooks = array(
+        'sl_wc_media_meta_schedule',
+        'sl_wc_auto_sync_schedule',
+        'sl_wc_syncdata_schedule',
+        'sl_wc_check_version_schedule',
+    );
+
+    foreach ($hooks as $hook) {
+        wp_clear_scheduled_hook($hook);
+    }
 }
 register_deactivation_hook( __FILE__, 'slyr_wc_deactivate');
 
@@ -303,7 +331,7 @@ function slyr_wc_menu()
     $menu_pages[]= add_menu_page( SLYR_WC_name.' Options', SLYR_WC_name, 'manage_options', 'slyr_wc_menu', 'slyr_wc_how_to_start',
                                   $icon_url=plugin_dir_url( __FILE__ ).'images/'.SLYR_WC_name_icon);
 
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How to Start?'),           __('How to Start?'),        'manage_options', 'slyr_wc_menu',           'slyr_wc_how_to_start');
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How To Start'),            __('How To Start'),        'manage_options', 'slyr_wc_menu',           'slyr_wc_how_to_start');
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('General Parameters'),      __('General Parameters'),   'manage_options', 'slyr_wc_general_params', 'slyr_wc_general_params' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Connectors'),              __('Connectors'),           'manage_options', 'slyr_wc_connectors',     'slyr_wc_connectors' );
     $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Tools'),                   __('Tools'),                'manage_options', 'slyr_wc_tools',          'slyr_wc_tools' );
@@ -330,7 +358,7 @@ function slyr_wc_how_to_start()
         echo wp_kses_post($how_to_content);
         echo getLatestVersionContent(); 
     } else {
-		set_transient('slyr_wc_not_found_message', __('How to content not available.', 'saleslayer_woocommerce'), 30);
+		set_transient('slyr_wc_not_found_message', __('How To Start content not available.', 'saleslayer_woocommerce'), 30);
         wp_redirect(admin_url('index.php'), 301);
         exit;
     }
@@ -443,7 +471,7 @@ function slyr_wc_connectors()
             if (!$connector->delete_connector($deleteConnectorId)){
                 set_transient(
                     'slyr_wc_error_deleting_connector_message',
-					__( 'Error when deleting the connector: '.$deleteConnectorId, 'saleslayer_woocommerce' ),
+					__( 'Error deleting the connector: '.$deleteConnectorId, 'saleslayer_woocommerce' ),
                     30
                 );
                 slyr_wc_show_admin_notice();
@@ -873,7 +901,7 @@ function sl_wc_delete_connector_ajax()
     if ($connector->delete_connector($connectorId)) {
         wp_send_json_success(['message' => 'Connector deleted successfully']);
     } else {
-        wp_send_json_error(['message' => 'Error when deleting the connector: ' . $connectorId]);
+        wp_send_json_error(['message' => 'Error deleting the connector: ' . $connectorId]);
     }
 }
 
@@ -955,7 +983,7 @@ function sl_wc_create_connector_ajax()
     }
 
     if (!$connector->add_connector($connectorId, $secretKey)) {
-        wp_send_json_error(['message' => 'Error when creating the connector.']);
+        wp_send_json_error(['message' => 'Error creating the connector.']);
         return;
     }
 
@@ -1099,26 +1127,26 @@ function sl_wc_execute_tool()
                 $response['message_type'] = 'success';
                 $response['message'] = 'SL logs deleted successfully.';
             }else{
-                $response['message_type'] = 'success';
+                $response['message_type'] = 'error';
                 $response['message'] = "Couldn't delete SL logs.";
             }
             break;
         case 'delete_sl_pending_items':
             if ($tools->deleteSLPendingItems() == true){
                 $response['message_type'] = 'success';
-                $response['message'] = 'SL pending items to process deleted successfully.';
+                $response['message'] = 'SL pending items deleted successfully.';
             }else{
                 $response['message_type'] = 'error';
-                $response['message'] = "Couldn't delete SL pending items to process.";
+                $response['message'] = "Couldn't delete SL pending items.";
             }
             break;
         case 'delete_sl_credentials':
             if ($tools->deleteSLItemsCredentials() == true){
                 $response['message_type'] = 'success';
-                $response['message'] = "Item's SL credentials deleted successfully.";
+                $response['message'] = "Items' SL credentials deleted successfully.";
             }else{
                 $response['message_type'] = 'error';
-                $response['message'] = "Couldn't delete item's SL credentials.";
+                $response['message'] = "Couldn't delete items' SL credentials.";
             }
             break;
         case 'clean_orphaned_multiconn':
@@ -1215,7 +1243,7 @@ function sl_wc_auto_sync_connectors()
         }
     } catch (\Exception $e) {
 
-        sl_debug('Error autosync process: '.$e->getMessage(), 'autosync');
+        sl_debug('## Error. Auto-sync process: '.$e->getMessage(), 'autosync');
 
     }
 
@@ -1727,10 +1755,10 @@ function getLatestVersionContent()
 
         $latestVersionContent['div_class'] = 'notice notice-warning is-dismissible';
         $latestVersionContent['div_content'] = 
-            '<p>There is a new available version of the plugin. Actual version: '.
+            '<p>A new version of the plugin is available. Current version: '.
             esc_html(get_site_option('SLYR_WC_version')).
             ', new version: '.esc_html($latestVersion).
-            ' <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/releases" target="_blank">Visit here</a>.</p>
+            '. <a href="https://github.com/saleslayer/Sales_Layer_WooCommerce/releases" target="_blank">Visit here</a>.</p>
             <button type="button" id="notice-dismiss" class="notice-dismiss">
                 <span class="screen-reader-text">Dismiss this notice.</span>
             </button>';

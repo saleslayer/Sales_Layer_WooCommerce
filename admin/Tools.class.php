@@ -84,14 +84,14 @@ class Tools
      */
     public function deleteSLPendingItems()
     {
-        // $items_processing = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table);
-        // if (isset($items_processing['sl_cuenta_registros']) && $items_processing['sl_cuenta_registros'] > 0){
+        // $items_processing = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table);
+        // if (isset($items_processing['sl_records_count']) && $items_processing['sl_records_count'] > 0){
             if (sl_connection_query('delete', ' DELETE FROM ' . SLYR_WC_syncdata_table) === false) {
                 sl_debug("## Error. Deleting SL pending items");
                 return false;
             }
-                $items_processing = sl_connection_query('read', ' SELECT count(*) as sl_cuenta_registros FROM ' . SLYR_WC_syncdata_table);
-                if (isset($items_processing['sl_cuenta_registros']) && $items_processing['sl_cuenta_registros'] > 0) {
+                $items_processing = sl_connection_query('read', ' SELECT count(*) as sl_records_count FROM ' . SLYR_WC_syncdata_table);
+                if (isset($items_processing['sl_records_count']) && $items_processing['sl_records_count'] > 0) {
                 return false;
             }
         // }
@@ -109,10 +109,10 @@ class Tools
             foreach ($meta_keys as $meta_key) {
                 $meta_key_count = sl_connection_query(
                     'read',
-                    ' SELECT count(*) as sl_cuenta_registros FROM ' . slyr_get_wpdb_prefix() . 'termmeta WHERE meta_key = %s',
+                    ' SELECT count(*) as sl_records_count FROM ' . slyr_get_wpdb_prefix() . 'termmeta WHERE meta_key = %s',
                     [$meta_key]
                 );
-            if (isset($meta_key_count['sl_cuenta_registros']) && $meta_key_count['sl_cuenta_registros'] > 0) {
+            if (isset($meta_key_count['sl_records_count']) && $meta_key_count['sl_records_count'] > 0) {
                 $deleted = delete_metadata('term', 0, $meta_key, '', true);
                 if ($deleted === false) {
                     sl_debug('## Error. Deleting categories SL credentials: ' . $meta_key);
@@ -125,10 +125,10 @@ class Tools
             foreach ($meta_keys as $meta_key) {
                 $meta_key_count = sl_connection_query(
                     'read',
-                    ' SELECT count(*) as sl_cuenta_registros FROM ' . slyr_get_wpdb_prefix() . 'postmeta WHERE meta_key = %s',
+                    ' SELECT count(*) as sl_records_count FROM ' . slyr_get_wpdb_prefix() . 'postmeta WHERE meta_key = %s',
                     [$meta_key]
                 );
-            if (isset($meta_key_count['sl_cuenta_registros']) && $meta_key_count['sl_cuenta_registros'] > 0) {
+            if (isset($meta_key_count['sl_records_count']) && $meta_key_count['sl_records_count'] > 0) {
                 $deleted = delete_metadata('post', 0, $meta_key, '', true);
                 if ($deleted === false) {
                     sl_debug('## Error. Deleting products and variants SL credentials: ' . $meta_key);

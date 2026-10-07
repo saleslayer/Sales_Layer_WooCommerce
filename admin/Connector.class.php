@@ -39,29 +39,82 @@ class Connector
     }
 
     /**
+     * Connector table columns (name => definition).
+     * Shared by create_table() and upgrade_connector_table() so both stay in sync.
+     */
+    private const CONNECTOR_TABLE_COLUMNS = [
+        'cnf_id'           => 'int(11) NOT NULL AUTO_INCREMENT',
+        'conn_code'        => 'varchar(32) NOT NULL',
+        'conn_secret'      => 'varchar(32) NOT NULL',
+        'default_cat_id'   => 'int(11) NOT NULL',
+        'comp_id'          => 'int(20) NOT NULL',
+        'last_update'      => 'datetime DEFAULT NULL',
+        'default_language' => 'varchar(6) NOT NULL',
+        'languages'        => 'mediumtext NOT NULL',
+        'conn_extra'       => 'mediumtext',
+        'auto_sync'        => "int(3) DEFAULT '0'",
+        'last_sync'        => 'datetime DEFAULT NULL',
+    ];
+
+    /**
      * Create Sales Layer table.
-     * @return void
+     *
+     * No storage engine is forced: the server default is used (InnoDB on
+     * most hosts). Some managed hosts disable MyISAM, which made the
+     * CREATE fail silently.
+     *
+     * @return bool True on success
      */
     public function create_table()
-    {     
-        $this->db->query(
-            "CREATE TABLE `" . SLYR_WC_connector_table . "` (" .
-            "`cnf_id` int(11) NOT NULL AUTO_INCREMENT, " .
-            "`conn_code` varchar(32) NOT NULL, " .
-            "`conn_secret` varchar(32) NOT NULL, " .
-            "`default_cat_id` int(11) NOT NULL , " .
-            "`comp_id` int(20) NOT NULL, " .
-            "`last_update` datetime DEFAULT NULL, " .
-            "`default_language` varchar(6) NOT NULL, " .
-            "`languages` mediumtext NOT NULL, " .
-            "`conn_extra` mediumtext, " .
-            "`auto_sync` int(3) DEFAULT '0', " .
-            "`last_sync` datetime DEFAULT NULL, " .
+    {
+        $columns = array();
+
+        foreach (self::CONNECTOR_TABLE_COLUMNS as $name => $definition) {
+            $columns[] = "`{$name}` {$definition}";
+        }
+
+        return false !== $this->db->query(
+            "CREATE TABLE IF NOT EXISTS `" . SLYR_WC_connector_table . "` (" .
+            implode(', ', $columns) . ", " .
             "PRIMARY KEY (`cnf_id`)" .
-            ") ENGINE=MyISAM DEFAULT CHARSET=utf8"
+            ") " . $this->db->get_charset_collate()
         );
     }
-    
+
+    /**
+     * Add any connector table column missing from an existing table.
+     *
+     * Replaces the old DROP + CREATE + re-insert upgrade: existing rows
+     * are never removed.
+     *
+     * @return bool True when the table has all expected columns
+     */
+    private function upgrade_connector_table(): bool
+    {
+        $existing = $this->db->get_col("SHOW COLUMNS FROM `" . SLYR_WC_connector_table . "`");
+
+        if (empty($existing)) {
+            return false;
+        }
+
+        $result = true;
+
+        foreach (self::CONNECTOR_TABLE_COLUMNS as $name => $definition) {
+            if (in_array($name, $existing, true)) {
+                continue;
+            }
+
+            if (false === $this->db->query(
+                "ALTER TABLE `" . SLYR_WC_connector_table . "` ADD COLUMN `{$name}` {$definition}"
+            )) {
+                $this->log_db_error("Adding column {$name} to " . SLYR_WC_connector_table);
+                $result = false;
+            }
+        }
+
+        return $result;
+    }
+
     /**
      * Create Sales Layer sync data table.
      * @return void
@@ -70,7 +123,7 @@ class Connector
     {
         
         $this->db->query(
-            "CREATE TABLE `" . SLYR_WC_syncdata_table . "` (" .
+            "CREATE TABLE IF NOT EXISTS `" . SLYR_WC_syncdata_table . "` (" .
             "`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Id', " .
             "`sync_type` varchar(10) NOT NULL COMMENT 'Sync Type', " .
             "`item_type` varchar(30) NOT NULL COMMENT 'Item Type', " .
@@ -78,7 +131,7 @@ class Connector
             "`item_data` longtext COMMENT 'Item Data', " .
             "`sync_params` longtext COMMENT 'Sync Parameters', " .
             "PRIMARY KEY (`id`)" .
-            ") ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Sales Layer Sync Data Table'"
+            ") " . $this->db->get_charset_collate() . " COMMENT='Sales Layer Sync Data Table'"
         );
            
     }
@@ -91,12 +144,12 @@ class Connector
     {       
 
         $this->db->query(
-            "CREATE TABLE `" . SLYR_WC_syncdata_flag_table . "` (" .
+            "CREATE TABLE IF NOT EXISTS `" . SLYR_WC_syncdata_flag_table . "` (" .
             "`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Id', " .
             "`syncdata_pid` bigint(20) NOT NULL DEFAULT '0' COMMENT 'Sync Data Pid', " .
             "`syncdata_last_date` datetime NOT NULL COMMENT 'Sync Data Last Update', " .
             "PRIMARY KEY (`id`)" .
-            ") ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Sales Layer Sync Data Flag Table'"
+            ") " . $this->db->get_charset_collate() . " COMMENT='Sales Layer Sync Data Flag Table'"
         );
     
     }
@@ -157,9 +210,9 @@ class Connector
      * Safe to call multiple times: it only renames when the old table
      * exists AND the new prefixed table does NOT exist yet.
      *
-     * @return void
+     * @return bool True when every rename/cleanup succeeded
      */
-    private function migrate_tables_to_prefixed(): void
+    private function migrate_tables_to_prefixed(): bool
     {
         $migrations = [
             [
@@ -180,91 +233,134 @@ class Connector
             ],
         ];
 
+        $result = true;
+
         foreach ($migrations as $migration) {
-            $oldExists = $this->db->get_var(
-                $this->db->prepare("SHOW TABLES LIKE %s", $migration['old'])
-            );
-            $newExists = $this->db->get_var(
-                $this->db->prepare("SHOW TABLES LIKE %s", $migration['new'])
-            );
+            $oldExists = $this->table_exists($migration['old']);
+            $newExists = $this->table_exists($migration['new']);
+
+            if ($oldExists && $newExists) {
+                // Both exist (edge case: partial migration or manual intervention).
+                // Keep the legacy data if the prefixed table is empty; otherwise
+                // drop the old unprefixed table to avoid confusion.
+                $oldRows = (int) $this->db->get_var("SELECT COUNT(*) FROM `{$migration['old']}`");
+                $newRows = (int) $this->db->get_var("SELECT COUNT(*) FROM `{$migration['new']}`");
+
+                if ($oldRows > 0 && $newRows === 0) {
+                    if (false === $this->db->query("DROP TABLE `{$migration['new']}`")) {
+                        $this->log_db_error("Dropping empty table {$migration['new']}");
+                        $result = false;
+                        continue;
+                    }
+                    $newExists = false;
+                } else {
+                    if (false === $this->db->query("DROP TABLE IF EXISTS `{$migration['old']}`")) {
+                        $this->log_db_error("Dropping legacy table {$migration['old']}");
+                        $result = false;
+                    }
+                    continue;
+                }
+            }
 
             if ($oldExists && !$newExists) {
                 // RENAME TABLE is atomic in MySQL/MariaDB — no data loss risk
-                $this->db->query(
+                if (false === $this->db->query(
                     "RENAME TABLE `{$migration['old']}` TO `{$migration['new']}`"
-                );
-            } elseif ($oldExists && $newExists) {
-                // Both exist (edge case: partial migration or manual intervention).
-                // Drop the old unprefixed table to avoid confusion.
-                $this->db->query("DROP TABLE IF EXISTS `{$migration['old']}`");
+                )) {
+                    $this->log_db_error("Renaming {$migration['old']} to {$migration['new']}");
+                    $result = false;
+                }
             }
         }
+
+        return $result;
+    }
+
+    /**
+     * Check whether a table exists.
+     * @param string $table_name Table name
+     * @return bool
+     */
+    private function table_exists(string $table_name): bool
+    {
+        return $this->db->get_var(
+            $this->db->prepare("SHOW TABLES LIKE %s", $this->db->esc_like($table_name))
+        ) === $table_name;
+    }
+
+    /**
+     * Log the last database error to the PHP/WordPress error log.
+     *
+     * sl_debug() cannot be used here: check_version() runs before the
+     * plugin debug level is loaded.
+     *
+     * @param string $context What was being done
+     * @return void
+     */
+    private function log_db_error(string $context): void
+    {
+        error_log('[Sales Layer WooCommerce] ' . $context . ' failed: ' . $this->db->last_error);
     }
 
     /**
      * Check Sales Layer plugin version.
+     *
+     * On upgrade, legacy tables are renamed and missing columns are added;
+     * no table holding data is dropped. The stored version is only updated
+     * once every table is in place, so a failed upgrade is retried on the
+     * next request instead of being marked as done.
+     *
      * @return void
      */
     public function check_version()
     {
 
         $ver = get_site_option('SLYR_WC_version');
+        $needs_upgrade = ($ver === false || version_compare((string) $ver, (string) SLYR_WC_version, '<'));
+        $upgrade_ok = true;
 
-        if ($ver === false || version_compare((string) $ver, (string) SLYR_WC_version, '<')) {
-
+        if ($needs_upgrade) {
             // v2.5.4: Rename old unprefixed tables to prefixed names
-            // before any DROP/CREATE logic runs on the new names
-            $this->migrate_tables_to_prefixed();
-
-            $connectors = array();
-
-            if ($this->db->get_var("SHOW TABLES LIKE '" . SLYR_WC_connector_table . "'")) {
-
-                $connectors = $this->db->get_results("SELECT * FROM " . SLYR_WC_connector_table);
-
-            }
-
-                $this->db->query("DROP TABLE IF EXISTS " . SLYR_WC_connector_table);
-            
-            $this->create_table();
-
-            if (count($connectors) > 0) {
-
-                foreach ($connectors as $connector) {
-                
-                    $conn_data = json_decode(json_encode($connector), true);
-                    
-                    $this->db->query(
-                        "INSERT INTO `" . SLYR_WC_connector_table . "` ("
-                        . "conn_code, conn_secret, default_cat_id, comp_id, last_update, "
-                        . "default_language, languages, conn_extra, auto_sync, last_sync"
-                        . ") VALUES ('"
-                        . $conn_data['conn_code'] . "', '"
-                        . $conn_data['conn_secret'] . "', '"
-                        . $conn_data['default_cat_id'] . "', '"
-                        . $conn_data['comp_id'] . "', '"
-                        . $conn_data['last_update'] . "', '"
-                        . $conn_data['default_language'] . "', '"
-                        . $conn_data['languages'] . "', '"
-                        . $conn_data['conn_extra'] . "','"
-                        . (isset($conn_data['auto_sync']) ? $conn_data['auto_sync'] : '') . "','"
-                        . (isset($conn_data['last_sync']) ? $conn_data['last_sync'] : '') . "')"
-                    );
-
-                }
-            }
-
-            update_site_option('SLYR_WC_version', SLYR_WC_version);
-
-        } else {
-            $this->check_table();
+            // before any CREATE logic runs on the new names
+            $upgrade_ok = $this->migrate_tables_to_prefixed();
         }
-        
+
+        $this->check_table();
+
+        if ($needs_upgrade) {
+            $upgrade_ok = $this->upgrade_connector_table() && $upgrade_ok;
+        }
+
         $this->check_syncdata_table();
         $this->check_syncdata_flag_table();
 
         $multiconn = Multiconn::get_instance();
         $multiconn->check_table();
+
+        if ($needs_upgrade) {
+
+            foreach (array(
+                SLYR_WC_connector_table,
+                SLYR_WC_syncdata_table,
+                SLYR_WC_syncdata_flag_table,
+                SLYR_WC_multiconn_table,
+            ) as $table_name) {
+                if (!$this->table_exists($table_name)) {
+                    $this->log_db_error("Creating table {$table_name}");
+                    $upgrade_ok = false;
+                }
+            }
+
+            if ($upgrade_ok) {
+                update_site_option('SLYR_WC_version', SLYR_WC_version);
+            } else {
+                error_log(
+                    '[Sales Layer WooCommerce] Upgrade from ' . ($ver === false ? 'none' : $ver) .
+                    ' to ' . SLYR_WC_version . ' incomplete; it will be retried on the next request.'
+                );
+            }
+
+        }
 
     }
 
@@ -413,7 +509,7 @@ class Connector
      * @param  string   $connector_id               Sales Layer connector id
      * @param  string   $field_name                 connector field name field
      * @param  string   $field_value                connector field value
-     * @return string Status: 'correcto', 'error_update', or 'error_forbidden'
+     * @return string Status: 'success', 'error_update', or 'error_forbidden'
      */
     public function update_conn_field($connector_id, $field_name, $field_value)
     {
@@ -429,7 +525,7 @@ class Connector
                 try {
 
                     $this->update_connector($connector_id, array($field_name => $field_value));
-                    return 'correcto';
+                    return 'success';
                 
                 } catch (\Exception $e) {
 
@@ -446,7 +542,7 @@ class Connector
 
                 } else {
 
-                return 'correcto';
+                return 'success';
 
             }
 

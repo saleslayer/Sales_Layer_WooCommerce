@@ -139,7 +139,7 @@ function submitAddConnector()
 
             var message = (response && response.data && response.data.message)
                 ? response.data.message
-                : 'Error when creating the connector.';
+                : 'Error creating the connector.';
 
             showMessage('warning', message);
             clear_message_status();

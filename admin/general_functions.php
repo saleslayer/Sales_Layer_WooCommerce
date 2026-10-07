@@ -907,7 +907,7 @@ function pre_process_by_skus($type, $comp_id, $items)
 
     if (!in_array($type, array('product', 'product_variation'))) {
 
-        sl_debug('## Error. pre_process_by_skus - Type '.$type.' inválido.');
+        sl_debug('## Error. pre_process_by_skus - Type '.$type.' is not valid.');
 
     }
 
@@ -978,7 +978,7 @@ function pre_process_by_skus($type, $comp_id, $items)
 
                                     ($sl_item_type == 'product') ? $sl_type_message = 'Product with SL data - ID: '.$sl_item_data['saleslayerid'] : $sl_type_message = 'Product format with SL data - ID: '.$sl_item_data['saleslayerformatid'];
                                     ($wp_post_data['post_type'] == 'product') ? $wp_type_message = 'product': $wp_type_message = 'product format';
-                                    $error_message = $sl_type_message.' SKU: '.$sl_item_sku." hasn't been synchronized because the SKU is already in use by another ".$wp_type_message.' with WOO data - ID: '.$wp_post_data['post_id'].' SKU: '.$wp_post_data['sku'].' Title: '.$wp_post_data['post_title'];
+                                    $error_message = $sl_type_message.' SKU: '.$sl_item_sku." hasn't been synchronized because the SKU is already in use by another ".$wp_type_message.' with WooCommerce data - ID: '.$wp_post_data['post_id'].' SKU: '.$wp_post_data['sku'].' Title: '.$wp_post_data['post_title'];
                                     $not_to_sync_items[] = array('array_index' => $sl_item_data['idx_array'], 'error_message' => $error_message);
 
                                 }
@@ -991,7 +991,7 @@ function pre_process_by_skus($type, $comp_id, $items)
 
                                     ($sl_item_type == 'product') ? $sl_type_message = 'Product with SL data - ID: '.$sl_item_data['saleslayerid'] : $sl_type_message = 'Product format with SL data - ID: '.$sl_item_data['saleslayerformatid'];
                                     ($wp_post_data['post_type'] == 'product') ? $wp_type_message = 'product': $wp_type_message = 'product format';
-                                    $error_message = $sl_type_message.' SKU: '.$sl_item_sku." hasn't been synchronized because the SKU is already in use by another ".$wp_type_message.' with WOO data - ID: '.$wp_post_data['post_id'].' SKU: '.$wp_post_data['sku'].' Title: '.$wp_post_data['post_title'];
+                                    $error_message = $sl_type_message.' SKU: '.$sl_item_sku." hasn't been synchronized because the SKU is already in use by another ".$wp_type_message.' with WooCommerce data - ID: '.$wp_post_data['post_id'].' SKU: '.$wp_post_data['sku'].' Title: '.$wp_post_data['post_title'];
                                     $not_to_sync_items[] = array('array_index' => $sl_item_data['idx_array'], 'error_message' => $error_message);
 
                                 }
@@ -1230,7 +1230,7 @@ function sl_connection_query($type, $query, array $params = array())
         if ($type === 'read') {
             $resultado = $wpdb->get_results($safe_sql, ARRAY_A);
 
-            if ($resultado && strpos($query, 'sl_cuenta_registros') !== false) {
+            if ($resultado && strpos($query, 'sl_records_count') !== false) {
                 if (isset($resultado[0])) { $resultado = $resultado[0]; }
             }
         } else {

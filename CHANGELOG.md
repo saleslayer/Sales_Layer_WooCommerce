@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.6.2] - 2026-10-05
+
+### Changed
+
+- Plugin tables are created with the server default storage engine and the WordPress charset/collation instead of forcing `ENGINE=MyISAM` / `utf8`.
+- Connector table upgrade is non-destructive: missing columns are added with `ALTER TABLE` instead of dropping, recreating and re-inserting the table.
+- The stored plugin version is only updated once every plugin table exists, so a failed upgrade is retried on the next request; database errors during the upgrade are written to the PHP error log.
+
+### Fixed
+
+- Connector configuration lost when upgrading from 2.5.x on hosts where MyISAM table creation is disabled (`wp_slyr_wc_api_config` and `wp_slyr_wc_api_multiconn` were not created).
+- Legacy table migration no longer drops an unprefixed table with data when an empty prefixed table already exists.
+- Plugin cron events are removed on deactivation (all sites on network deactivation), avoiding `invalid_schedule` errors in the debug log.
+- Info icon in the Site & Language Configuration modal displayed as garbled characters: `style_admin.css` now declares `@charset "UTF-8"`.
+- Typos and wording in admin texts, notices, log messages and documentation; remaining Spanish comments and identifiers translated to English.
+
+### Tested
+
+- Tested on WooCommerce 11.1.2 / WordPress 7.1.2 / PHP 8.5 / Polylang 3.8.10
+
 ## [2.6.1] - 2026-04-17
 
 ### Added
@@ -66,7 +86,7 @@
 
 ### Tested
 
-- Tested on WooCommerce 10.4.3 / Wordpress 6.9 / PHP 8.5
+- Tested on WooCommerce 10.4.3 / WordPress 6.9 / PHP 8.5
     
 ## [2.5.2] - 2024-11-05
 
@@ -86,17 +106,17 @@
 
 ### Tested
 
-- Tested on WooCommerce 9.3.3 / Wordpress 6.6.2 / PHP 8.2 
+- Tested on WooCommerce 9.3.3 / WordPress 6.6.2 / PHP 8.2 
 
 ## [2.5.1] - 2023-12-29
 
 ### Added
 
-- Protection agaisnt SQL Injection attacks.
+- Protection against SQL Injection attacks.
 
 ### Tested
 
-- Tested on WooCommerce 8.0.2 / Wordpress 6.2 / PHP 8.1
+- Tested on WooCommerce 8.0.2 / WordPress 6.2 / PHP 8.1
 
 ## [2.5] - 2023-09-04
 
@@ -111,7 +131,7 @@
 
 ### Tested
 
-- Tested on WooCommerce 8.0.2 / Wordpress 6.2, 6.3.1 / PHP 8.1, 8.2 
+- Tested on WooCommerce 8.0.2 / WordPress 6.2, 6.3.1 / PHP 8.1, 8.2 
 
 ## [2.4] - 2023-05-09
 
@@ -121,7 +141,7 @@
 
 ### Tested
 
-- Tested on WooCommerce 7.6.0 / Wordpress 6.2 / PHP 7.3, 8.2 
+- Tested on WooCommerce 7.6.0 / WordPress 6.2 / PHP 7.3, 8.2 
 
 ## [2.3.3] - 2021-08-24
 
@@ -140,7 +160,7 @@
 
 ### Added
 
-- In case multiples languages come through the API, filter has been added to sync the selected language.
+- In case multiple languages come through the API, filter has been added to sync the selected language.
 
 ### Changed
 
@@ -150,24 +170,24 @@
 
 ### Added
 
-- Added min and max version of WC.
+- Added min and max version of WooCommerce.
 - Added product status field.
 - Added update of product version when synchronizing products and formats.
-- Added function to find unnasigned product categories by name.
+- Added function to find unassigned product categories by name.
 - Added function to delete post_meta.
 
 ### Changed
 
 - SalesLayerConn class updated to 1.3.1
-- Modified items identificators accordly as the new SalesLayerConn version.
+- Modified item identifiers according to the new SalesLayerConn version.
 - Bootstrap updated to 4.4.1
 - Improved connectors view.
-- Jquery updated to 3.5.0
+- jQuery updated to 3.5.0
 - Connectors now will be sorted by creation order.
 - Media functions converted to class.
 - Images will be compared by file sizes instead of md5.
-- Image meta of product additional images will be stored and processed by media cron on parallel.
-- Improved multilan filter on category, product and format models.
+- Image meta of product additional images will be stored and processed by media cron in parallel.
+- Improved multilanguage filter on category, product and format models.
 - Improved format status field.
 - Products and formats now will be disabled instead of deleted.
 - 'post_status' filter modified on get_posts calls.

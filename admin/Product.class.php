@@ -443,7 +443,7 @@ class Product
 
             if (!$wp_product){
 
-                sl_debug('## Error. ' . $this->getDebugContext() . 'SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not been created.");
+                sl_debug('## Error. ' . $this->getDebugContext() . 'SL ID: '.$sl_product_id.' : '.$product_data[$this->product_field_name]." - The product could not be created.");
                 return 'item_not_updated';
 
             }
@@ -1165,25 +1165,25 @@ class Product
             if(count($sl_product_images) > 0) {
 
                 if (isset($wp_product['_thumbnail_id'])){
-                    // $time_ini_read_thubmnail_id = microtime(true);
+                    // $time_ini_read_thumbnail_id = microtime(true);
                     $old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product['_thumbnail_id'];
                     if (is_array($wp_thumbnail_id) && isset($wp_thumbnail_id[0])){ 
                     
                         $old_wp_thumbnail_id = $wp_thumbnail_id = $wp_thumbnail_id[0];
                     
                     }
-                    // sl_debug('# time_read_thubmnail_id: '.(microtime(true) - $time_ini_read_thubmnail_id).' seconds.', 'timer');
+                    // sl_debug('# time_read_thumbnail_id: '.(microtime(true) - $time_ini_read_thumbnail_id).' seconds.', 'timer');
 
                 }
 
                 if (!in_array($wp_thumbnail_id, array('', 0, null, false))){
                     
-                    // $time_ini_read_thubmnail_data = microtime(true);
+                    // $time_ini_read_thumbnail_data = microtime(true);
                     $wp_product_thumbnail_url = wp_get_attachment_url($wp_thumbnail_id);
                     $wp_parse_product_thumbnail_url = pathinfo($wp_product_thumbnail_url);
                     $wp_product_thumbnail_name = $wp_parse_product_thumbnail_url['basename'];
                     $wp_product_thumbnail_filesize = $this->media_class->read_image_file_size($wp_product_thumbnail_url);
-                    // sl_debug('# time_read_thubmnail_data: '.(microtime(true) - $time_ini_read_thubmnail_data).' seconds.', 'timer');
+                    // sl_debug('# time_read_thumbnail_data: '.(microtime(true) - $time_ini_read_thumbnail_data).' seconds.', 'timer');
                 
                 }
 

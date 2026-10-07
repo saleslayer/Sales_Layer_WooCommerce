@@ -118,7 +118,7 @@ class Synchronize
     }
 
     /**
-     * Check current process time to avoid exceding the limit.
+     * Check current process time to avoid exceeding the limit.
      * @return void
      */
     private function check_process_time()
@@ -237,9 +237,9 @@ class Synchronize
     private function check_sync_data_flag()
     {
 
-    	$items_to_process = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table);
+    	$items_to_process = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table);
     	
-    	if (isset($items_to_process['sl_cuenta_registros']) && $items_to_process['sl_cuenta_registros'] > 0){
+    	if (isset($items_to_process['sl_records_count']) && $items_to_process['sl_records_count'] > 0){
 
             $current_flag = sl_connection_query('read', " SELECT * FROM ".SLYR_WC_syncdata_flag_table." ORDER BY id DESC LIMIT 1");
             $now = strtotime('now');
@@ -392,11 +392,11 @@ class Synchronize
 
             if ($table_idx == 'product_links' && !isset($this->counters_info['info'][$table_idx][$type_update]['total'])){
 
-                $product_links_total_count = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'update' AND item_type = 'product_links'");
+                $product_links_total_count = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'update' AND item_type = 'product_links'");
             
-                if (isset($product_links_total_count['sl_cuenta_registros']) && $product_links_total_count['sl_cuenta_registros'] > 0){
+                if (isset($product_links_total_count['sl_records_count']) && $product_links_total_count['sl_records_count'] > 0){
 
-                    $this->counters_info['info'][$table_idx][$type_update]['total'] = $product_links_total_count['sl_cuenta_registros'];
+                    $this->counters_info['info'][$table_idx][$type_update]['total'] = $product_links_total_count['sl_records_count'];
 
                 }
 
@@ -440,9 +440,9 @@ class Synchronize
 
         	$this->load_syncdata_counters();
             
-            $result = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table);
+            $result = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table);
             
-            if (isset($result['sl_cuenta_registros']) && $result['sl_cuenta_registros'] > 0){
+            if (isset($result['sl_records_count']) && $result['sl_records_count'] > 0){
 
             	$this->cat_class = new Category();
             	$this->prod_class = Product::get_instance();
@@ -694,9 +694,9 @@ class Synchronize
 
         if (!$this->end_process){
 
-        	$items_processing = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table." WHERE sync_type in('delete','update') and sync_tries <= 2");
+        	$items_processing = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table." WHERE sync_type in('delete','update') and sync_tries <= 2");
         
-            if (isset($items_processing['sl_cuenta_registros']) && $items_processing['sl_cuenta_registros'] == 0){
+            if (isset($items_processing['sl_records_count']) && $items_processing['sl_records_count'] == 0){
 
                 $counters_data = sl_connection_query('read', " SELECT * FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'info' AND item_type = 'counters'");
          
@@ -1210,12 +1210,12 @@ class Synchronize
     public function store_sync_data($connector_id, $secret_key)
     {
         
-        $items_processing = sl_connection_query('read', " SELECT count(*) as sl_cuenta_registros FROM ".SLYR_WC_syncdata_table);
+        $items_processing = sl_connection_query('read', " SELECT count(*) as sl_records_count FROM ".SLYR_WC_syncdata_table);
 
-        if (isset($items_processing['sl_cuenta_registros']) && $items_processing['sl_cuenta_registros'] > 0){
+        if (isset($items_processing['sl_records_count']) && $items_processing['sl_records_count'] > 0){
         
-            sl_debug("There are still ".$items_processing['sl_cuenta_registros']." items processing, wait until is finished and synchronize again.");
-            return '<div class="dialog dialog-warning">There are still '.$items_processing['sl_cuenta_registros'].' items processing, wait until is finished and synchronize again.</div>';
+            sl_debug("There are still ".$items_processing['sl_records_count']." items being processed. Wait until it has finished and synchronize again.");
+            return '<div class="dialog dialog-warning">There are still '.$items_processing['sl_records_count'].' items being processed. Wait until it has finished and synchronize again.</div>';
 
         }
 
@@ -1431,18 +1431,18 @@ class Synchronize
 
                 }
 
-                foreach ($pagination_response_data as $nombre_tabla => $data_tabla) {
+                foreach ($pagination_response_data as $sl_table_name => $sl_table_data) {
 
-                    if (count($data_tabla['deleted']) > 0) {
+                    if (count($sl_table_data['deleted']) > 0) {
 
-                        $deleted_data = $data_tabla['deleted'];
+                        $deleted_data = $sl_table_data['deleted'];
 
                         if (count($deleted_data) > 0) {
 
                             $sync_type = 'delete';
                             $time_ini_store_items_delete = microtime(true);
 
-                            switch ($nombre_tabla) {
+                            switch ($sl_table_name) {
                                 case 'catalogue':
                                     
                                     $item_type = 'category';
@@ -1499,7 +1499,7 @@ class Synchronize
                                     break;
                                 default:
 
-                                    sl_debug('## Error. Deleting, table '.$nombre_tabla.' not recognized.');
+                                    sl_debug('## Error. Deleting, table '.$sl_table_name.' not recognized.');
 
                                     break;
                             }
@@ -1512,14 +1512,14 @@ class Synchronize
 
                     }
 
-                    $modified_data = $data_tabla['modified'];
+                    $modified_data = $sl_table_data['modified'];
 
                     if (!empty($modified_data)){
 
                         $sync_type = 'update';
                         $time_ini_store_items_update = microtime(true);
 
-                        switch ($nombre_tabla) {
+                        switch ($sl_table_name) {
                             case 'catalogue':
 
                                 $item_type = 'category';
@@ -1776,7 +1776,7 @@ class Synchronize
                             default:
 
                                 $item_type = '';
-                                sl_debug('## Error. Synchronizing, table '.$nombre_tabla.' not recognized.');
+                                sl_debug('## Error. Synchronizing, table '.$sl_table_name.' not recognized.');
 
                                 break;
                         }
@@ -1859,7 +1859,7 @@ class Synchronize
 
                     if (isset($arrayReturn[$table_index.$sync_index]) && !empty($arrayReturn[$table_index.$sync_index])){
                         
-                        $synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored to synchronize by errors: '.count($arrayReturn[$table_index.$sync_index]);
+                        $synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored for synchronization due to errors: '.count($arrayReturn[$table_index.$sync_index]);
                         
                         foreach ($arrayReturn[$table_index.$sync_index] as $not_synced_message) {
                             

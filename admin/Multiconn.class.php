@@ -59,7 +59,7 @@ class Multiconn
             "`blog_id` bigint(20) NOT NULL DEFAULT 1 COMMENT 'WordPress site ID (blog_id)', " .
             "PRIMARY KEY (`id`), " .
             "UNIQUE KEY `idx_multiconn_unique` (`item_type`, `sl_id`, `sl_comp_id`, `conn_codename`, `blog_id`)" .
-            ") ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Sales Layer Multi-Connector Reference Table'"
+            ") " . $this->db->get_charset_collate() . " COMMENT='Sales Layer Multi-Connector Reference Table'"
         );
     }
 

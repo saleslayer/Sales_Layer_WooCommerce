@@ -1,7 +1,7 @@
 <div id="slyr_catalogue_admin">
     <header>
         <div class="logo-container">
-            <img alt="logo sales layer" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
+            <img alt="Sales Layer logo" src="<?php echo SLYR_WC__IMAGES_DIR.SLYR_WC_name_logo; ?>"/>
         </div>
         <h3>FAQ</h3>
         <div id="version-message-container" style="display: none;"></div>
@@ -147,7 +147,7 @@
                 <div class="faq-item">
                     <div class="faq-question">Why Polylang is sufficient (you don't need Polylang for WooCommerce)</div>
                     <div class="faq-answer">
-                        <p>You may see "Polylang for WooCommerce" in the plugin directory.  You do <strong>not</strong> need to install it. The Sales Layer WooCommerce plugin handles all WooCommerce-specific multilanguage requirements natively. Polylang (free version) alone is sufficient. Here's why:</p>
+                        <p>You may see "Polylang for WooCommerce" in the plugin directory. You do <strong>not</strong> need to install it. The Sales Layer WooCommerce plugin handles all WooCommerce-specific multilanguage requirements natively. Polylang (free version) alone is sufficient. Here's why:</p>
                         <ul>
                             <li><strong>Stock management is per-item:</strong> Unlike some multilanguage approaches that share stock across variants, Sales Layer synchronizes stock separately for each language variant. This means inventory is replicated and managed independently, ensuring accurate stock levels across all language versions without requiring additional WooCommerce extensions.</li>
                             <li><strong>Product data is language-aware:</strong> The plugin automatically detects and filters product fields (title, description, attributes, custom fields, etc.) based on the language suffix from Sales Layer. Each variant receives only the data for its language, eliminating data confusion.</li>
@@ -173,7 +173,7 @@
                     <div class="faq-answer">
                         <p>WordPress Multisite allows you to manage multiple WooCommerce sites (blogs) under a single WordPress installation and database. The Sales Layer plugin supports multisite synchronization, enabling you to distribute products from a single Sales Layer connector across multiple sites simultaneously.</p>
                         <ol>
-                            <li><strong>Network Activation is Required (Critical Step):</strong> The Sales Layer WooCommerce plugin <strong>must</strong> be activated at the <strong>network level</strong>, not individually on each site. This enables the plugin to coordinate synchronization across all sites in the network.
+                            <li><strong>Network Activation Is Required (Critical Step):</strong> The Sales Layer WooCommerce plugin <strong>must</strong> be activated at the <strong>network level</strong>, not individually on each site. This enables the plugin to coordinate synchronization across all sites in the network.
                                 <p style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 12px; border-radius: 4px;">
                                     <strong>⚠️ Critical:</strong> If you activate the plugin on individual sites instead of the network, multisite features will not work. Go to <strong>My Sites → Network Admin → Plugins</strong> and activate the Sales Layer WooCommerce plugin at the network level only. Do not activate it on individual sites.
                                 </p>
@@ -236,7 +236,7 @@
                 <div class="faq-item">
                     <div class="faq-question">Where logs are stored and enabling debug mode</div>
                     <div class="faq-answer">
-                        <p><strong>Default storage location:</strong> Logs are stored in your WordPress installation's WooCommerce logs folder: <code>/wp-content/plugins/woocommerce/logs/</code></p>
+                        <p><strong>Default storage location:</strong> Logs are stored in the Sales Layer plugin's logs folder: <code>/wp-content/plugins/saleslayer_woocommerce/logs/</code></p>
                         <p><strong>Enabling higher debug verbosity:</strong> By default, the plugin logs synchronization events. To increase logging detail and capture more information:</p>
                         <ol>
                             <li>Go to <a href="<?php echo admin_url() ?>admin.php?page=slyr_wc_general_params">General Parameters</a></li>
@@ -266,14 +266,14 @@
                         <ul>
                             <li>When you need to review synchronization history and identify issues.</li>
                             <li>Before contacting Support — always provide downloaded logs with your issue description.</li>
-                            <li>To archive logs before clearing them (see "Remove SL Logs" below).</li>
+                            <li>To archive logs before clearing them (see "Delete SL Logs" below).</li>
                             <li>To analyze performance and synchronization patterns over time.</li>
                         </ul>
                         <p><strong>How to use it:</strong> Click the button, wait a few seconds, and the zip file will download. Extract it on your computer and open the log files in any text editor.</p>
                     </div>
                 </div>
                 <div class="faq-item">
-                    <div class="faq-question">Remove SL Logs</div>
+                    <div class="faq-question">Delete SL Logs</div>
                     <div class="faq-answer">
                         <p>Permanently deletes all Sales Layer logs from your server. This frees up disk space.</p>
                         <p><strong>⚠️ Warning:</strong> This action cannot be undone. Deleted logs are gone forever.</p>
@@ -286,7 +286,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <div class="faq-question">Delete SL items pending to process</div>
+                    <div class="faq-question">Delete SL pending items</div>
                     <div class="faq-answer">
                         <p>Removes all items currently queued in the synchronization table that haven't been processed yet. This clears the internal queue completely.</p>
                         <p><strong>What it does:</strong></p>
@@ -301,7 +301,7 @@
                             <li>When you've identified errors in your configuration and want to clear the queue before resyncing.</li>
                         </ul>
                         <p><strong>⚠️ Warning:</strong> Once you delete pending items, they must be requeued by running synchronization again. Any partial work is lost.</p>
-                        <p><strong>How to recover:</strong> After clearing the queue and modifying the deleted pending items again, run the synchronization again. Sales Layer will re-fetch the items and requeue them.</p>
+                        <p><strong>How to recover:</strong> After clearing the queue, modify the affected items in Sales Layer again and run the synchronization again. Sales Layer will re-fetch the items and requeue them.</p>
                     </div>
                 </div>
                 <div class="faq-item">
@@ -317,7 +317,7 @@
                             <li><code>saleslayercompid</code> (terms) — Sales Layer company ID</li>
                             <li>Other Sales Layer tracking fields</li>
                         </ul>
-                        <p><strong>Impact:</strong> Without this metadata, your WooCommerce store can no longer recognize which items came from Sales Layer. Future synchronizations will treat these items as new and links them if their keys matches.</p>
+                        <p><strong>Impact:</strong> Without this metadata, your WooCommerce store can no longer recognize which items came from Sales Layer. Future synchronizations will treat these items as new and link them if their keys match.</p>
                         <p><strong>When to use it:</strong></p>
                         <ul>
                             <li>You are migrating to a different Sales Layer connector.</li>
@@ -364,7 +364,7 @@
                     <div class="faq-question">Migrate Legacy Items</div>
                     <div class="faq-answer">
                         <p>This tool migrates items that were synchronized before multilanguage support was enabled in the plugin. It is useful when you are transitioning from a single-language setup to a multilanguage installation (with Polylang).</p>
-                        <p><strong>What does it do:</strong></p>
+                        <p><strong>What it does:</strong></p>
                         <ul>
                             <li>Identifies all products, categories, and variants that do not yet have language metadata assigned.</li>
                             <li>Assigns the primary language of your site (configured in Polylang settings) to these items.</li>

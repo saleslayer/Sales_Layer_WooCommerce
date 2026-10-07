@@ -114,7 +114,7 @@ class slAnalytics
 
         if ($response === false) {
             // Connection error or another cURL error
-            sl_debug('## Error. Analytics error connection: '.curl_error($ch));
+            sl_debug('## Error. Analytics connection error: '.curl_error($ch));
             return false;
         }
 
