@@ -81,8 +81,8 @@ Please check the [important notes for the installation][sc-important-notes] avai
 [changelog-2.4.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.4.x/CHANGELOG.md
 [changelog-2.5.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.5.x/CHANGELOG.md
 [changelog-2.6.x]: https://github.com/saleslayer/Sales_Layer_WooCommerce/blob/2.6.x/CHANGELOG.md
-[sc-important-notes]: https://support.saleslayer.com/woocommerce/important-notes-about-connector
-[sl-sc]: https://support.saleslayer.com
+[sc-important-notes]: https://support.saleslayer.com/en/support/solutions/folders/206000100929
+[sl-sc]: https://support.saleslayer.com/en/support/home
 [woo-server-recomm]: https://woocommerce.com/document/server-requirements/
 [woo-github]: https://github.com/woocommerce/woocommerce
 [2.3.x]:https://github.com/saleslayer/Sales_Layer_WooCommerce/tree/2.3.x
