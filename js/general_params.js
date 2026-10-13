@@ -1,17 +1,16 @@
 jQuery(document).ready(function()
 {
     update_pagination_disabled();
-    var plugin_name_dir = '<?php echo SLYR_WC_PLUGIN_NAME_DIR ?>';
-    var ajaxurl = "<?php echo admin_url('admin-ajax.php') ?>";
 });
 
 function update_pagination_disabled()
 {
-    var api_version = document.querySelector('#API_version');
-        pagination = document.querySelector('#pagination'),
-        disvalue = false;
-    disvalue = (api_version.value != '1.18');
-    pagination.disabled = disvalue;
+    var api_version = document.querySelector('#API_version'),
+        pagination_select = document.querySelector('#pagination');
+    if (!api_version || !pagination_select) {
+        return;
+    }
+    pagination_select.disabled = (api_version.value != '1.18');
 }
 
 function update_api_version(data)
@@ -21,8 +20,8 @@ function update_api_version(data)
 }
 
 function update_general_parameter_field(data)
-{    
-    var field_name = data.name;   
+{
+    var field_name = data.name;
     if (data.type == 'checkbox'){
         var field_value = data.checked;
         if (field_value === true){
@@ -34,21 +33,25 @@ function update_general_parameter_field(data)
         var field_value = data.value;
     }
     jQuery.ajax({
-        type: "GET",
-        url: ajaxurl,
+        type: "POST",
+        url: ajax_object.ajaxurl,
         dataType: "json",
         data: {
             action:'sl_wc_update_general_parameter_field',
             field_name:field_name,
-            field_value:field_value
+            field_value:field_value,
+            nonce:ajax_object.nonce
         },
         success: function(data_return) {
             showMessage(data_return['message_type'], data_return['message']);
-            $('#messages').fadeIn('slow');
+            jQuery('#messages').fadeIn('slow');
             clear_message_status();
         },
-        error: function(data_return){
-            showMessage(data_return['message_type'], data_return['message']);
+        error: function(xhr){
+            var json = xhr && xhr.responseJSON;
+            var message = (json && json.message) ? json.message : "Couldn't update the parameter.";
+            showMessage('error', message);
+            jQuery('#messages').fadeIn('slow');
             clear_message_status();
         }
     });
@@ -56,15 +59,40 @@ function update_general_parameter_field(data)
 
 function showMessage(type = 'success', message)
 {
-    var html = "<div class='dialog dialog-"+type+"'>"+message+"<br></div>";
-    $('#messages').html(html);
+    var allowedTypes = ['success', 'warning', 'info', 'error'];
+    if (allowedTypes.indexOf(type) === -1) {
+        type = 'info';
+    }
+
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(message || '')));
+
+    cancel_message_clear();
+    jQuery('#messages').html("<div class='dialog dialog-" + type + "'>" + div.innerHTML + "<br></div>");
 }
 
+var slyrMessageTimer = null;
+
+/**
+ * Cancel a pending clear_message_status(), so an older timer cannot wipe a newer message.
+ */
+function cancel_message_clear()
+{
+    clearTimeout(slyrMessageTimer);
+    slyrMessageTimer = null;
+    jQuery('#messages').stop(true, true).show();
+}
+
+/**
+ * Hide and empty #messages after 7 seconds. Only one timer is kept: a new call replaces the previous one.
+ */
 function clear_message_status()
 {
-    var timeout =  setTimeout(function(){
-        $('#messages').fadeOut('slow','',$('#messages').html(''));
-        $('#messages').fadeIn();
-        clearTimeout(timeout);
+    clearTimeout(slyrMessageTimer);
+    slyrMessageTimer = setTimeout(function(){
+        slyrMessageTimer = null;
+        jQuery('#messages').fadeOut('slow', function() {
+            jQuery(this).html('').show();
+        });
     }, 7000);
 }

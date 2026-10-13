@@ -1,9 +1,71 @@
 var ajaxurl = (typeof window.ajaxurl !== 'undefined') ? window.ajaxurl : '';
 
+/**
+ * wp_localize_script() sends scalars as strings ("0"/"1"), and "0" is truthy in JS.
+ * @param {*} value
+ * @returns {boolean}
+ */
+function slyrFlag(value)
+{
+    return value === true || value === 1 || value === '1';
+}
+
+/**
+ * Build an ID selector that is safe for any connector code (dots, colons, quotes...).
+ * @param {string} id
+ * @returns {string}
+ */
+function slyrIdSelector(id)
+{
+    return '#' + jQuery.escapeSelector(String(id));
+}
+
+/**
+ * Message to show when an AJAX request fails (HTTP error, permission/nonce check, invalid JSON).
+ * @param {object} xhr
+ * @param {string} fallback
+ * @returns {string}
+ */
+function slyrAjaxErrorMessage(xhr, fallback)
+{
+    var json = xhr && xhr.responseJSON;
+    if (json && json.message) {
+        return json.message;
+    }
+    if (json && json.data && json.data.message) {
+        return json.data.message;
+    }
+    return fallback;
+}
+
+/**
+ * Parse a JSON response that may already be an object; returns null when it is not valid JSON
+ * (e.g. a PHP warning printed before the JSON).
+ * @param {*} data
+ * @returns {object|null}
+ */
+function slyrParseJson(data)
+{
+    if (data && typeof data === 'object') {
+        return data;
+    }
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        return null;
+    }
+}
+
 function setConnectorPageInputsDisabled(disabled)
 {
-    // Do not disable the Add Connector modal inputs, otherwise users can open it and stare at disabled fields.
-    $(":input").not('#slyr-add-connector-overlay :input').prop('disabled', disabled);
+    // Only the plugin's own controls, never the modals (they manage their own state) nor other wp-admin controls.
+    // When enabling again, only re-enable what this function disabled, so controls that start disabled stay so.
+    var $inputs = jQuery('#slyr_catalogue_admin :input').not('.slyr-multisite-overlay :input');
+    if (disabled) {
+        $inputs.filter(':enabled').attr('data-slyr-ui-disabled', '1').prop('disabled', true);
+    } else {
+        $inputs.filter('[data-slyr-ui-disabled]').removeAttr('data-slyr-ui-disabled').prop('disabled', false);
+    }
 }
 
 jQuery(document).ready(function()
@@ -12,7 +74,7 @@ jQuery(document).ready(function()
         ajaxurl = ajax_object.ajaxurl;
     }
 
-    $('.progress').hide();
+    jQuery('.progress').hide();
     setConnectorPageInputsDisabled(true);
     showInitialLoader();
     start_check_process_status();
@@ -29,8 +91,25 @@ jQuery(document).ready(function()
         }
     });
 
+    // Modals: Esc closes the open one and Tab stays inside it
+    jQuery(document).on('keydown', handleModalKeydown);
+
+    // Row actions read the connector from data-connector-id (no connector code inside inline JS)
+    jQuery(document).on('click', '.button-sync', function() {
+        sync_conn(this);
+    });
+    jQuery(document).on('click', '.button-multisite', function() {
+        openMultisiteModal(String(jQuery(this).attr('data-connector-id')));
+    });
+    jQuery(document).on('click', '.button-forget', function() {
+        deleteConnector(String(jQuery(this).attr('data-connector-id')));
+    });
+
     // Enable submit only when both fields have values
     jQuery('#slyr-add-connector-id, #slyr-add-connector-secret').on('input', function() {
+        if (jQuery('#slyr-add-connector-submit').data('busy')) {
+            return;
+        }
         var hasConnectorId = jQuery('#slyr-add-connector-id').val().trim() !== '';
         var hasSecretKey = jQuery('#slyr-add-connector-secret').val().trim() !== '';
         jQuery('#slyr-add-connector-submit').prop('disabled', !(hasConnectorId && hasSecretKey));
@@ -39,7 +118,7 @@ jQuery(document).ready(function()
 
 function update_conn_field(data)
 {
-    var connector_id = data.id.replace(data.name+'_', "");
+    var connector_id = data.getAttribute('data-connector-id') || data.id.replace(data.name+'_', "");
     var field_name = data.name;   
     if (data.type == 'checkbox'){
         var field_value = data.checked;
@@ -52,17 +131,18 @@ function update_conn_field(data)
         var field_value = data.value;
     }
     jQuery.ajax({
-        type: "GET",
+        type: "POST",
         url: ajaxurl,
         dataType: "json",
-        data: {action:'sl_wc_update_conn_field',connector_id:connector_id,field_name:field_name,field_value:field_value},
+        data: {action:'sl_wc_update_conn_field',connector_id:connector_id,field_name:field_name,field_value:field_value,nonce:ajax_object.nonce},
         success: function(data_return) {
             showMessage(data_return['message_type'], data_return['message']);
-            $('#messages').fadeIn('slow');
+            jQuery('#messages').fadeIn('slow');
             clear_message_status();
         },
-        error: function(data_return){
-            showMessage(data_return['message_type'], data_return['message']);
+        error: function(xhr){
+            showMessage('error', slyrAjaxErrorMessage(xhr, "Couldn't update the field."));
+            jQuery('#messages').fadeIn('slow');
             clear_message_status();
         }
     });
@@ -77,16 +157,85 @@ function showMessage(type = 'success', message)
 
     var safeMessage = escapeHtml(String(message || ''));
     var html = "<div class='dialog dialog-" + type + "'>" + safeMessage + "<br></div>";
+    cancel_message_clear();
     jQuery('#messages').html(html);
 }
 
 // --- Add Connector Modal ---
 
+var slyrModalReturnFocus = null;
+
+/**
+ * Remember the element that opened a modal so focus can go back to it on close.
+ */
+function rememberModalOpener()
+{
+    slyrModalReturnFocus = document.activeElement;
+}
+
+function restoreModalOpenerFocus()
+{
+    if (slyrModalReturnFocus && document.body.contains(slyrModalReturnFocus)) {
+        slyrModalReturnFocus.focus();
+    }
+    slyrModalReturnFocus = null;
+}
+
+/**
+ * Esc closes the open modal; Tab / Shift+Tab cycle through its focusable elements.
+ * @param {KeyboardEvent} e
+ */
+function handleModalKeydown(e)
+{
+    var $overlay = jQuery('.slyr-multisite-overlay:visible').last();
+    if (!$overlay.length) {
+        return;
+    }
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        if ($overlay.attr('id') === 'slyr-add-connector-overlay') {
+            closeAddConnectorModal();
+        } else {
+            closeMultisiteModal();
+        }
+        return;
+    }
+
+    if (e.key !== 'Tab') {
+        return;
+    }
+
+    var $focusable = $overlay.find('a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])').filter(':visible');
+    if (!$focusable.length) {
+        return;
+    }
+
+    var first = $focusable.get(0);
+    var last = $focusable.get($focusable.length - 1);
+    var inside = jQuery.contains($overlay.get(0), document.activeElement);
+
+    if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault();
+        last.focus();
+    } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault();
+        first.focus();
+    }
+}
+
+function showAddConnectorError(message)
+{
+    jQuery('#slyr-add-connector-message').text(message).show();
+}
+
 function openAddConnectorModal()
 {
+    rememberModalOpener();
     jQuery('#slyr-add-connector-id').val('');
     jQuery('#slyr-add-connector-secret').val('');
-    jQuery('#slyr-add-connector-submit').prop('disabled', true);
+    jQuery('#slyr-add-connector-message').hide().empty();
+    jQuery('#slyr-add-connector-submit').data('busy', false).prop('disabled', true).text('Add connector');
     jQuery('#slyr-add-connector-overlay').css('display', 'flex');
     jQuery('#slyr-add-connector-id').trigger('focus');
 }
@@ -94,13 +243,13 @@ function openAddConnectorModal()
 function closeAddConnectorModal()
 {
     jQuery('#slyr-add-connector-overlay').hide();
+    restoreModalOpenerFocus();
 }
 
 function submitAddConnector()
 {
     if (typeof ajax_object === 'undefined' || !ajax_object.create_connector_nonce) {
-        showMessage('warning', 'Missing security nonce. Please reload the page.');
-        clear_message_status();
+        showAddConnectorError('Missing security nonce. Please reload the page.');
         return;
     }
 
@@ -108,14 +257,14 @@ function submitAddConnector()
     var secretKey = String(jQuery('#slyr-add-connector-secret').val() || '').trim();
 
     if (!connectorId || !secretKey) {
-        showMessage('warning', 'Connector ID and Secret key are required.');
-        clear_message_status();
+        showAddConnectorError('Connector ID and Secret key are required.');
         return;
     }
 
-    closeAddConnectorModal();
-    showMessage('info', 'Validating connector credentials…');
-    jQuery('#messages').fadeIn('slow');
+    // Keep the modal open until the server answers, so the data does not have to be typed again on error.
+    var $submit = jQuery('#slyr-add-connector-submit');
+    jQuery('#slyr-add-connector-message').hide().empty();
+    $submit.data('busy', true).prop('disabled', true).text('Validating…');
 
     jQuery.ajax({
         type: 'POST',
@@ -132,7 +281,9 @@ function submitAddConnector()
                 var successMessage = (response.data && response.data.message)
                     ? response.data.message
                     : 'Connector added successfully!';
+                closeAddConnectorModal();
                 showMessage('success', successMessage);
+                jQuery('#messages').fadeIn('slow');
                 setTimeout(function() { location.reload(); }, 1500);
                 return;
             }
@@ -141,27 +292,44 @@ function submitAddConnector()
                 ? response.data.message
                 : 'Error creating the connector.';
 
-            showMessage('warning', message);
-            clear_message_status();
+            showAddConnectorError(message);
+            $submit.data('busy', false).prop('disabled', false).text('Add connector');
         },
         error: function(xhr) {
             var rawResponse = (xhr && xhr.responseText) ? String(xhr.responseText).trim() : '';
             if (rawResponse === '-1') {
-                showMessage('warning', 'Security check failed. Please reload the page and try again.');
+                showAddConnectorError('Security check failed. Please reload the page and try again.');
             } else {
-                showMessage('warning', 'Connection error. Please try again.');
+                showAddConnectorError('Connection error. Please try again.');
             }
-            clear_message_status();
+            $submit.data('busy', false).prop('disabled', false).text('Add connector');
         }
     });
 }
 
+var slyrMessageTimer = null;
+
+/**
+ * Cancel a pending clear_message_status(), so an older timer cannot wipe a newer message.
+ */
+function cancel_message_clear()
+{
+    clearTimeout(slyrMessageTimer);
+    slyrMessageTimer = null;
+    jQuery('#messages').stop(true, true).show();
+}
+
+/**
+ * Hide and empty #messages after 7 seconds. Only one timer is kept: a new call replaces the previous one.
+ */
 function clear_message_status()
 {
-    var timeout =  setTimeout(function(){
-        $('#messages').fadeOut('slow','',$('#messages').html(''));
-        $('#messages').fadeIn();
-        clearTimeout(timeout);
+    clearTimeout(slyrMessageTimer);
+    slyrMessageTimer = setTimeout(function(){
+        slyrMessageTimer = null;
+        jQuery('#messages').fadeOut('slow', function() {
+            jQuery(this).html('').show();
+        });
     }, 7000);
 }
 
@@ -174,7 +342,8 @@ function showInitialLoader()
     loaderHtml += '<div class="slyr-spinner"></div>';
     loaderHtml += '<span>Checking synchronization status...</span>';
     loaderHtml += '</div>';
-    $('#messages').html(loaderHtml).show();
+    cancel_message_clear();
+    jQuery('#messages').html(loaderHtml).show();
 }
 
 /**
@@ -182,10 +351,10 @@ function showInitialLoader()
  */
 function hideInitialLoader()
 {
-    var $loader = $('#messages .slyr-initial-loader');
+    var $loader = jQuery('#messages .slyr-initial-loader');
     if ($loader.length > 0) {
         $loader.fadeOut(200, function() {
-            $(this).remove();
+            jQuery(this).remove();
         });
     }
 }
@@ -195,35 +364,64 @@ function start_check_process_status()
     setTimeout(check_process_status, 3000);
 }
 
+/**
+ * Leave the page usable after a failed request: enable the controls, drop the loader and show the error.
+ * @param {string} message
+ */
+function restoreConnectorPageAfterError(message)
+{
+    jQuery('.progress').hide();
+    setConnectorPageInputsDisabled(false);
+    hideInitialLoader();
+    showMessage('error', message);
+    jQuery('#messages').fadeIn('slow');
+}
+
 function check_process_status()
 {
     jQuery.ajax({
         type:'POST',
-        data:{action:'sl_wc_check_process_status'},
+        data:{action:'sl_wc_check_process_status', nonce: ajax_object.nonce},
         url: ajaxurl,
         success: function(data) {
-            data = JSON.parse(data);
+            data = slyrParseJson(data);
+            if (!data) {
+                restoreConnectorPageAfterError("Couldn't read the synchronization status. Reload the page to check it again.");
+                return;
+            }
             processStatusData(data);
+        },
+        error: function(xhr) {
+            restoreConnectorPageAfterError(slyrAjaxErrorMessage(xhr, "Couldn't check the synchronization status. Reload the page to check it again."));
         }
     });
 }
 
 var sync_conn = function(param)
 {
-    var conn_id = param.getAttribute('connectorid');
-    var sec_key = param.getAttribute('secretkey');
+    var conn_id = param.getAttribute('data-connector-id');
     setConnectorPageInputsDisabled(true);
-    $('#messages').html('<div class="dialog dialog-info">Downloading data from Sales Layer API&hellip;</div>');
-    $('#messages').fadeIn('slow');
+    cancel_message_clear();
+    jQuery('#messages').html('<div class="dialog dialog-info">Downloading data from Sales Layer API&hellip;</div>');
+    jQuery('#messages').fadeIn('slow');
     jQuery.ajax({
         type:'POST',
-        data:{action:'sl_wc_synchronize_connector', connector_id: conn_id, secret_key: sec_key},
+        data:{action:'sl_wc_synchronize_connector', connector_id: conn_id, nonce: ajax_object.nonce},
         url: ajaxurl,
         success: function(data) {
-            data = JSON.parse(data);
-            $('#messages').html(data['message']);
-            $('#messages').fadeIn('slow');
+            data = slyrParseJson(data);
+            if (!data) {
+                restoreConnectorPageAfterError("Unexpected response from the server. Check the Sales Layer logs.");
+                return;
+            }
+            jQuery('#messages').html(data['message']);
+            jQuery('#messages').fadeIn('slow');
             // Start polling AFTER items are queued so progress bars appear automatically
+            setTimeout(check_process_status, 3000);
+        },
+        error: function(xhr) {
+            // The synchronization may still be running on the server (e.g. web server timeout): poll the status.
+            restoreConnectorPageAfterError(slyrAjaxErrorMessage(xhr, "The synchronization request failed or timed out. Checking its status…"));
             setTimeout(check_process_status, 3000);
         }
     });
@@ -243,10 +441,10 @@ function processStatusData(data)
 
 function processUnfinishedStatusData(data, connector_id)
 {
-    $("#progress_catalogue_"+connector_id).show();
-    $("#progress_products_"+connector_id).show();
-    $("#progress_product_formats_"+connector_id).show();
-    $("#progress_product_links_"+connector_id).show();
+    jQuery(slyrIdSelector("progress_catalogue_"+connector_id)).show();
+    jQuery(slyrIdSelector("progress_products_"+connector_id)).show();
+    jQuery(slyrIdSelector("progress_product_formats_"+connector_id)).show();
+    jQuery(slyrIdSelector("progress_product_links_"+connector_id)).show();
     setConnectorPageInputsDisabled(true);
     data_content = data['content'];
     checkDataContentTables(data_content, connector_id)
@@ -261,7 +459,7 @@ function checkDataContentTables(data_content, connector_id)
         if (table in data_content) {
             processDataContentTable(data_content, table, connector_id);
         }else{
-            $("#sub_progress_"+table+'_'+connector_id).parent().hide();
+            jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).parent().hide();
             continue;
         }
     }
@@ -272,20 +470,20 @@ function processDataContentTable(data_content, table, connector_id)
     var progress_name = getProgressName(table);
     var sl_data_processed = data_content[table]['processed'];
     var sl_data_total = data_content[table]['total'];
-    var data_now = $("#sub_progress_"+table+'_'+connector_id).attr('aria-valuenow');
-    var data_total = $("#sub_progress_"+table+'_'+connector_id).attr('aria-valuemax');
+    var data_now = jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).attr('aria-valuenow');
+    var data_total = jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).attr('aria-valuemax');
     if (sl_data_total != data_total){
-        $("#sub_progress_"+table+'_'+connector_id).attr('aria-valuemax', sl_data_total); 
-        $("#sub_progress_span_"+table+'_'+connector_id).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');         			 
+        jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).attr('aria-valuemax', sl_data_total); 
+        jQuery(slyrIdSelector("sub_progress_span_"+table+'_'+connector_id)).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');         			 
     }
     if (sl_data_processed != data_now){
-        $("#sub_progress_"+table+'_'+connector_id).addClass('progress-bar-striped progress-bar-animated');
-        $("#sub_progress_"+table+'_'+connector_id).attr('aria-valuenow', sl_data_processed);
-        $("#sub_progress_"+table+'_'+connector_id).width(((sl_data_processed * 100) / sl_data_total)+'%');
-        $("#sub_progress_span_"+table+'_'+connector_id).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');
+        jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).addClass('progress-bar-striped progress-bar-animated');
+        jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).attr('aria-valuenow', sl_data_processed);
+        jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).width(((sl_data_processed * 100) / sl_data_total)+'%');
+        jQuery(slyrIdSelector("sub_progress_span_"+table+'_'+connector_id)).text(sl_data_processed+'/'+sl_data_total+progress_name+'processed.');
     }
     if (sl_data_processed == sl_data_total){ 
-        $("#sub_progress_"+table+'_'+connector_id).removeClass('progress-bar-striped progress-bar-animated');
+        jQuery(slyrIdSelector("sub_progress_"+table+'_'+connector_id)).removeClass('progress-bar-striped progress-bar-animated');
     }
 }
 
@@ -302,27 +500,27 @@ function getProgressName(table)
 
 function processStoppedStatusData(data)
 {
-    $(".progress").hide();
+    jQuery(".progress").hide();
     setConnectorPageInputsDisabled(false);
     hideInitialLoader();
-    $('#messages').html(data['header']);
+    jQuery('#messages').html(data['header']);
 }
 
 function processRestartStatusData(data, connector_id)
 {
-    $("#sub_progress_catalogue_"+connector_id).width(0+'%');
-    $("#sub_progress_products_"+connector_id).width(0+'%');
-    $("#sub_progress_product_formats_"+connector_id).width(0+'%');
-    $("#sub_progress_product_links_"+connector_id).width(0+'%');
-    $("#sub_progress_catalogue_"+connector_id).attr('aria-valuenow', 0);
-    $("#sub_progress_products_"+connector_id).attr('aria-valuenow', 0);
-    $("#sub_progress_product_formats_"+connector_id).attr('aria-valuenow', 0);
-    $("#sub_progress_product_links_"+connector_id).attr('aria-valuenow', 0);
-    $(".progress").hide();
+    jQuery(slyrIdSelector("sub_progress_catalogue_"+connector_id)).width(0+'%');
+    jQuery(slyrIdSelector("sub_progress_products_"+connector_id)).width(0+'%');
+    jQuery(slyrIdSelector("sub_progress_product_formats_"+connector_id)).width(0+'%');
+    jQuery(slyrIdSelector("sub_progress_product_links_"+connector_id)).width(0+'%');
+    jQuery(slyrIdSelector("sub_progress_catalogue_"+connector_id)).attr('aria-valuenow', 0);
+    jQuery(slyrIdSelector("sub_progress_products_"+connector_id)).attr('aria-valuenow', 0);
+    jQuery(slyrIdSelector("sub_progress_product_formats_"+connector_id)).attr('aria-valuenow', 0);
+    jQuery(slyrIdSelector("sub_progress_product_links_"+connector_id)).attr('aria-valuenow', 0);
+    jQuery(".progress").hide();
     setConnectorPageInputsDisabled(false);
     hideInitialLoader();
     if (data['content']) {
-        $('#messages').html(data['content']);
+        jQuery('#messages').html(data['content']);
     }
 }
 
@@ -345,15 +543,17 @@ window.slyrModalData = {
 function openMultisiteModal(connectorId)
 {
     // Must have either multisite or multilang plugin
-    if (!ajax_object.is_multisite_mode && !ajax_object.has_multilang_plugin) {
+    if (!slyrFlag(ajax_object.is_multisite_mode) && !slyrFlag(ajax_object.has_multilang_plugin)) {
         return;
     }
 
-    $('#slyr-multisite-connector-id').val(connectorId);
-    $('#slyr-sites-list').html('<div class="slyr-loading">Loading sites...</div>');
-    $('#slyr-validation-errors').hide().empty();
-    $('#slyr-multisite-save').prop('disabled', true);
-    $('#slyr-multisite-overlay').css('display', 'flex');
+    jQuery('#slyr-multisite-connector-id').val(connectorId);
+    jQuery('#slyr-sites-list').html('<div class="slyr-loading">Loading sites...</div>');
+    jQuery('#slyr-validation-errors').hide().empty();
+    jQuery('#slyr-multisite-save').prop('disabled', true);
+    rememberModalOpener();
+    jQuery('#slyr-multisite-overlay').css('display', 'flex');
+    jQuery('#slyr-multisite-overlay .slyr-multisite-close').trigger('focus');
 
     // Fetch sites and config in parallel
     var sitesRequest = jQuery.ajax({
@@ -382,7 +582,7 @@ function openMultisiteModal(connectorId)
         var configData = configResponse[0];
 
         if (!sitesData.success || !configData.success) {
-            $('#slyr-sites-list').html('<div class="slyr-loading">Error loading data.</div>');
+            jQuery('#slyr-sites-list').html('<div class="slyr-loading">Error loading data.</div>');
             return;
         }
 
@@ -404,7 +604,7 @@ function openMultisiteModal(connectorId)
         renderSiteCards(sites, config, mainSiteId);
 
     }).fail(function() {
-        $('#slyr-sites-list').html('<div class="slyr-loading">Connection error. Please try again.</div>');
+        jQuery('#slyr-sites-list').html('<div class="slyr-loading">Connection error. Please try again.</div>');
     });
 }
 
@@ -416,12 +616,11 @@ function openMultisiteModal(connectorId)
  */
 function renderSlLanguagesInfo(slLanguages)
 {
-    var $infoBox = $('#slyr-sl-languages-info');
+    var $infoBox = jQuery('#slyr-sl-languages-info');
 
     // Check if multilang plugin is active. WordPress may stringify boolean values from DB/AJAX,
     // so we check for both boolean false and string "0" or "false".
-    var hasMultilang = ajax_object.has_multilang_plugin;
-    var isMultilangActive = hasMultilang && hasMultilang !== "0" && hasMultilang !== "false";
+    var isMultilangActive = slyrFlag(ajax_object.has_multilang_plugin);
 
     if (!isMultilangActive || !slLanguages || slLanguages.length === 0) {
         $infoBox.hide();
@@ -455,8 +654,8 @@ function renderSiteCards(sites, config, mainSiteId)
     var pluginLanguagesPerSite = config.plugin_languages_per_site || {};
     var defaultLanguages = config.default_languages || {};
     var availableLanguages = config.available_languages || []; // SL languages
-    var hasMultilang = ajax_object.has_multilang_plugin;
-    var isMultisite = ajax_object.is_multisite_mode;
+    var hasMultilang = slyrFlag(ajax_object.has_multilang_plugin);
+    var isMultisite = slyrFlag(ajax_object.is_multisite_mode);
 
     // Build lookup for saved targets and mappings
     var savedTargetsLookup = {};
@@ -601,7 +800,7 @@ function renderSiteCards(sites, config, mainSiteId)
         html = '<div class="slyr-loading">No sites found.</div>';
     }
 
-    $('#slyr-sites-list').html(html);
+    jQuery('#slyr-sites-list').html(html);
 
     // Initialize validation state
     validateAllSitesLanguages();
@@ -609,9 +808,9 @@ function renderSiteCards(sites, config, mainSiteId)
     // In multisite mode, bind checkbox change for main site logic
     if (isMultisite) {
         updateMainSiteCheckboxState();
-        $('#slyr-sites-list').off('change', '.slyr-site-active').on(
+        jQuery('#slyr-sites-list').off('change', '.slyr-site-active').on(
             'change', '.slyr-site-active', function() {
-                var $checkbox = $(this);
+                var $checkbox = jQuery(this);
                 var $card = $checkbox.closest('.slyr-site-card');
                 var isActive = $checkbox.is(':checked');
 
@@ -644,13 +843,13 @@ function renderSiteCards(sites, config, mainSiteId)
  */
 function updateMainSiteCheckboxState()
 {
-    var $mainCheckbox = $('#slyr-sites-list .slyr-site-active[data-main-site="1"]');
+    var $mainCheckbox = jQuery('#slyr-sites-list .slyr-site-active[data-main-site="1"]');
     if ($mainCheckbox.length === 0) {
         return;
     }
 
     // Count active non-main, non-disabled-by-woo checkboxes
-    var otherActiveCount = $('#slyr-sites-list .slyr-site-active')
+    var otherActiveCount = jQuery('#slyr-sites-list .slyr-site-active')
         .not('[data-main-site="1"]')
         .not(':disabled')
         .filter(':checked')
@@ -672,7 +871,7 @@ function updateMainSiteCheckboxState()
  */
 function toggleSiteAccordion(blogId)
 {
-    var $card = $('.slyr-site-card[data-blog-id="' + blogId + '"]');
+    var $card = jQuery('.slyr-site-card[data-blog-id="' + blogId + '"]');
     if ($card.hasClass('slyr-inactive')) {
         return;
     }
@@ -689,7 +888,7 @@ function toggleSiteAccordion(blogId)
  */
 function handleLanguageMappingChange(select)
 {
-    var $select = $(select);
+    var $select = jQuery(select);
     var $item = $select.closest('.slyr-language-item');
 
     // Update visual state based on whether a SL language is mapped
@@ -712,15 +911,15 @@ function handleLanguageMappingChange(select)
  */
 function enforceLanguageMappingOnAllSites()
 {
-    var isMultisite = ajax_object.is_multisite_mode;
+    var isMultisite = slyrFlag(ajax_object.is_multisite_mode);
     var availableLanguages = window.slyrModalData.availableLanguages || [];
 
     if (availableLanguages.length === 0) {
         return;
     }
 
-    $('.slyr-site-card').each(function() {
-        var $card = $(this);
+    jQuery('.slyr-site-card').each(function() {
+        var $card = jQuery(this);
 
         // Skip disabled cards (no WooCommerce)
         if ($card.hasClass('disabled')) {
@@ -745,7 +944,7 @@ function enforceLanguageMappingOnAllSites()
 
         // Check if ALL dropdowns are "No language"
         var $mappedDropdowns = $allDropdowns.filter(function() {
-            return $(this).val() !== '';
+            return jQuery(this).val() !== '';
         });
 
         if ($mappedDropdowns.length === 0) {
@@ -768,11 +967,11 @@ function enforceLanguageMappingOnAllSites()
 function validateAllSitesLanguages()
 {
     var errors = [];
-    var hasMultilang = ajax_object.has_multilang_plugin;
-    var isMultisite = ajax_object.is_multisite_mode;
+    var hasMultilang = slyrFlag(ajax_object.has_multilang_plugin);
+    var isMultisite = slyrFlag(ajax_object.is_multisite_mode);
 
-    $('.slyr-site-card').each(function() {
-        var $card = $(this);
+    jQuery('.slyr-site-card').each(function() {
+        var $card = jQuery(this);
         var blogId = $card.data('blog-id');
 
         // Skip disabled cards (no WooCommerce)
@@ -794,7 +993,7 @@ function validateAllSitesLanguages()
         var $accordionBody = $card.find('.slyr-site-accordion-body');
         if (hasMultilang && $accordionBody.length > 0) {
             var $mappedDropdowns = $card.find('.slyr-language-mapping-select').filter(function() {
-                return $(this).val() !== '';
+                return jQuery(this).val() !== '';
             });
             if ($mappedDropdowns.length === 0) {
                 var siteName = $card.find('.slyr-site-name').text().trim();
@@ -804,7 +1003,7 @@ function validateAllSitesLanguages()
     });
 
     // Show/hide errors
-    var $errorContainer = $('#slyr-validation-errors');
+    var $errorContainer = jQuery('#slyr-validation-errors');
     if (errors.length > 0) {
         var errorHtml = '<div class="slyr-error-title">⚠️ Configuration Error</div>';
         errorHtml += '<ul>';
@@ -813,10 +1012,10 @@ function validateAllSitesLanguages()
         });
         errorHtml += '</ul>';
         $errorContainer.html(errorHtml).show();
-        $('#slyr-multisite-save').prop('disabled', true);
+        jQuery('#slyr-multisite-save').prop('disabled', true);
     } else {
         $errorContainer.hide().empty();
-        $('#slyr-multisite-save').prop('disabled', false);
+        jQuery('#slyr-multisite-save').prop('disabled', false);
     }
 
     return errors.length === 0;
@@ -827,7 +1026,8 @@ function validateAllSitesLanguages()
  */
 function closeMultisiteModal()
 {
-    $('#slyr-multisite-overlay').css('display', 'none');
+    jQuery('#slyr-multisite-overlay').css('display', 'none');
+    restoreModalOpenerFocus();
 }
 
 /**
@@ -843,15 +1043,15 @@ function saveMultisiteConfig()
         return;
     }
 
-    var connectorId = $('#slyr-multisite-connector-id').val();
-    var isMultisite = ajax_object.is_multisite_mode;
-    var hasMultilang = ajax_object.has_multilang_plugin;
+    var connectorId = jQuery('#slyr-multisite-connector-id').val();
+    var isMultisite = slyrFlag(ajax_object.is_multisite_mode);
+    var hasMultilang = slyrFlag(ajax_object.has_multilang_plugin);
 
     var targets = [];
     var siteMappings = [];
 
-    $('.slyr-site-card').each(function() {
-        var $card = $(this);
+    jQuery('.slyr-site-card').each(function() {
+        var $card = jQuery(this);
         var blogId = $card.data('blog-id');
 
         if (typeof blogId === 'undefined') {
@@ -878,7 +1078,7 @@ function saveMultisiteConfig()
         if (hasMultilang && isActive) {
             var languages = {};
             $card.find('.slyr-language-mapping-select').each(function() {
-                var $select = $(this);
+                var $select = jQuery(this);
                 var polylangCode = $select.data('lang-code');
                 var slLangCode = $select.val();
                 // Only include if a SL language is selected (not "No language")
@@ -938,18 +1138,19 @@ function deleteConnector(connectorId)
         url: ajaxurl,
         data: {
             action: 'sl_wc_delete_connector',
-            connector_id: connectorId
+            connector_id: connectorId,
+            nonce: ajax_object.nonce
         },
         success: function(response) {
             if (response.success) {
                 location.reload();
             } else {
-                showMessage('warning', response.data.message || 'Error deleting connector.');
+                showMessage('warning', (response.data && response.data.message) || 'Error deleting connector.');
                 clear_message_status();
             }
         },
-        error: function() {
-            showMessage('warning', 'Connection error. Please try again.');
+        error: function(xhr) {
+            showMessage('warning', slyrAjaxErrorMessage(xhr, 'Connection error. Please try again.'));
             clear_message_status();
         }
     });

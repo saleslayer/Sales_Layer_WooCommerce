@@ -130,8 +130,14 @@ class GeneralParameters
     public function updateWPOptionsGeneralParameters()
     {
         
-        $result = update_site_option(SLYR_WC_general_params, json_encode($this->options_values));
-        return $result;
+        $new_value = json_encode($this->options_values);
+
+        // update_site_option() returns false when the value is unchanged; that is not an error.
+        if (get_site_option(SLYR_WC_general_params) === $new_value) {
+            return true;
+        }
+
+        return update_site_option(SLYR_WC_general_params, $new_value);
     }
 
     /**

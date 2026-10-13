@@ -32,6 +32,9 @@
 
     define('SLYR_WC_general_params', 'slyr_wooc_general_params');
 
+    // Nonce action shared by the plugin's admin AJAX requests (see slyr_wc_verify_ajax_request()).
+    define('SLYR_WC_ajax_nonce_action', 'slyr_wc_admin_ajax');
+
     // Base table names (without prefix) - kept for reference
     define('SLYR_WC_connector_table_base', 'slyr_wc_api_config');
     define('SLYR_WC_syncdata_table_base', 'slyr_wc_api_syncdata');

@@ -1923,14 +1923,15 @@ class Synchronize
                     foreach ($wp_messages as $wp_message) {
 
                         if ($wp_message != ''){ 
-                
+
+                            // Messages are plain text (they may include catalogue/API data): escape before building HTML.
                             if ($type_messages == ''){
 
-                                $type_messages = $wp_message."<br>";
+                                $type_messages = esc_html($wp_message)."<br>";
                                 
                             }else{
 
-                                $type_messages .= $wp_message."<br>";
+                                $type_messages .= esc_html($wp_message)."<br>";
                             
                             }
 
@@ -1942,11 +1943,11 @@ class Synchronize
 
                         if ($div_messages == ''){
 
-                            $div_messages = '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
+                            $div_messages = '<div class="dialog dialog-'.esc_attr($wp_message_type).'">'.$type_messages.'</div>';
                             
                         }else{
 
-                            $div_messages .= '<div class="dialog dialog-'.$wp_message_type.'">'.$type_messages.'</div>';
+                            $div_messages .= '<div class="dialog dialog-'.esc_attr($wp_message_type).'">'.$type_messages.'</div>';
                         
                         }
 

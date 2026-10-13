@@ -64,7 +64,7 @@
 					</div>
 				</td>
 				<td class="col-auto-sync">
-						<select class="select" name="auto_sync" id="auto_sync_<?php echo esc_attr($connector['conn_code']); ?>" onchange="update_conn_field(this);" >
+						<select class="select" name="auto_sync" id="auto_sync_<?php echo esc_attr($connector['conn_code']); ?>" data-connector-id="<?php echo esc_attr($connector['conn_code']); ?>" onchange="update_conn_field(this);" >
 						<?php
 						foreach($auto_sync_options as $asoKey => $auto_sync_option){
 							?>
@@ -75,11 +75,11 @@
 					</select>
 				</td>
 				<td class="tags column-tags col-actions">
-						<button type="button" class="button button-primary button-sync" connectorid="<?php echo esc_attr($connector['conn_code']); ?>" secretkey="<?php echo esc_attr($connector['conn_secret']); ?>" onclick="sync_conn(this)" id="sync_<?php echo esc_attr($connector['conn_code']); ?>">Synchronize!</button>
+						<button type="button" class="button button-primary button-sync" data-connector-id="<?php echo esc_attr($connector['conn_code']); ?>" id="sync_<?php echo esc_attr($connector['conn_code']); ?>">Synchronize!</button>
 						<?php if (slyr_is_multisite_mode() || slyr_detect_active_multilang_plugin()): ?>
-							<button type="button" class="button button-multisite" onclick="openMultisiteModal('<?php echo esc_attr($connector['conn_code']); ?>')" id="multisite_<?php echo esc_attr($connector['conn_code']); ?>">Settings</button>
+							<button type="button" class="button button-multisite" data-connector-id="<?php echo esc_attr($connector['conn_code']); ?>" id="multisite_<?php echo esc_attr($connector['conn_code']); ?>">Settings</button>
 						<?php endif; ?>
-					<button type="button" class="button button-forget" onclick="deleteConnector('<?php echo esc_attr($connector['conn_code']); ?>')">Forget Me!</button>
+					<button type="button" class="button button-forget" data-connector-id="<?php echo esc_attr($connector['conn_code']); ?>">Forget Me!</button>
 				</td>
 			</tr>
 		<?php
@@ -96,12 +96,13 @@
 		</table>
 
 			<div id="slyr-add-connector-overlay" class="slyr-multisite-overlay" style="display:none;">
-				<div class="slyr-multisite-modal">
+				<div class="slyr-multisite-modal" role="dialog" aria-modal="true" aria-labelledby="slyr-add-connector-title">
 					<div class="slyr-multisite-modal-header">
-						<h3>New Connector</h3>
-						<button type="button" class="slyr-multisite-close" onclick="closeAddConnectorModal()">&times;</button>
+						<h3 id="slyr-add-connector-title">New Connector</h3>
+						<button type="button" class="slyr-multisite-close" aria-label="Close" onclick="closeAddConnectorModal()">&times;</button>
 					</div>
 					<div class="slyr-multisite-modal-body slyr-add-connector-body">
+						<div id="slyr-add-connector-message" class="slyr-validation-errors" role="alert" style="display:none;"></div>
 						<form id="slyr-add-connector-form" method="post" action="">
 							<div class="slyr_of">
 								<label for="slyr-add-connector-id">Connector ID</label>
@@ -115,7 +116,7 @@
 					</div>
 					<div class="slyr-multisite-modal-footer">
 						<button type="button" class="button" onclick="closeAddConnectorModal()">Cancel</button>
-						<button type="button" class="button button-primary" id="slyr-add-connector-submit" onclick="submitAddConnector()">Add connector</button>
+						<button type="submit" form="slyr-add-connector-form" class="button button-primary" id="slyr-add-connector-submit" disabled>Add connector</button>
 					</div>
 				</div>
 			</div>

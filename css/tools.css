@@ -49,8 +49,36 @@
     line-height: 1.5;
 }
 
-.action-group button i {
-    margin-right: 8px;
+/* Same specificity level as the shared #slyr_catalogue_admin .button rules; a plainer
+   selector loses against WordPress' `.wp-core-ui .button { display: inline-block }`. */
+#slyr_catalogue_admin .action-group .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#slyr_catalogue_admin .action-group .button .dashicons {
+    margin: 0;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+/* Tool running: the clicked button shows a spinning icon and every tool button is disabled */
+#slyr_catalogue_admin .action-group .button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+#slyr_catalogue_admin .action-group .button .slyr-spin {
+    animation: slyr-spin 1s linear infinite;
+}
+
+@keyframes slyr-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 .action-group button {

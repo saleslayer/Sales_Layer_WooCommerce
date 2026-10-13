@@ -150,6 +150,7 @@
 /* --- Forms --- */
 #slyr_catalogue_admin .form-table { width: 100%; }
 #slyr_catalogue_admin .form-table td { padding: 0 0 15px 0; }
+#slyr_catalogue_admin .form-table td.slyr-param-label { width: 35%; }
 #slyr_catalogue_admin .form-table input[type=text] { width: 100%; }
 
 #slyr_catalogue_admin input[type="text"],
@@ -267,11 +268,71 @@
     color: #fff;
 }
 
-/* --- Progress bars --- */
+/* Bootstrap's reboot applied border-box sizing to every element; keep it, but only inside the plugin UI */
+#slyr_catalogue_admin,
+#slyr_catalogue_admin *,
+#slyr_catalogue_admin *::before,
+#slyr_catalogue_admin *::after,
+.slyr-multisite-overlay,
+.slyr-multisite-overlay *,
+.slyr-multisite-overlay *::before,
+.slyr-multisite-overlay *::after {
+    box-sizing: border-box;
+}
+
+/* --- Progress bars ---
+   Self-contained (scoped to the plugin page) replacement of the Bootstrap 4 .progress,
+   .progress-bar, .bg-success, .progress-bar-striped and .progress-bar-animated classes. */
 #slyr_catalogue_admin .slyr_progress {
     margin: 8px 12px;
     width: 100%;
     position: relative;
+}
+
+#slyr_catalogue_admin .progress {
+    display: flex;
+    height: 1rem;
+    overflow: hidden;
+    font-size: 0.75rem;
+    background-color: #e9ecef;
+    border-radius: 0.25rem;
+    box-sizing: border-box;
+}
+
+#slyr_catalogue_admin .progress-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    background-color: #007bff;
+    transition: width 0.6s ease;
+}
+
+/* Bootstrap declared .bg-success with !important; kept so the bars look the same as before */
+#slyr_catalogue_admin .progress-bar.bg-success {
+    background-color: #28a745 !important;
+}
+
+#slyr_catalogue_admin .progress-bar-striped {
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+}
+
+#slyr_catalogue_admin .progress-bar-animated {
+    animation: slyr-progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes slyr-progress-bar-stripes {
+    from { background-position: 1rem 0; }
+    to   { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #slyr_catalogue_admin .progress-bar { transition: none; }
+    #slyr_catalogue_admin .progress-bar-animated { animation: none; }
 }
 
 #slyr_catalogue_admin .slyr_progress .progress {
@@ -668,13 +729,14 @@
 .slyr-site-accordion-body {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
     background: #fafffe;
     border-radius: 0 0 8px 8px;
 }
 
 .slyr-site-card.expanded .slyr-site-accordion-body {
-    max-height: 600px;
+    /* No height cap: any number of languages fits (a fixed max-height made long
+       lists overlap the next card). The open/close is therefore not animated. */
+    max-height: none;
     /* Switch to visible so tooltips inside the accordion are not clipped.
        overflow: hidden is only needed while closed (max-height: 0). */
     overflow: visible;

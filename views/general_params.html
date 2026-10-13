@@ -14,7 +14,7 @@
                         <div id="messages"></div>
                         <table class="form-table">
                             <tr>
-                                <td width="35%">
+                                <td class="slyr-param-label">
                                     <label class="login-field-icon fui-lock" for="API_version"><b>API version</b></label>									
                                 </td>
                                 <td>
@@ -30,15 +30,15 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td width="35%">
-                                    <label class="login-field-icon fui-lock"><b>Pagination</b></label>									
+                                <td class="slyr-param-label">
+                                    <label class="login-field-icon fui-lock" for="pagination"><b>Pagination</b></label>									
                                 </td>
                                 <td>
                                     <select class="select" name="pagination" id="pagination" onchange="update_general_parameter_field(this);" disabled>
                                         <?php 
                                         foreach ($paginations as $pagination){
                                             ?>
-                                            <option value="<?php echo $pagination; ?>" <?php echo (($general_params['pagination'] ?? '') == $pagination ? 'selected' : '5000'); ?> ><?php echo $pagination; ?></option>
+                                            <option value="<?php echo $pagination; ?>" <?php echo (($general_params['pagination'] ?? '') == $pagination ? 'selected="selected"' : ''); ?> ><?php echo $pagination; ?></option>
                                             <?php
                                         }
                                         ?>
@@ -47,7 +47,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td width="35%">
+                                <td class="slyr-param-label">
                                     <label class="login-field-icon fui-lock" for="debug_level"><b>Debug level</b></label>									
                                 </td>
                                 <td>
@@ -55,7 +55,7 @@
                                         <?php 
                                         foreach ($debug_level as $dbindex => $debug){
                                             ?>
-                                            <option value="<?php echo $dbindex; ?>" <?php echo (($general_params['debug_level'] ?? '') == $dbindex ? 'selected' : '1'); ?> ><?php echo $dbindex . " - " . $debug; ?></option>
+                                            <option value="<?php echo $dbindex; ?>" <?php echo (($general_params['debug_level'] ?? '') == $dbindex ? 'selected="selected"' : ''); ?> ><?php echo $dbindex . " - " . $debug; ?></option>
                                             <?php
                                         }
                                         ?>
@@ -64,7 +64,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td width="35%">
+                                <td class="slyr-param-label">
                                     <label class="login-field-icon fui-lock" for="all_analytics_data"><b>All analytics data</b></label>									
                                 </td>
                                 <td>
@@ -72,7 +72,7 @@
                                         <?php 
                                         foreach ($all_analytics_data as $aadKey => $aadOption){
                                             ?>
-                                            <option value="<?php echo $aadKey; ?>" <?php echo (($general_params['all_analytics_data'] ?? '') == $aadKey ? 'selected' : '1'); ?> ><?php echo $aadOption; ?></option>
+                                            <option value="<?php echo $aadKey; ?>" <?php echo (($general_params['all_analytics_data'] ?? '') == $aadKey ? 'selected="selected"' : ''); ?> ><?php echo $aadOption; ?></option>
                                             <?php
                                         }
                                         ?>

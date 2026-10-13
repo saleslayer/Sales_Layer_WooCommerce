@@ -289,7 +289,7 @@ add_action('init','slyr_wc_plugin_init');
 function slyr_wc_enqueue_stylesheets()
 {
 
-    // Register Bootstrap, Google Fonts and admin styles
+    // Register Google Fonts and admin styles
     if (is_admin()) {
 
         wp_register_style('sl_wc_google_fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -297,9 +297,6 @@ function slyr_wc_enqueue_stylesheets()
 
         wp_register_style('sl_wc_style_admin', plugin_dir_url( __FILE__ ).'css/style_admin.css', array('sl_wc_google_fonts'), SLYR_WC_version);
         wp_enqueue_style('sl_wc_style_admin');
-
-        wp_register_style('sl_wc_bootstrap_min', plugin_dir_url( __FILE__ ).'css/bootstrap.min.css');
-        wp_enqueue_style('sl_wc_bootstrap_min');
 
     }
 
@@ -310,16 +307,9 @@ function slyr_wc_enqueue_scripts()
 
     if (is_admin()){
 
-        $scripts = ['jquery-3.5.0.min', 'version_content'];
-        
-        if (!empty($scripts)){   
-        
-            foreach($scripts as $script ){
-                wp_register_script('slyr_wc_script_'.$script, plugin_dir_url( __FILE__ ).'js/'.$script.'.js',array('jquery'), null, true);
-                wp_enqueue_script ('slyr_wc_script_'.$script);
-            }
-
-        }
+        // Uses WordPress' own jQuery (no bundled copy overriding window.jQuery).
+        wp_register_script('slyr_wc_script_version_content', plugin_dir_url( __FILE__ ).'js/version_content.js', array('jquery'), SLYR_WC_version, true);
+        wp_enqueue_script('slyr_wc_script_version_content');
 
     }
 
@@ -424,11 +414,12 @@ function slyr_enqueue_general_params_script()
             'slyr_wc_script_general_params',
             plugin_dir_url( __FILE__ ) . 'js/general_params.js',
             array( 'jquery' ),
-            null,
+            SLYR_WC_version,
             true
         );
         wp_localize_script('slyr_wc_script_general_params', 'ajax_object', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce(SLYR_WC_ajax_nonce_action),
         ));
         wp_enqueue_script('slyr_wc_script_general_params');
     }
@@ -457,27 +448,8 @@ function slyr_wc_connectors()
     if ( !current_user_can( 'manage_options' ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }else{
+        // Connectors are deleted through the sl_wc_delete_connector AJAX action (nonce protected).
         $connector = new Connector();
-        
-        if (isset($_POST['delete_conn']) && !empty($_POST['delete_conn'])){
-            $deleteConnectorId = sanitize_text_field(wp_unslash($_POST['delete_conn']));
-            // Purge multiconn references before deleting the connector
-            $compId = $connector->get_info($deleteConnectorId, 'comp_id');
-            if ($compId !== false) {
-                $multiconn = Multiconn::get_instance();
-                $multiconn->purge_connector($deleteConnectorId, (int) $compId);
-            }
-
-            if (!$connector->delete_connector($deleteConnectorId)){
-                set_transient(
-                    'slyr_wc_error_deleting_connector_message',
-					__( 'Error deleting the connector: '.$deleteConnectorId, 'saleslayer_woocommerce' ),
-                    30
-                );
-                slyr_wc_show_admin_notice();
-            }
-        }
-
         $connectors = $connector->get_connector();
 
         if (!is_array($connectors)) {
@@ -500,10 +472,10 @@ function slyr_wc_connectors()
                 $modalTitle = 'Site & Language Configuration';
                 ?>
                 <div id="slyr-multisite-overlay" class="slyr-multisite-overlay" style="display:none;">
-                    <div class="slyr-multisite-modal">
+                    <div class="slyr-multisite-modal" role="dialog" aria-modal="true" aria-labelledby="slyr-multisite-title">
                         <div class="slyr-multisite-modal-header">
-                            <h3><?php echo esc_html($modalTitle); ?></h3>
-                            <button type="button" class="slyr-multisite-close" onclick="closeMultisiteModal()">&times;</button>
+                            <h3 id="slyr-multisite-title"><?php echo esc_html($modalTitle); ?></h3>
+                            <button type="button" class="slyr-multisite-close" aria-label="Close" onclick="closeMultisiteModal()">&times;</button>
                         </div>
                         <div class="slyr-multisite-modal-body">
                             <!-- Sales Layer Languages Info (populated by JS) -->
@@ -542,11 +514,12 @@ function slyr_enqueue_connectors_script()
             'slyr_wc_script_connectors',
             plugin_dir_url( __FILE__ ) . 'js/connectors.js',
             array( 'jquery' ),
-            null,
+            SLYR_WC_version,
             true
         );
         wp_localize_script('slyr_wc_script_connectors', 'ajax_object', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce(SLYR_WC_ajax_nonce_action),
             'is_multisite_mode' => slyr_is_multisite_mode() ? 1 : 0,
             'has_multilang_plugin' => slyr_detect_active_multilang_plugin() ? 1 : 0,
             'multisite_nonce' => wp_create_nonce('slyr_multisite_nonce'),
@@ -591,6 +564,7 @@ function slyr_enqueue_tools_script()
 
         wp_localize_script('slyr_wc_script_tools', 'ajax_object', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce(SLYR_WC_ajax_nonce_action),
         ));
 
         wp_enqueue_script('slyr_wc_script_tools');
@@ -598,8 +572,8 @@ function slyr_enqueue_tools_script()
         wp_register_style('sl_wc_style_tools', plugin_dir_url( __FILE__ ).'css/tools.css', array(), SLYR_WC_version);
         wp_enqueue_style('sl_wc_style_tools');
 
-        wp_register_style('sl_wc_fontawesome_min', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
-        wp_enqueue_style('sl_wc_fontawesome_min');
+        // Tool icons use Dashicons, bundled with WordPress (no external CDN).
+        wp_enqueue_style('dashicons');
 
     }
 }
@@ -748,9 +722,13 @@ function slyr_validate_sync_configuration($connector_id)
                 $savedLanguages = $siteMappingsKeyed[$blogId] ?? [];
 
                 if (empty($savedLanguages)) {
-                    // Get site name for error message
-                    $siteDetails = get_blog_details($blogId);
-                    $siteName = $siteDetails ? $siteDetails->blogname : "Site ID {$blogId}";
+                    // Get site name for error message (get_blog_details() only exists in multisite)
+                    if (is_multisite()) {
+                        $siteDetails = get_blog_details($blogId);
+                        $siteName = $siteDetails ? $siteDetails->blogname : "Site ID {$blogId}";
+                    } else {
+                        $siteName = get_bloginfo('name');
+                    }
 
                     $errors[] = sprintf(
                         'Site "%s" (ID: %d) has Polylang active with languages configured, but no languages are selected in the connector. Please configure languages in Settings.',
@@ -823,15 +801,60 @@ function check_plugin_requirements()
 
 }
 
+/**
+ * Permission and CSRF check for the plugin's admin AJAX actions.
+ *
+ * Ends the request with a JSON error (HTTP 403) when the current user cannot manage
+ * the plugin or the nonce sent as "nonce" is not valid. The response carries the
+ * message in both formats used by the plugin scripts: message_type/message and
+ * data.message (wp_send_json_error style).
+ *
+ * @return void
+ */
+function slyr_wc_verify_ajax_request()
+{
+    $message = '';
+
+    if (!current_user_can('manage_options')) {
+        $message = 'You do not have permission to perform this action.';
+    } elseif (!check_ajax_referer(SLYR_WC_ajax_nonce_action, 'nonce', false)) {
+        $message = 'Security check failed. Please reload the page and try again.';
+    }
+
+    if ($message !== '') {
+        wp_send_json(
+            [
+                'success'      => false,
+                'message_type' => 'error',
+                'message'      => $message,
+                'data'         => ['message' => $message],
+            ],
+            403
+        );
+    }
+}
+
 add_action('wp_ajax_sl_wc_synchronize_connector', 'sl_wc_synchronize_connector');
 
 function sl_wc_synchronize_connector()
 {
+    slyr_wc_verify_ajax_request();
 
-    $connector_id = $_POST['connector_id'];
-    $secret_key = $_POST['secret_key'];
+    $connector_id = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
 
-    if (isset($connector_id) && !empty($connector_id)){
+    $connector = new Connector();
+    if ($connector_id === '' || !$connector->check_connector($connector_id)) {
+        echo json_encode([
+            'error'   => 1,
+            'message' => '<div class="dialog dialog-warning">Connector not found. Please reload the page.</div>',
+        ]);
+        wp_die();
+    }
+
+    // The secret key is read from the database: it is no longer exposed in the page HTML.
+    $secret_key = (string) $connector->get_info($connector_id, 'conn_secret');
+
+    if (!empty($connector_id)){
 
         $result_check_plugins_requirements = check_plugin_requirements();
 
@@ -878,10 +901,7 @@ add_action('wp_ajax_sl_wc_delete_connector', 'sl_wc_delete_connector_ajax');
  */
 function sl_wc_delete_connector_ajax()
 {
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error(['message' => 'Insufficient permissions']);
-        return;
-    }
+    slyr_wc_verify_ajax_request();
 
     $connectorId = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
     if (empty($connectorId)) {
@@ -1014,10 +1034,11 @@ add_action('wp_ajax_sl_wc_update_general_parameter_field', 'update_general_param
 
 function update_conn_field_action()
 {
+    slyr_wc_verify_ajax_request();
 
-    $connector_id = $_GET['connector_id'];
-    $field_name = $_GET['field_name'];
-    $field_value = $_GET['field_value'];
+    $connector_id = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
+    $field_name = isset($_POST['field_name']) ? sanitize_key(wp_unslash($_POST['field_name'])) : '';
+    $field_value = isset($_POST['field_value']) ? sanitize_text_field(wp_unslash($_POST['field_value'])) : '';
     $field_names = [
         'cnf_id' => 'Configuration ID',
         'conn_code' => 'Connector code',
@@ -1031,6 +1052,16 @@ function update_conn_field_action()
         'auto_sync' => 'Auto Sync'
     ];
     $array_return = [];
+
+    // Only the fields the UI can edit; anything else (including case variations of protected columns) is rejected.
+    $editable_fields = ['auto_sync'];
+    if (!in_array($field_name, $editable_fields, true) || $connector_id === '') {
+        echo json_encode([
+            'message_type' => 'warning',
+            'message'      => 'Forbidden field to update: ' . ($field_names[$field_name] ?? $field_name) . '.',
+        ]);
+        wp_die();
+    }
 
     $connector = new Connector();
     $result_update = $connector->update_conn_field($connector_id, $field_name, $field_value);
@@ -1060,9 +1091,10 @@ function update_conn_field_action()
 
 function update_general_parameter_field_action()
 {
+    slyr_wc_verify_ajax_request();
 
-    $field_name = $_GET['field_name'];
-    $field_value = $_GET['field_value'];
+    $field_name = isset($_POST['field_name']) ? sanitize_text_field(wp_unslash($_POST['field_name'])) : '';
+    $field_value = isset($_POST['field_value']) ? sanitize_text_field(wp_unslash($_POST['field_value'])) : '';
     $field_names = [
         'API_version' => 'API Version',
         'pagination' => 'Pagination',
@@ -1070,6 +1102,14 @@ function update_general_parameter_field_action()
         'all_analytics_data' => 'All Analytics Data',
     ];
     $array_return = [];
+
+    if (!isset($field_names[$field_name])) {
+        echo json_encode([
+            'message_type' => 'warning',
+            'message'      => 'Forbidden field to update: ' . $field_name . '.',
+        ]);
+        wp_die();
+    }
 
     $general_params = new GeneralParameters();
     $result_update = $general_params->updateGeneralParameter($field_name, $field_value);
@@ -1101,8 +1141,9 @@ add_action('wp_ajax_sl_wc_execute_tool', 'sl_wc_execute_tool');
 
 function sl_wc_execute_tool()
 {
+    slyr_wc_verify_ajax_request();
 
-    $toolToExecute = $_POST['tool_to_execute'];
+    $toolToExecute = isset($_POST['tool_to_execute']) ? sanitize_key(wp_unslash($_POST['tool_to_execute'])) : '';
     $response = [];
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Tools.class.php');
     $tools = new Tools();
@@ -1118,9 +1159,8 @@ function sl_wc_execute_tool()
                 unlink($zipPath);
                 exit;
             }else{
-                wp_send_json_error([]);
-                wp_die();
-            }          
+                wp_send_json_error(['message' => $tools->last_error !== '' ? $tools->last_error : "Couldn't download SL logs."]);
+            }
             break;
         case 'delete_sl_logs':
             if ($tools->deleteSLLogs() == true){
@@ -1313,7 +1353,8 @@ add_action('wp_ajax_sl_wc_check_process_status', 'sl_wc_check_process_status');
 
 function sl_wc_check_process_status()
 {
-    
+    slyr_wc_verify_ajax_request();
+
     $process_status = array();
 
     include_once(SLYR_WC__PLUGIN_DIR.'admin/general_functions.php');
@@ -1377,15 +1418,19 @@ function sl_wc_check_version()
     $repo_url = "https://api.github.com/repos/saleslayer/Sales_Layer_WooCommerce/releases/latest";
     $response = wp_remote_get($repo_url, array('headers' => array('User-Agent' => 'WordPress')));
 
-    if (is_wp_error($response)) {
+    if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
         return;
     }
 
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body, true);
 
-    if (!empty($data['tag_name'])) {
-        $latest_version = $data['tag_name'];
+    if (is_array($data) && !empty($data['tag_name']) && is_string($data['tag_name'])) {
+        // Release tags may be prefixed with "v" (e.g. v2.6.3); version_compare() needs the bare number.
+        $latest_version = ltrim(trim($data['tag_name']), 'vV');
+        if (!preg_match('/^\d+(\.\d+)*$/', $latest_version)) {
+            return;
+        }
         $current_version = SLYR_WC_version;
         $stored_version = get_site_option('SLYR_WC_latest_version', '');
         if (version_compare($latest_version, $current_version, '>') && $latest_version !== $stored_version) {
@@ -1435,7 +1480,7 @@ function slyr_ajax_get_network_sites()
         return;
     }
 
-    $sites = get_sites(['number' => 100]);
+    $sites = get_sites(['number' => 0]); // 0 = no limit (WP_Site_Query defaults to 100)
     $mainSiteBlogId = (int) get_main_site_id();
     $sitesData = array_map(function ($site) use ($mainSiteBlogId) {
         $blogId = (int) $site->blog_id;
@@ -1609,9 +1654,10 @@ function slyr_ajax_get_multisite_config()
     $debug[] = "Connector ID: {$connectorId}";
 
     $connector = new Connector();
-    $connData = $connector->get_connector($connectorId);
+    // get_connector() returns every connector when the ID does not exist, so check it first.
+    $connData = $connector->check_connector($connectorId) ? $connector->get_connector($connectorId) : null;
 
-    if (empty($connData)) {
+    if (!is_object($connData)) {
         wp_send_json_error(['message' => 'Connector not found']);
         return;
     }
@@ -1658,7 +1704,7 @@ function slyr_ajax_get_multisite_config()
             // Get ALL sites, not just active targets, so we can fetch languages for modal
             $sitesToProcess = [];
             if (is_multisite()) {
-                $allSites = get_sites(['number' => 100]);
+                $allSites = get_sites(['number' => 0]); // 0 = no limit (WP_Site_Query defaults to 100)
                 foreach ($allSites as $site) {
                     $sitesToProcess[] = ['blog_id' => (int) $site->blog_id];
                 }
@@ -1677,15 +1723,25 @@ function slyr_ajax_get_multisite_config()
                 $debug[] = "Processing site {$blogId}...";
 
                 // Switch to site if multisite and different from original
+                $switched = false;
                 if (is_multisite() && $blogId !== $originalBlogId) {
                     $debug[] = "  → Switching to blog {$blogId}";
                     switch_to_blog($blogId);
+                    $switched = true;
                 }
 
-                // Create new MultilangHelper instance after switching to blog
-                $helperForSite = new MultilangHelper();
-                $siteLanguages = $helperForSite->get_multilang_languages();
-                $siteDefaultLang = $helperForSite->get_default_language();
+                try {
+                    // Create new MultilangHelper instance after switching to blog
+                    $helperForSite = new MultilangHelper();
+                    $siteLanguages = $helperForSite->get_multilang_languages();
+                    $siteDefaultLang = $helperForSite->get_default_language();
+                } finally {
+                    // Always go back to the original blog, even if the helper throws
+                    if ($switched) {
+                        restore_current_blog();
+                        $debug[] = "  → Restored to blog {$originalBlogId}";
+                    }
+                }
 
                 $debug[] = "  → Languages for site {$blogId}: " . json_encode($siteLanguages);
                 $debug[] = "  → Default language for site {$blogId}: {$siteDefaultLang}";
@@ -1699,20 +1755,16 @@ function slyr_ajax_get_multisite_config()
                     $debug[] = "  → Set as global pluginLanguages (single-site)";
                 }
 
-                // Restore to original blog if switched
-                if (is_multisite() && $blogId !== $originalBlogId) {
-                    restore_current_blog();
-                    $debug[] = "  → Restored to blog {$originalBlogId}";
-                }
             }
 
             $debug[] = "Final pluginLanguages: " . json_encode($pluginLanguages);
             $debug[] = "Final pluginLanguagesPerSite: " . json_encode($pluginLanguagesPerSite);
             $debug[] = "Final defaultLanguages: " . json_encode($defaultLanguages);
 
-        } catch (Exception $e) {
-            // If MultilangHelper fails, continue without language data
+        } catch (\Throwable $e) {
+            // If MultilangHelper fails (Exception or PHP Error), continue without language data
             $debug[] = 'MultilangHelper error: ' . $e->getMessage();
+            sl_debug('## Error. Loading multisite/multilang configuration: ' . $e->getMessage());
         }
     }
 
@@ -1739,7 +1791,8 @@ function slyr_ajax_get_multisite_config()
         'site_mappings'             => $siteMappings,
         'has_multilang'             => !empty($pluginLanguages) || !empty($pluginLanguagesPerSite),
         'default_language'          => $defaultLanguage, // Legacy: single default
-        'debug'                     => $debug,
+        // Internal trace only for debugging installs; it is not needed by the UI
+        'debug'                     => (defined('WP_DEBUG') && WP_DEBUG) ? $debug : [],
     ]);
 }
 
@@ -1788,6 +1841,8 @@ function getAllowedTags()
             'class' => [],
             'style' => [],
             'role' => [],
+            'aria-modal' => [],
+            'aria-labelledby' => [],
             'aria-valuenow' => [],
             'aria-valuemin' => [],
             'aria-valuemax' => []
@@ -1796,7 +1851,9 @@ function getAllowedTags()
             'class' => [],
             'id' => []
         ],
-        'h3' => [],
+        'h3' => [
+            'id' => []
+        ],
         'form' => [
             'method' => [],
             'action' => [],
@@ -1817,10 +1874,12 @@ function getAllowedTags()
         'button' => [
             'type' => [],
             'class' => [],
-            'connectorid' => [],
-            'secretkey' => [],
+            'data-connector-id' => [],
             'onclick' => [],
-            'id' => []
+            'id' => [],
+            'form' => [],
+            'disabled' => [],
+            'aria-label' => []
         ],
         'table' => [
             'class' => [],
@@ -1851,7 +1910,9 @@ function getAllowedTags()
             'class' => [],
             'name' => [], 
             'id' => [],
-            'onchange' => []
+            'onchange' => [],
+            'disabled' => [],
+            'data-connector-id' => []
         ],
         'option' => [
             'value' => [],

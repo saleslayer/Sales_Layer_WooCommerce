@@ -10,6 +10,8 @@ include_once(SLYR_WC__PLUGIN_DIR . 'admin/general_functions.php');
  */
 class Tools
 {
+    /** @var string Reason of the last failed operation, shown to the user. */
+    public $last_error = '';
 
     private static $tools;
 
@@ -39,22 +41,39 @@ class Tools
      */
     public function downloadSLLogs()
     {
+        $this->last_error = '';
         $log_files = glob(SLYR_WC__LOGS_DIR . '*.dat');
-        if (!empty($log_files)) {
-            $zip_name = 'sl_logs-' . time() . '.zip';
-            $zip_path = SLYR_WC__LOGS_DIR . $zip_name;
-            $zip = new ZipArchive();
-            if ($zip->open($zip_path, ZipArchive::CREATE) !== true) {
-                sl_debug("## Error. Creating SL logs zip file.");
-                return false;
-            }
-            foreach ($log_files as $log_file) {
-                $zip->addFile($log_file, basename($log_file));
-            }
-            $zip->close();
-            return $zip_path;
+
+        if (empty($log_files)) {
+            $this->last_error = 'There are no SL logs to download.';
+            return false;
         }
-        return false;
+
+        // ZipArchive belongs to the PHP zip extension, which is not always installed.
+        if (!class_exists('ZipArchive')) {
+            $this->last_error = 'The PHP zip extension is required to download the SL logs.';
+            sl_debug('## Error. Creating SL logs zip file: PHP zip extension not available.');
+            return false;
+        }
+
+        $zip_name = 'sl_logs-' . time() . '.zip';
+        $zip_path = SLYR_WC__LOGS_DIR . $zip_name;
+        $zip = new ZipArchive();
+        if ($zip->open($zip_path, ZipArchive::CREATE) !== true) {
+            $this->last_error = "Couldn't create the SL logs zip file.";
+            sl_debug("## Error. Creating SL logs zip file.");
+            return false;
+        }
+        foreach ($log_files as $log_file) {
+            $zip->addFile($log_file, basename($log_file));
+        }
+        if (!$zip->close()) {
+            $this->last_error = "Couldn't create the SL logs zip file.";
+            sl_debug("## Error. Closing SL logs zip file.");
+            return false;
+        }
+
+        return $zip_path;
     }
 
     /**
@@ -65,16 +84,23 @@ class Tools
     {
 
         $log_files = glob(SLYR_WC__LOGS_DIR . '*.dat');
-        if (!empty($log_files)) {
-            try {
-                foreach ($log_files as $log_file) {
-                    unlink($log_file);
-                }
-            } catch (\Exception $e) {
-                sl_debug('## Error. Deleting SL logs: ' . $e->getMessage());
-                return false;
+        if (empty($log_files)) {
+            return true;
+        }
+
+        // unlink() does not throw: it returns false (with a warning) when the file cannot be removed.
+        $not_deleted = array();
+        foreach ($log_files as $log_file) {
+            if (!@unlink($log_file)) {
+                $not_deleted[] = basename($log_file);
             }
         }
+
+        if (!empty($not_deleted)) {
+            sl_debug('## Error. Deleting SL logs, files not deleted: ' . implode(', ', $not_deleted));
+            return false;
+        }
+
         return true;
     }
 
