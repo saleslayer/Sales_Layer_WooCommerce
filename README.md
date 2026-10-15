@@ -37,11 +37,11 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 - PHP zip extension, required to download the plugin logs from *Tools > Download SL Logs*.
 
-- Outgoing HTTPS connections with up-to-date root certificates (TLS certificates are verified when sending synchronization analytics).
+- Outgoing HTTPS connections with up-to-date root certificates: TLS certificates are verified when calling the Sales Layer API and when sending synchronization analytics, so a proxy that intercepts TLS must be trusted by the server.
 
-- The web server user must be able to write in the plugin `logs/` folder.
+- The web server user must be able to write in the plugin `logs/` folder. Log file names include a random suffix and the folder is protected with `.htaccess`; download them from *Tools > Download SL Logs*.
 
-- Plugin administration requires the `manage_options` capability (administrators).
+- Plugin administration requires the `manage_options` capability (administrators); in Multisite, `manage_network_options` (super admins).
 
 - Define the fields relationship in the Sales Layer WooCommerce connector:
 	- One size for image fields.

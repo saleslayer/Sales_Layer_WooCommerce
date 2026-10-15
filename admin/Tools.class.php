@@ -56,18 +56,41 @@ class Tools
             return false;
         }
 
-        $zip_name = 'sl_logs-' . time() . '.zip';
-        $zip_path = SLYR_WC__LOGS_DIR . $zip_name;
+        // Temporary zip outside the public logs dir (deleted by the caller after sending it).
+        if (!function_exists('wp_tempnam')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        $zip_path = wp_tempnam('sl_logs-' . time() . '.zip');
+        if (!$zip_path) {
+            $this->last_error = "Couldn't create the SL logs zip file.";
+            sl_debug("## Error. Creating SL logs temporary file.");
+            return false;
+        }
         $zip = new ZipArchive();
-        if ($zip->open($zip_path, ZipArchive::CREATE) !== true) {
+        if ($zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            @unlink($zip_path);
             $this->last_error = "Couldn't create the SL logs zip file.";
             sl_debug("## Error. Creating SL logs zip file.");
             return false;
         }
+        // On disk the log names carry a secret suffix (unguessable URLs on servers that ignore
+        // .htaccess, e.g. nginx); inside the zip they get their plain names back.
+        // The secret is removed wherever it appears, so renamed copies (e.g. "<name>_<secret>_1.dat")
+        // also get a clean name.
+        $secret_part = '_' . slyr_wc_log_secret();
+        $zip_names   = array();
         foreach ($log_files as $log_file) {
-            $zip->addFile($log_file, basename($log_file));
+            $entry_name = str_replace($secret_part, '', basename($log_file));
+            // Same day logged both before and after the suffix existed: keep both entries.
+            if (isset($zip_names[$entry_name])) {
+                $entry_name = substr($entry_name, 0, -4) . '-' . (++$zip_names[$entry_name]) . '.dat';
+            } else {
+                $zip_names[$entry_name] = 1;
+            }
+            $zip->addFile($log_file, $entry_name);
         }
         if (!$zip->close()) {
+            @unlink($zip_path);
             $this->last_error = "Couldn't create the SL logs zip file.";
             sl_debug("## Error. Closing SL logs zip file.");
             return false;

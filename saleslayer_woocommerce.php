@@ -54,6 +54,71 @@ if (!defined('SLYR_WC__PLUGIN_FILE')) {
 include_once(plugin_dir_path(__FILE__).'settings.php');
 if (!defined('SLYR_TIME_INI_PROCESS')) define('SLYR_TIME_INI_PROCESS', microtime(true));
 
+/**
+ * Capability required to manage the plugin. Plugin tables, connector secrets and logs are
+ * network-global in Multisite, so only network admins (super admins) may manage them there.
+ * @return string
+ */
+function slyr_wc_admin_capability()
+{
+    return is_multisite() ? 'manage_network_options' : 'manage_options';
+}
+
+/**
+ * Secret suffix for log file names (generated once, stored as a site option), so log files
+ * cannot be guessed by URL even where .htaccess is ignored (nginx).
+ * @return string
+ */
+function slyr_wc_log_secret()
+{
+    static $secret = null;
+    if ($secret === null) {
+        $secret = (string) get_site_option('slyr_wc_log_secret', '');
+        if ($secret === '') {
+            $secret = wp_generate_password(12, false);
+            update_site_option('slyr_wc_log_secret', $secret);
+        }
+    }
+    return $secret;
+}
+
+/**
+ * Make sure the logs dir has its protection files (index.php and .htaccess).
+ * @return void
+ */
+function slyr_wc_protect_logs_dir()
+{
+    static $done = false;
+    if ($done) { return; }
+    $done = true;
+
+    if (!is_dir(SLYR_WC__LOGS_DIR)) { return; }
+
+    $index = SLYR_WC__LOGS_DIR.'index.php';
+    if (!file_exists($index)) {
+        @file_put_contents($index, "<?php\n// Silence is golden.\n");
+    }
+    $htaccess = SLYR_WC__LOGS_DIR.'.htaccess';
+    if (!file_exists($htaccess)) {
+        @file_put_contents($htaccess,
+            "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n".
+            "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n");
+    }
+}
+
+/**
+ * Build a log file name with the secret suffix. $base has no extension,
+ * e.g. '_debug_log_saleslayer_'.date('Y-m-d') => '_debug_log_saleslayer_2026-01-01_<secret>.dat'.
+ * Use SLYR_WC__LOGS_DIR.slyr_wc_log_file_name($base) for the full path.
+ * @param string $base
+ * @return string
+ */
+function slyr_wc_log_file_name($base)
+{
+    slyr_wc_protect_logs_dir();
+    return $base.'_'.slyr_wc_log_secret().'.dat';
+}
+
 function sl_debug($msg, string $type = '')
 {
     global $debug_level;
@@ -63,28 +128,28 @@ function sl_debug($msg, string $type = '')
         $error_write = false;
         if (strpos($msg, '## Error.') !== false){
             $error_write = true;
-            $error_file = SLYR_WC__LOGS_DIR.'_error_debug_log_saleslayer_'.date('Y-m-d').'.dat';
+            $error_file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_error_debug_log_saleslayer_'.date('Y-m-d'));
         }
 
         switch ($type) {
             case 'timer':
-                $file = SLYR_WC__LOGS_DIR.'/_debug_log_saleslayer_timers_'.date('Y-m-d').'.dat';
+                $file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_debug_log_saleslayer_timers_'.date('Y-m-d'));
                 break;
 
             case 'autosync':
-                $file = SLYR_WC__LOGS_DIR.'/_debug_log_saleslayer_auto_sync_'.date('Y-m-d').'.dat';
+                $file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_debug_log_saleslayer_auto_sync_'.date('Y-m-d'));
                 break;
 
             case 'syncdata':
-                $file = SLYR_WC__LOGS_DIR.'/_debug_log_saleslayer_syncdata_'.date('Y-m-d').'.dat';
+                $file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_debug_log_saleslayer_syncdata_'.date('Y-m-d'));
                 break;
 
             case 'mediameta':
-                $file = SLYR_WC__LOGS_DIR.'/_debug_log_saleslayer_media_meta_'.date('Y-m-d').'.dat';
+                $file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_debug_log_saleslayer_media_meta_'.date('Y-m-d'));
                 break;
 
             default:
-                $file = SLYR_WC__LOGS_DIR.'/_debug_log_saleslayer_'.date('Y-m-d').'.dat';
+                $file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_debug_log_saleslayer_'.date('Y-m-d'));
                 break;
         }
 
@@ -374,14 +439,14 @@ function slyr_wc_enqueue_scripts()
 function slyr_wc_menu()
 {
     
-    $menu_pages[]= add_menu_page( SLYR_WC_name.' Options', SLYR_WC_name, 'manage_options', 'slyr_wc_menu', 'slyr_wc_how_to_start',
+    $menu_pages[]= add_menu_page( SLYR_WC_name.' Options', SLYR_WC_name, slyr_wc_admin_capability(), 'slyr_wc_menu', 'slyr_wc_how_to_start',
                                   $icon_url=plugin_dir_url( __FILE__ ).'images/'.SLYR_WC_name_icon);
 
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How To Start'),            __('How To Start'),        'manage_options', 'slyr_wc_menu',           'slyr_wc_how_to_start');
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('General Parameters'),      __('General Parameters'),   'manage_options', 'slyr_wc_general_params', 'slyr_wc_general_params' );
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Connectors'),              __('Connectors'),           'manage_options', 'slyr_wc_connectors',     'slyr_wc_connectors' );
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Tools'),                   __('Tools'),                'manage_options', 'slyr_wc_tools',          'slyr_wc_tools' );
-    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('FAQ'),                     __('FAQ'),                  'manage_options', 'slyr_wc_faq',            'slyr_wc_faq' );
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('How To Start'),            __('How To Start'),        slyr_wc_admin_capability(), 'slyr_wc_menu',           'slyr_wc_how_to_start');
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('General Parameters'),      __('General Parameters'),   slyr_wc_admin_capability(), 'slyr_wc_general_params', 'slyr_wc_general_params' );
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Connectors'),              __('Connectors'),           slyr_wc_admin_capability(), 'slyr_wc_connectors',     'slyr_wc_connectors' );
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('Tools'),                   __('Tools'),                slyr_wc_admin_capability(), 'slyr_wc_tools',          'slyr_wc_tools' );
+    $menu_pages[]= add_submenu_page( 'slyr_wc_menu', __('FAQ'),                     __('FAQ'),                  slyr_wc_admin_capability(), 'slyr_wc_faq',            'slyr_wc_faq' );
         
     foreach($menu_pages as $page){
         add_action( 'admin_print_styles-' . $page, 'slyr_wc_enqueue_stylesheets');
@@ -391,7 +456,7 @@ function slyr_wc_menu()
 
 function slyr_wc_how_to_start()
 {
-    if ( !current_user_can( 'manage_options' ) )  {
+    if ( !current_user_can( slyr_wc_admin_capability() ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
 
@@ -434,7 +499,7 @@ add_action('admin_notices', 'slyr_wc_show_admin_notice');
 
 function slyr_wc_general_params()
 {
-    if ( !current_user_can( 'manage_options' ) )  {
+    if ( !current_user_can( slyr_wc_admin_capability() ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     } else {
         
@@ -485,7 +550,7 @@ add_action( 'admin_enqueue_scripts', 'slyr_enqueue_general_params_script' );
 function slyr_wc_add_connector()
 {
 
-    if ( !current_user_can( 'manage_options' ) ) {
+    if ( !current_user_can( slyr_wc_admin_capability() ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
 
@@ -501,7 +566,7 @@ function slyr_wc_add_connector()
 
 function slyr_wc_connectors()
 {
-    if ( !current_user_can( 'manage_options' ) ) {
+    if ( !current_user_can( slyr_wc_admin_capability() ) ) {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }else{
         // Connectors are deleted through the sl_wc_delete_connector AJAX action (nonce protected).
@@ -588,7 +653,7 @@ add_action( 'admin_enqueue_scripts', 'slyr_enqueue_connectors_script' );
 
 function slyr_wc_tools()
 {
-    if ( !current_user_can( 'manage_options' ) )  {
+    if ( !current_user_can( slyr_wc_admin_capability() ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
     
@@ -637,7 +702,7 @@ add_action( 'admin_enqueue_scripts', 'slyr_enqueue_tools_script' );
 
 function slyr_wc_faq()
 {
-    if ( !current_user_can( 'manage_options' ) )  {
+    if ( !current_user_can( slyr_wc_admin_capability() ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
     
@@ -901,7 +966,7 @@ function slyr_wc_verify_ajax_request()
 {
     $message = '';
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can(slyr_wc_admin_capability())) {
         $message = 'You do not have permission to perform this action.';
     } elseif (!check_ajax_referer(SLYR_WC_ajax_nonce_action, 'nonce', false)) {
         $message = 'Security check failed. Please reload the page and try again.';
@@ -1032,7 +1097,7 @@ add_action('wp_ajax_sl_wc_create_connector', 'sl_wc_create_connector_ajax');
  */
 function sl_wc_create_connector_ajax()
 {
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can(slyr_wc_admin_capability())) {
         wp_send_json_error(['message' => 'Insufficient permissions']);
         return;
     }
@@ -1239,10 +1304,10 @@ function sl_wc_execute_tool()
             $zipPath = $tools->downloadSLLogs();
             if ($zipPath !== false){
                 header('Content-Type: application/zip');
-                header('Content-Disposition: attachment; filename="' . basename($zipPath) . '"');
+                header('Content-Disposition: attachment; filename="sl_logs-' . time() . '.zip"');
                 header('Content-Length: ' . filesize($zipPath));
                 readfile($zipPath);
-                unlink($zipPath);
+                @unlink($zipPath);
                 exit;
             }else{
                 wp_send_json_error(['message' => $tools->last_error !== '' ? $tools->last_error : "Couldn't download SL logs."]);
@@ -1343,18 +1408,45 @@ function sl_wc_auto_sync_connectors()
 
         global $wpdb;
 
-        $connector = $wpdb->get_results(" SELECT conn_code, conn_secret, ".  
-                                            " UNIX_TIMESTAMP(last_sync) as last_update_unix ".
-                                            " FROM ".SLYR_WC_connector_table." WHERE auto_sync > 0 ".
-                                            " AND ((last_sync is null) or (last_sync is not null and UNIX_TIMESTAMP(last_sync) < ( UNIX_TIMESTAMP() - ( auto_sync * 3600 )))) ".
-                                            " ORDER BY last_update_unix ASC, auto_sync DESC LIMIT 1 ", ARRAY_A);
-        
+        // Due check in PHP using UTC: last_sync is stored as a UTC string by PHP, while MySQL
+        // would interpret it in its own session time zone.
+        $candidates = $wpdb->get_results(" SELECT conn_code, conn_secret, auto_sync, last_sync ".
+                                            " FROM ".SLYR_WC_connector_table." WHERE auto_sync > 0 ", ARRAY_A);
+
+        // Last auto-sync attempt per connector, so a connector that always fails waits its interval too.
+        $attempts = get_site_option('slyr_wc_autosync_attempts', []);
+        if (!is_array($attempts)) { $attempts = []; }
+
+        $now = time();
+        $due = [];
+        foreach ((array) $candidates as $candidate) {
+            $last_sync = $candidate['last_sync'];
+            $last_ts = (empty($last_sync) || strpos($last_sync, '0000-00-00') === 0) ? 0 : (int) strtotime($last_sync.' UTC');
+            $last_attempt = isset($attempts[$candidate['conn_code']]) ? (int) $attempts[$candidate['conn_code']] : 0;
+            $last_ts = max($last_ts, $last_attempt);
+
+            if ($last_ts < $now - ((float) $candidate['auto_sync'] * 3600)) {
+                $candidate['last_ts'] = $last_ts;
+                $due[] = $candidate;
+            }
+        }
+
+        // Oldest activity first, then the longest interval first.
+        usort($due, function ($x, $y) {
+            return [$x['last_ts'], -$x['auto_sync']] <=> [$y['last_ts'], -$y['auto_sync']];
+        });
+        $connector = array_slice($due, 0, 1);
+
         if (!empty($connector)){
 
             $conn_code = $connector[0]['conn_code'];
             $conn_secret = $connector[0]['conn_secret'];
 
             sl_debug("Connector to auto-synchronize: ".$conn_code, 'autosync');
+
+            // Record the attempt before syncing (success or failure) so other connectors are not starved.
+            $attempts[$conn_code] = time();
+            update_site_option('slyr_wc_autosync_attempts', $attempts);
 
             // Validate multilang configuration before sync (autosync - log only, no frontend)
             $validationResult = slyr_validate_sync_configuration($conn_code);
@@ -1530,7 +1622,7 @@ add_action('wp_ajax_slyr_get_network_sites', 'slyr_ajax_get_network_sites');
  * AJAX handler: Return list of sites in the WordPress Multisite network.
  *
  * Response includes blog_id, blogname, and siteurl for each site.
- * Requires 'manage_options' capability and valid nonce.
+ * Requires the slyr_wc_admin_capability() capability and valid nonce.
  *
  * @return void Sends JSON response via wp_send_json_success/wp_send_json_error
  */
@@ -1538,7 +1630,7 @@ function slyr_ajax_get_network_sites()
 {
     check_ajax_referer('slyr_multisite_nonce', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can(slyr_wc_admin_capability())) {
         wp_send_json_error(['message' => 'Insufficient permissions']);
         return;
     }
@@ -1602,7 +1694,7 @@ function slyr_ajax_save_multisite_config()
 {
     check_ajax_referer('slyr_multisite_nonce', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can(slyr_wc_admin_capability())) {
         wp_send_json_error(['message' => 'Insufficient permissions']);
         return;
     }
@@ -1718,7 +1810,7 @@ function slyr_ajax_get_multisite_config()
 {
     check_ajax_referer('slyr_multisite_nonce', 'nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can(slyr_wc_admin_capability())) {
         wp_send_json_error(['message' => 'Insufficient permissions']);
         return;
     }

@@ -2,6 +2,7 @@
 
 require_once(ABSPATH . 'wp-load.php');
 require_once(ABSPATH . 'wp-admin/includes/image.php');
+require_once(ABSPATH . 'wp-admin/includes/file.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/general_functions.php');
 
 /**
@@ -18,6 +19,7 @@ class Media_class
     protected	$stored_url_files_sizes             = array();
     protected	$sl_time_ini_media_meta_process;
     protected	$max_media_meta_execution_time		= 240;
+    protected	$download_timeout					= 60;
     protected	$end_media_meta_process;
 
     /**
@@ -50,6 +52,8 @@ class Media_class
         $image_url_info = pathinfo($image_url);
         $filename = rawurldecode($image_url_info['basename']);
         $filename = str_replace(["#", "%"], ["_U23_", "_U25_"], $filename);
+        // Never allow path separators or unsafe characters in the final file name.
+        $filename = sanitize_file_name(basename(str_replace('\\', '/', $filename)));
 
         // sl_debug('# time_get_image_url_filename: '.(microtime(true) - $time_ini_get_image_url_filename).' seconds.', 'timer');
 
@@ -74,6 +78,105 @@ class Media_class
         // sl_debug('# time_get_encoded_url: '.(microtime(true) - $time_ini_get_encoded_url).' seconds.', 'timer');
 
         return $image_url_info['dirname'].'/'.$filename_encoded;
+
+    }
+
+    /**
+     * Download a remote file to a temporary file and validate it.
+     * The file name must have an extension allowed by WordPress and, for images,
+     * the downloaded file must really be an image.
+     * @param string $file_url          URL of the file to download
+     * @param string $filename          Sanitized destination file name
+     * @param string $importedmedia_dir Destination directory (with trailing slash)
+     * @return array|false array(temp_file, mime, save_path) on success, false on failure
+     */
+    protected function download_valid_media($file_url, $filename, $importedmedia_dir)
+    {
+
+        $filetype = wp_check_filetype($filename, get_allowed_mime_types());
+
+        if (empty($filetype['ext']) || empty($filetype['type'])){
+
+            sl_debug('## Error. Media extension not allowed, file not downloaded: '.$file_url);
+            return false;
+
+        }
+
+        // The destination must be a plain file name inside the importedmedia directory.
+        $real_dir = realpath($importedmedia_dir);
+
+        if ($real_dir === false || $filename === '' || basename($filename) !== $filename || $filename[0] === '.'){
+
+            sl_debug('## Error. Invalid media destination for file: '.$file_url);
+            return false;
+
+        }
+
+        $save_path = $real_dir . '/' . $filename;
+
+        if (dirname($save_path) !== $real_dir){
+
+            sl_debug('## Error. Media destination outside importedmedia directory: '.$file_url);
+            return false;
+
+        }
+
+        $temp_file = download_url($this->get_encoded_url($file_url), $this->download_timeout);
+
+        if (is_wp_error($temp_file)){
+
+            sl_debug('## Error. Downloading file: '.$file_url.' - '.$temp_file->get_error_message());
+            return false;
+
+        }
+
+        $mime = $filetype['type'];
+
+        if (strpos($mime, 'image/') === 0){
+
+            $file_info = wp_getimagesize($temp_file);
+
+            if (!$file_info || empty($file_info['mime']) || strpos($file_info['mime'], 'image/') !== 0){
+
+                @unlink($temp_file);
+                sl_debug('## Error. Downloaded file is not a valid image: '.$file_url);
+                return false;
+
+            }
+
+            $mime = $file_info['mime'];
+
+        }
+
+        return array($temp_file, $mime, $save_path);
+
+    }
+
+    /**
+     * Move a validated temporary file to its destination.
+     * @param string $temp_file Temporary file
+     * @param string $save_path Destination path
+     * @return bool
+     */
+    protected function move_downloaded_media($temp_file, $save_path)
+    {
+
+        if (!@rename($temp_file, $save_path)){
+
+            if (!@copy($temp_file, $save_path)){
+
+                @unlink($temp_file);
+                sl_debug('## Error. Moving downloaded media to: '.$save_path);
+                return false;
+
+            }
+
+            @unlink($temp_file);
+
+        }
+
+        @chmod($save_path, defined('FS_CHMOD_FILE') ? FS_CHMOD_FILE : 0644);
+        return true;
 
     }
 
@@ -117,16 +220,17 @@ class Media_class
         }
         // sl_debug('# fetch_media() - time_mkdir: '.(microtime(true) - $time_ini_mkdir).' seconds.', 'timer');
 
-        $file_url_encoded = $this->get_encoded_url($file_url);
+        $downloaded = $this->download_valid_media($file_url, $new_filename, $importedmedia_dir);
 
-        $temp_file = download_url($file_url_encoded);
-        if (is_wp_error($temp_file)) {
-            sl_debug('## Error. Downloading file: '.$file_url_encoded);
+        if ($downloaded === false){
             return false;
         }
-        rename($temp_file, $importedmedia_dir . $new_filename);
 
-        $file_info = getimagesize($importedmedia_dir . $new_filename);
+        list($temp_file, $file_mime, $save_path) = $downloaded;
+
+        if (!$this->move_downloaded_media($temp_file, $save_path)){
+            return false;
+        }
 
         //create an array of attachment data to insert into wp_posts table
         $artdata = array(
@@ -143,12 +247,11 @@ class Media_class
             'post_parent' => $post_id,
             'post_type' => 'attachment',
             'guid' => $importedmedia_url . $new_filename,
-            'post_mime_type' => $file_info['mime'],
+            'post_mime_type' => $file_mime,
             'post_excerpt' => '',
             'post_content' => ''
         );
 
-        $save_path = $importedmedia_dir . $new_filename;
         // sl_debug('# fetch_media() - time_prepare_data: '.(microtime(true) - $time_ini_prepare_data).' seconds.', 'timer');
 
         // $time_ini_insert_attachment = microtime(true);
@@ -228,45 +331,6 @@ class Media_class
         $importedmedia_dir = $uploads['basedir'] . '/importedmedia/';
         $importedmedia_url = $uploads['baseurl'] . '/importedmedia/';
 
-        // $time_ini_check_existing_image = microtime(true);
-
-        $existing_attachment_metadata = wp_get_attachment_metadata($attachment_id);
-        
-        if (!empty($existing_attachment_metadata)){
-
-            $main_file_to_delete_path = $uploads['basedir'] . '/' . $existing_attachment_metadata['file'];
-
-            try{
-                
-                @unlink($main_file_to_delete_path);
-                
-            }catch(\Exception $e){
-            
-            	sl_debug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
-            
-            }
-
-            if (isset($existing_attachment_metadata['sizes']) && !empty($existing_attachment_metadata['sizes'])){
-           
-                foreach ($existing_attachment_metadata['sizes'] as $keySize => $meta_size){
-                	
-                	$file_to_delete_path = $importedmedia_dir . $meta_size['file'];
-
-                	try{
-                        
-                        @unlink($file_to_delete_path);
-
-                	}catch(\Exception $e){
-                    
-                    	sl_debug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
-                    
-                    }
-
-                }
-                
-            }
-
-        }
         // sl_debug('# update_media() - time_check_existing_image: '.(microtime(true) - $time_ini_check_existing_image).' seconds.', 'timer');
 
         try{
@@ -280,28 +344,69 @@ class Media_class
             }
             // sl_debug('# update_media() - time_mkdir: '.(microtime(true) - $time_ini_mkdir).' seconds.', 'timer');
 
-            $file_url_encoded = $this->get_encoded_url($file_url);
-            
-            // $time_ini_copy_image = microtime(true);
-            copy($file_url_encoded, $importedmedia_dir . $new_filename);
-            // sl_debug('# update_media() - time_copy_image: '.(microtime(true) - $time_ini_copy_image).' seconds.', 'timer');
-            
-            // $time_ini_update_post = microtime(true);
+            // Download and validate first: the current attachment is untouched if anything fails.
+            $downloaded = $this->download_valid_media($file_url, $new_filename, $importedmedia_dir);
 
-            $file_info = getimagesize($importedmedia_dir . $new_filename);
+            if ($downloaded === false){
+                return false;
+            }
+
+            list($temp_file, $file_mime, $save_path) = $downloaded;
+
+        $existing_attachment_metadata = wp_get_attachment_metadata($attachment_id);
+            
+            if (!empty($existing_attachment_metadata)){
+
+                $main_file_to_delete_path = $uploads['basedir'] . '/' . $existing_attachment_metadata['file'];
+
+                try{
+                    
+                    @unlink($main_file_to_delete_path);
+                    
+                }catch(\Exception $e){
+                
+                	sl_debug('## Error. Deleting main media '.$main_file_to_delete_path.': '.$e->getMessage());
+                
+                }
+
+                if (isset($existing_attachment_metadata['sizes']) && !empty($existing_attachment_metadata['sizes'])){
+               
+                    foreach ($existing_attachment_metadata['sizes'] as $keySize => $meta_size){
+                    	
+                    	$file_to_delete_path = $importedmedia_dir . $meta_size['file'];
+
+                    	try{
+                            
+                            @unlink($file_to_delete_path);
+
+                    	}catch(\Exception $e){
+                        
+                        	sl_debug('## Error. Deleting media '.$file_to_delete_path.': '.$e->getMessage());
+                        
+                        }
+
+                    }
+                    
+                }
+
+            }
+
+            if (!$this->move_downloaded_media($temp_file, $save_path)){
+                return false;
+            }
+
+            // $time_ini_update_post = microtime(true);
 
             $post_data = array(
              	'ID' => $attachment_id,
              	'post_title' => $new_filename,
              	'post_name' => sanitize_title_with_dashes(str_replace("_", "-", $new_filename)),
              	'guid' => $importedmedia_url . $new_filename,
-             	'post_mime_type' => $file_info['mime']
+             	'post_mime_type' => $file_mime
             );
 
             wp_update_post($post_data);
             // sl_debug('# update_media() - time_update_post: '.(microtime(true) - $time_ini_update_post).' seconds.', 'timer');
-
-            $save_path = $importedmedia_dir . $new_filename;
 
             if (!$process_meta){
 
@@ -580,6 +685,17 @@ class Media_class
                         return false;
                     }
 
+                    // Status line of the final response (get_headers() keeps one numeric entry per response).
+                    $status_line = '';
+                    foreach ($headers as $header_key => $header_value){
+                        if (is_int($header_key)){ $status_line = (string) $header_value; }
+                    }
+
+                    if (!preg_match('~^HTTP/\S+\s+2\d\d~', $status_line)){
+                        sl_debug("## Error. Remote image with URL ".$url." couldn't be read: ".($status_line !== '' ? $status_line : 'no HTTP status').".");
+                        return false;
+                    }
+
                 }
 
             }catch(\Exception $e){
@@ -611,6 +727,7 @@ class Media_class
 
             }
 
+            sl_debug("## Error. Remote image with URL ".$url." couldn't be read: the response has no Content-Length.");
             return false;
 
         }else{

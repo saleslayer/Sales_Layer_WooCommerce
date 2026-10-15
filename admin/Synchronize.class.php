@@ -25,6 +25,8 @@ class Synchronize
 
     protected 		$sql_to_insert = [];
     protected		$sql_to_insert_limit = 20;
+    // Rows that could not be inserted into the syncdata queue (reported in the final message).
+    protected		$syncdata_not_stored = 0;
     protected       $syncdata_pid;
     protected 		$processing_data = false;
     protected 		$counters_info = [];
@@ -526,8 +528,17 @@ class Synchronize
                                             }
                                         }
 
-                                        $result_delete = $this->execute_delete_item($item_to_delete['item_type'], $sync_params, $sl_id);
-                                        $allTargetsSynced = ($result_delete !== 'item_not_deleted');
+                                        try {
+
+                                            $result_delete = $this->execute_delete_item($item_to_delete['item_type'], $sync_params, $sl_id);
+                                            $allTargetsSynced = ($result_delete === 'item_deleted');
+
+                                        } catch (\Throwable $e) {
+
+                                            $allTargetsSynced = false;
+                                            sl_debug('## Error. Deleting item: ' . $item_to_delete['item_type'] . ' SL ID: ' . $sl_id . ': ' . $e->getMessage(), 'syncdata');
+
+                                        }
 
                                     } else {
 
@@ -542,10 +553,13 @@ class Synchronize
 
                                             if ($isMultisite) {
                                                 switch_to_blog($blogId);
-                                                $this->ensureWooCommerceTablesExist($blogId);
                                             }
 
                                             try {
+
+                                                if ($isMultisite) {
+                                                    $this->ensureWooCommerceTablesExist($blogId);
+                                                }
 
                                                 // Multi-connector: unregister on this specific
                                                 // site before attempting delete. If another
@@ -565,9 +579,7 @@ class Synchronize
                                                         $target['synced'] = true;
                                                         $target['error'] = null;
 
-                                                        if ($isMultisite) {
-                                                            restore_current_blog();
-                                                        }
+                                                        // The finally block restores the blog context.
                                                         continue;
                                                     }
                                                 }
@@ -575,7 +587,7 @@ class Synchronize
                                                 sl_debug('Deleting item on blog_id: ' . $blogId . ': ' . $item_to_delete['item_type'] . ' SL ID: ' . $sl_id, 'syncdata');
                                                 $result_delete = $this->execute_delete_item($item_to_delete['item_type'], $sync_params, $sl_id);
 
-                                                if ($result_delete === 'item_not_deleted') {
+                                                if ($result_delete !== 'item_deleted') {
                                                     $target['synced'] = false;
                                                     $target['error'] = 'item_not_deleted';
                                                     $allTargetsSynced = false;
@@ -584,17 +596,19 @@ class Synchronize
                                                     $target['error'] = null;
                                                 }
 
-                                            } catch (\Exception $e) {
+                                            } catch (\Throwable $e) {
 
                                                 $target['synced'] = false;
                                                 $target['error'] = $e->getMessage();
                                                 $allTargetsSynced = false;
                                                 sl_debug('## Error. Deleting on blog_id: ' . $blogId . ': ' . $e->getMessage(), 'syncdata');
 
-                                            }
+                                            } finally {
 
-                                            if ($isMultisite) {
-                                                restore_current_blog();
+                                                if ($isMultisite) {
+                                                    restore_current_blog();
+                                                }
+
                                             }
 
                                         }
@@ -645,7 +659,7 @@ class Synchronize
         
                     }while($sql_check_try < 3);
 
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
 
                     sl_debug('## Error. Deleting syncdata process: '.$e->getMessage(), 'syncdata');
 
@@ -671,7 +685,17 @@ class Synchronize
 
                         	}
 
-                        	$this->update_item($items_to_update[0]);
+                        	try {
+
+                        	    $this->update_item($items_to_update[0]);
+
+                        	} catch (\Throwable $e) {
+
+                        	    // Make sure a failing item cannot block the queue: count the attempt so it is eventually dropped.
+                        	    sl_debug('## Error. Updating item ' . $items_to_update[0]['item_type'] . ' (queue id ' . $items_to_update[0]['id'] . '): ' . $e->getMessage(), 'syncdata');
+                        	    sl_connection_query('update', " UPDATE " . SLYR_WC_syncdata_table . " SET sync_tries = " . ((int) $items_to_update[0]['sync_tries'] + 1) . " WHERE id = " . (int) $items_to_update[0]['id']);
+
+                        	}
 
                         }else{
                         	
@@ -998,9 +1022,9 @@ class Synchronize
 
         $item_data = json_decode($item_to_update['item_data'], true);
 
-        if ($item_data == '') {
+        if (!is_array($item_data)) {
             sl_debug("## Error. Decoding item's data: " . print_r($item_to_update['item_data'], true), 'syncdata');
-            $result_update = '';
+            $result_update = 'item_not_updated';
         } else {
 
             $targets = $sync_params['targets'] ?? [];
@@ -1025,12 +1049,25 @@ class Synchronize
             // Legacy path: no targets configured, execute directly
             if (empty($targets)) {
 
-                $result_update = $this->execute_update_item($item_to_update['item_type'], $sync_params, $item_data);
+                try {
+
+                    $result_update = $this->execute_update_item($item_to_update['item_type'], $sync_params, $item_data);
+
+                } catch (\Throwable $e) {
+
+                    $result_update = 'item_not_updated';
+                    sl_debug('## Error. Syncing item: ' . $item_to_update['item_type'] . ': ' . $e->getMessage(), 'syncdata');
+
+                }
+
+                // Only 'item_updated' means success; anything else is retried.
+                if ($result_update !== 'item_updated') {
+                    $result_update = 'item_not_updated';
+                }
 
                 // Multi-connector: register on the current site if sync succeeded
                 if ($multiconnSlId !== null
-                    && $result_update !== 'item_not_updated'
-                    && $result_update !== ''
+                    && $result_update === 'item_updated'
                 ) {
                     Multiconn::get_instance()->register_connector(
                         $item_to_update['item_type'],
@@ -1044,7 +1081,6 @@ class Synchronize
             } else {
 
                 $allTargetsSynced = true;
-                $anyTargetNotUpdated = false;
 
                 foreach ($targets as &$target) {
 
@@ -1057,19 +1093,22 @@ class Synchronize
 
                     if ($isMultisite) {
                         switch_to_blog($blogId);
-                        $this->ensureWooCommerceTablesExist($blogId);
                     }
 
                     try {
 
+                        if ($isMultisite) {
+                            $this->ensureWooCommerceTablesExist($blogId);
+                        }
+
                         sl_debug('Syncing item on blog_id: ' . $blogId . ': ' . $item_to_update['item_type'], 'syncdata');
                         $targetResult = $this->execute_update_item($item_to_update['item_type'], $sync_params, $item_data);
 
-                        if ($targetResult === 'item_not_updated') {
+                        if ($targetResult !== 'item_updated') {
                             $target['synced'] = false;
                             $target['error'] = 'item_not_updated';
                             $allTargetsSynced = false;
-                            $anyTargetNotUpdated = true;
+                            sl_debug('## Error. Item not updated on blog_id: ' . $blogId . ': ' . $item_to_update['item_type'], 'syncdata');
                         } else {
                             $target['synced'] = true;
                             $target['error'] = null;
@@ -1086,17 +1125,19 @@ class Synchronize
                             }
                         }
 
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
 
                         $target['synced'] = false;
                         $target['error'] = $e->getMessage();
                         $allTargetsSynced = false;
                         sl_debug('## Error. Syncing on blog_id: ' . $blogId . ': ' . $e->getMessage(), 'syncdata');
 
-                    }
+                    } finally {
 
-                    if ($isMultisite) {
-                        restore_current_blog();
+                        if ($isMultisite) {
+                            restore_current_blog();
+                        }
+
                     }
 
                 }
@@ -1110,13 +1151,7 @@ class Synchronize
                 sl_connection_query('update', $sql_update_params);
 
                 // Determine overall result for retry/completion logic
-                if ($allTargetsSynced) {
-                    $result_update = 'item_updated';
-                } elseif ($anyTargetNotUpdated) {
-                    $result_update = 'item_not_updated';
-                } else {
-                    $result_update = '';
-                }
+                $result_update = $allTargetsSynced ? 'item_updated' : 'item_not_updated';
 
             }
 
@@ -1127,7 +1162,7 @@ class Synchronize
 
                 $sync_tries++;
 
-                if ($sync_tries == 2 && $item_to_update['item_type'] == 'category') {
+                if ($sync_tries == 2 && $item_to_update['item_type'] == 'category' && is_array($item_data)) {
 
                     $item_data[$this->cat_class->category_id_parent_field] = 0;
 
@@ -1158,6 +1193,7 @@ class Synchronize
 
             default:
 
+                // Reached only when every target was synced ('item_updated').
                 $this->update_syncdata_counters($item_to_update['item_type'], 'sync');
                 $this->sql_items_delete[] = $item_to_update['id'];
                 break;
@@ -1332,7 +1368,22 @@ class Synchronize
         }
 
         sl_debug('Connecting with API... (last update: '.$last_update.') API Version: '.$API_version . $debug_pagination_text);
-        
+
+        // Stop on API failure: nothing is stored and last_update/last_sync keep their previous values,
+        // so the next synchronization asks again from the previous date.
+        if ($slconn->has_response_error()){
+
+            $api_error_message = $slconn->get_response_error_message();
+            if ($api_error_message == ''){ $api_error_message = 'Unknown API error'; }
+            $api_error_code = $slconn->get_response_error();
+
+            sl_debug('## Error. API connection failed - code: '.print_r($api_error_code, true).' - message: '.$api_error_message);
+            sl_debug("==== Store Sync Data END ====");
+
+            return '<div class="dialog dialog-warning">Connector ID: '.esc_html($connector_id).' - Error connecting with Sales Layer API: '.esc_html($api_error_message).'. Nothing has been synchronized.</div>';
+
+        }
+
         $language_to_sync = '';
 
         $get_response_default_language = $slconn->get_response_default_language();
@@ -1381,9 +1432,11 @@ class Synchronize
         $conn_data['comp_id'] = $slconn->get_response_company_ID();
 
         $conn_data['last_sync'] = date('Y-m-d H:i:s', strtotime('now'));
-        $last_update = $slconn->get_response_time();
+        // last_update is saved once all the pages have been read (see the end of the pagination loop).
+        // Never store false (error) or null as last_update.
+        $new_last_update = $slconn->get_response_time();
+        $new_last_update = ($new_last_update === false || is_null($new_last_update) || $new_last_update === '') ? null : $new_last_update;
 
-        if (!is_null($last_update)){ $conn_data['last_update'] = $last_update; }
         $connector->update_connector($connector_id, $conn_data);
 
         $sync_params['conn_params']['comp_id'] = $conn_data['comp_id'];
@@ -1453,6 +1506,7 @@ class Synchronize
         
         $page = 0;
         $arrayReturn = [];
+        $pagination_error_message = '';
 
         $sl_schemas_read = false;
         
@@ -1463,7 +1517,22 @@ class Synchronize
             $this->loadAnalyticsAPIItemCount($pagination_response_data);
             
             $is_next_page = false;
-            if ($slconn->have_next_page() && $slconn->get_next_page_info()) $is_next_page = true;				
+            if ($slconn->have_next_page()){
+
+                if ($slconn->get_next_page_info() && !$slconn->has_response_error()){
+
+                    $is_next_page = true;
+
+                }else{
+
+                    // The remaining pages cannot be read: keep processing the current page but do not advance last_update.
+                    $pagination_error_message = $slconn->get_response_error_message();
+                    if ($pagination_error_message == ''){ $pagination_error_message = 'Unknown API error'; }
+                    sl_debug('## Error. Getting next page (page '.($page + 1).') from API - code: '.print_r($slconn->get_response_error(), true).' - message: '.$pagination_error_message);
+
+                }
+
+            }
                 sl_debug('Page: '.print_r($page, true).' - Is_next_page:'.print_r($is_next_page, true));
                 
             if ($this->checkIfResponseDataHasData($pagination_response_data)){
@@ -1881,6 +1950,16 @@ class Synchronize
         } while ($is_next_page);
 
         $div_messages = $this->runStoredIndexes($arrayReturn, $sync_params, $connector_id);
+
+        if ($pagination_error_message == ''){
+
+            if (!is_null($new_last_update)){ $connector->update_connector($connector_id, array('last_update' => $new_last_update)); }
+
+        }else{
+
+            $div_messages = '<div class="dialog dialog-warning">Connector ID: '.esc_html($connector_id).' - Error reading the next pages from Sales Layer API: '.esc_html($pagination_error_message).'. The synchronization is incomplete, synchronize again to retrieve the remaining data.</div>'.$div_messages;
+
+        }
         
         sl_debug('##### time_all_store_process: '.(microtime(true) - $time_ini_all_store_process).' seconds.');
 
@@ -1976,6 +2055,14 @@ class Synchronize
             $this->sql_to_insert[] = "('info', 'counters', '".addslashes(json_encode($counters_info))."', '".addslashes(json_encode($sync_params))."')";
             $this->insert_syncdata_sql(true);
 
+            $not_synced_total += $this->syncdata_not_stored;
+
+            if ($this->syncdata_not_stored > 0){
+
+                $synchronization_messages['warning'][] = 'Total queue rows not stored due to database errors: '.$this->syncdata_not_stored;
+
+            }
+
             if ($not_synced_total > 0){
 
                 $synchronization_messages['warning'][] = "Connector ID: ".$connector_id." - Synchronization executed with ".$not_synced_total." item(s) not synchronized due to errors!";
@@ -1995,7 +2082,7 @@ class Synchronize
         if ($error_data != ''){
 
             $error_data = 'Synchronization date: '.date('Y-m-d H:i:s', strtotime('now'))."\n".$error_data;
-            $error_file = SLYR_WC__LOGS_DIR.'_error_debug_log_saleslayer_'.date('Y-m-d').'.dat';
+            $error_file = SLYR_WC__LOGS_DIR.slyr_wc_log_file_name('_error_debug_log_saleslayer_'.date('Y-m-d'));
             
             $new_file = false;
             if (!file_exists($error_file)){ $new_file = true; }
@@ -2205,20 +2292,33 @@ class Synchronize
 
         if (!empty($this->sql_to_insert) && (count($this->sql_to_insert) >= $this->sql_to_insert_limit || $force_insert)){
 
-            $sql_to_insert = implode(',', $this->sql_to_insert);
-            
-            try{
+            $sql_base = " INSERT INTO ".SLYR_WC_syncdata_table." ( sync_type, item_type, item_data, sync_params ) VALUES ";
 
-                $sql_query_to_insert = " INSERT INTO ".SLYR_WC_syncdata_table.
-                                                 " ( sync_type, item_type, item_data, sync_params ) VALUES ".
-                                                 $sql_to_insert;
+            sl_connection_query('insert', $sql_base.implode(',', $this->sql_to_insert));
 
-                sl_connection_query('insert', $sql_query_to_insert);	                                             
-                
-            }catch(\Exception $e){
+            // sl_connection_query returns false on errors and on 0 affected rows: only the last error tells them apart.
+            if (sl_connection_last_error() !== ''){
 
-                sl_debug('## Error. Insert syncdata SQL query: '.$sql_query_to_insert);
-                sl_debug('## Error. Insert syncdata SQL message: '.$e->getMessage());
+                sl_debug('## Error. Insert syncdata SQL message (retrying rows one by one): '.sl_connection_last_error());
+
+                foreach ($this->sql_to_insert as $sql_row){
+
+                    sl_connection_query('insert', $sql_base.$sql_row);
+
+                    if (sl_connection_last_error() !== ''){
+
+                        // Row format: ('sync_type', 'item_type', 'item_data', 'sync_params')
+                        $row_type = 'unknown';
+                        $row_sl_id = 'unknown';
+                        if (preg_match("/^\('([^']*)', '([^']*)'/", $sql_row, $row_match)){ $row_type = $row_match[1].' '.$row_match[2]; }
+                        if (preg_match('/\\\\"(?:sl_id|ID)\\\\":\\\\?"?([^,"\\\\}]+)/', $sql_row, $row_match)){ $row_sl_id = $row_match[1]; }
+
+                        sl_debug('## Error. Item not stored in syncdata queue - '.$row_type.' - SL id: '.$row_sl_id.' - '.sl_connection_last_error());
+                        $this->syncdata_not_stored++;
+
+                    }
+
+                }
 
             }
 

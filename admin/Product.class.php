@@ -1117,11 +1117,24 @@ class Product
                 ],
             ];
 
-            $sql_query_to_insert = " INSERT INTO ".SLYR_WC_syncdata_table.
-                                    " ( sync_type, item_type, item_data, sync_params ) VALUES ".
-                                    " ('update', 'product_links', '".json_encode($linked_product_data)."', '".addslashes(json_encode($linksSyncParams))."')";
+            // $wpdb->insert() escapes both JSON values exactly (quotes, backslashes, unicode).
+            global $wpdb;
+            $links_inserted = $wpdb->insert(
+                SLYR_WC_syncdata_table,
+                array(
+                    'sync_type'   => 'update',
+                    'item_type'   => 'product_links',
+                    'item_data'   => json_encode($linked_product_data),
+                    'sync_params' => json_encode($linksSyncParams),
+                ),
+                array('%s', '%s', '%s', '%s')
+            );
 
-            sl_connection_query('insert', $sql_query_to_insert);
+            if ($links_inserted === false){
+
+                sl_debug('## Error. Inserting product_links queue row: '.$wpdb->last_error);
+
+            }
 
         }
 

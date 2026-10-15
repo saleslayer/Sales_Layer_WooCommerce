@@ -28,7 +28,8 @@ class SalesLayer_Conn_Woo
     public $connect_API_version = '1.18';
     public $output_pagination      = 5000;
 
-    public $connection_timeout     = 1800;  // 30 minutes * 60 seconds
+    public $connection_timeout     = 30;    // seconds to establish the connection
+    public $request_timeout        = 600;   // total seconds allowed for the whole request (large catalogues)
     public $response_error         = 0;
     public $response_error_message = '';
     
@@ -678,11 +679,18 @@ class SalesLayer_Conn_Woo
             $ch = curl_init($url);
 
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connection_timeout);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $this->request_timeout);
 
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            // Do not follow redirects blindly: limited and, for https URLs, restricted to https.
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+            if (stripos($url, 'https://') === 0) {
+                curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+            }
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 
             if ($this->SSL && $this->SSL_Cert) {
                 curl_setopt($ch, CURLOPT_PORT,    443);
@@ -702,8 +710,13 @@ class SalesLayer_Conn_Woo
             }
 
             $response = curl_exec($ch);
+            $http_code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 
-            if (false !== $response) {
+            if (false !== $response && ($http_code < 200 || $http_code > 299)) {
+
+                $this->trigger_error('Error connection: HTTP status '.$http_code, 102);
+
+            } elseif (false !== $response) {
 
                 $this->data_returned = json_decode(preg_replace('/^\xef\xbb\xbf/', '', $response), true);
 

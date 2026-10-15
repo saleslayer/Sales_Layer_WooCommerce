@@ -318,8 +318,9 @@ class Category
                                 continue;
                             }
 
-                            $parse_url_image = pathinfo($image_url);
-                            $parse_url_image_basename = urldecode($parse_url_image['basename']);
+                            // Same file name the image gets when it is stored (sanitized), so it can be compared
+                            // with the current attachment and found by title.
+                            $parse_url_image_basename = $this->media_class->get_image_url_filename($image_url);
 
                             if ($parse_url_image_basename == $wp_category_image_name) {
                                 if (

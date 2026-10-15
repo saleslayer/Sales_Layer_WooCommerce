@@ -4,10 +4,15 @@
 
 ### Security
 
-- All admin AJAX actions (tools, connector and general parameter updates, synchronization, connector deletion, status polling) require the `manage_options` capability and a nonce; field updates use POST and only accept known fields and valid values.
+- All admin AJAX actions (tools, connector and general parameter updates, synchronization, connector deletion, status polling) require the `manage_options` capability (`manage_network_options` in Multisite, where connectors, secret keys and logs are shared by the whole network) and a nonce; field updates use POST and only accept known fields and valid values.
 - The connector secret key is read from the database when synchronizing and is no longer printed in the page HTML.
 - Synchronization result messages are escaped; connector actions use `data-connector-id` attributes instead of inline JavaScript with the connector code.
 - Synchronization analytics are sent with TLS certificate verification, no redirects and bounded timeouts (30 s connection, 60 s total).
+- Sales Layer API requests verify the TLS certificate, follow at most 3 redirects (HTTPS only) and have bounded timeouts (30 s connection, 600 s total); non-2xx responses are treated as errors.
+- Plugin admin pages and actions in Multisite are restricted to super admins; site administrators no longer see the plugin.
+- Log files can no longer be downloaded by URL: the `logs/` folder gets `index.php` and `.htaccess`, file names include a random suffix (for servers that ignore `.htaccess`, e.g. nginx) and the logs zip is built in the system temp folder. The downloaded zip keeps the plain file names.
+- Downloaded media file names are sanitized and must stay inside the plugin media folder; only file types allowed by WordPress are accepted and images are validated before being stored.
+- The product links queue row is inserted with an escaped query.
 
 ### Changed
 
@@ -21,6 +26,10 @@
 - Admin assets use WordPress' own jQuery and Dashicons; the bundled jQuery 3.5.0, Bootstrap and the Font Awesome CDN are no longer loaded, and plugin scripts are versioned for cache busting.
 - Log files are created with `0666` permissions (instead of `0777`) and write failures are reported without PHP warnings.
 - Legacy items migration processes items in batches.
+- Media files are downloaded with the WordPress HTTP API (60 s timeout) to a temporary file and only replace the current file once validated. Images whose file name has spaces or special characters are downloaded once more after upgrading, with the sanitized name.
+- Auto-sync records every attempt per connector, so a connector whose synchronization fails waits for its interval like the rest; due times are calculated in UTC.
+- A queue row is only removed when every target site was synchronized; otherwise it is retried (skipping the sites already done) and dropped after 3 attempts with a log entry. PHP errors in a row are caught, so they no longer stop the queue.
+- The connector company, languages and last sync date are saved after the first successful API response, and the last update date only once every page has been downloaded.
 - With Polylang, the same language can be synchronized on several Multisite sites: one queue row is created per site and language pair.
 - Polylang detection is evaluated per site, and plugin queries are not filtered by the admin language filter.
 
@@ -44,6 +53,12 @@
 - Multilanguage additional fields were looked up with the full connector language list instead of the row language.
 - Field values of a previous queue row (or connector) could leak into the next one; product shipping class and variation stock / shipping class field mappings were ignored.
 - The synchronization reported success when items could not be stored, and items dropped after the maximum number of attempts left no trace in the logs.
+- A failed queue insert (e.g. a row bigger than `max_allowed_packet`) lost up to 20 items: rows are now retried one by one and those still failing are logged and reported on screen.
+- Queue rows whose target sites all failed were considered synchronized and removed.
+- Product links (related, upsell, cross-sell and grouped) were lost when a linked reference contained quotes or backslashes.
+- A connector whose synchronization always failed blocked auto-sync for the other connectors; auto-sync due times depended on the MySQL session time zone.
+- Sales Layer API errors were reported as "No information to synchronize!" and still updated the connector sync dates; an error on an intermediate page lost the remaining pages.
+- Failed remote image reads (non-2xx response or no size) were not logged.
 - Legacy mode published adopted draft products and could match variations of another product.
 - A grouped product never reverted to simple when its linked products were removed.
 - Queue JSON with escaped characters was corrupted when read back.
