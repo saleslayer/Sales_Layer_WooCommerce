@@ -259,6 +259,7 @@ function find_saleslayer_term($taxonomy, ?string $saleslayerid = null, ?string $
    		array(
    			'hide_empty' => false,
             'taxonomy' => $taxonomy,
+            'lang' => '', // all languages (Polylang would apply the admin language filter)
             'meta_query' => $meta_query
         )
    	);
@@ -436,6 +437,7 @@ function find_saleslayer_product(
         array(
             'post_type' => 'product',
             'meta_query' => $meta_query,
+            'lang' => '', // all languages (Polylang would apply the admin language filter)
             'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
     	));
 
@@ -564,13 +566,24 @@ function sl_delete_post_meta($post_id, $meta_key, array|string|int $meta_value =
 function sl_wp_update_post(array $postarr = array(), bool $wp_error = false)
 {
 
-    remove_filter('content_save_pre', 'wp_filter_post_kses');
-    remove_filter('content_filtered_save_pre', 'wp_filter_post_kses');
+    // Only restore the filters that were registered before (e.g. users with unfiltered_html
+    // have them removed by WordPress and they must not be added back).
+    $kses_filters = array();
+    foreach (array('content_save_pre', 'content_filtered_save_pre') as $kses_hook) {
+        $priority = has_filter($kses_hook, 'wp_filter_post_kses');
+        if ($priority !== false) {
+            $kses_filters[$kses_hook] = $priority;
+            remove_filter($kses_hook, 'wp_filter_post_kses', $priority);
+        }
+    }
 
-    $resultado = wp_update_post($postarr, $wp_error);
-
-    add_filter('content_save_pre', 'wp_filter_post_kses');
-    add_filter('content_filtered_save_pre', 'wp_filter_post_kses');
+    try {
+        $resultado = wp_update_post($postarr, $wp_error);
+    } finally {
+        foreach ($kses_filters as $kses_hook => $priority) {
+            add_filter($kses_hook, 'wp_filter_post_kses', $priority);
+        }
+    }
 
     if (is_wp_error($resultado)) {
 
@@ -746,6 +759,7 @@ function find_saleslayer_format(
         array(
             'post_type' => 'product_variation',
             'meta_query' => $meta_query,
+            'lang' => '', // all languages (Polylang would apply the admin language filter)
             'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
     	)
     );
@@ -790,6 +804,7 @@ function get_all_products_and_variations()
             'orderby' => 'post_type',
             'order' => 'asc',
             'numberposts' => -1,
+            'lang' => '', // all languages (Polylang would apply the admin language filter)
         )
     );
 
@@ -1039,14 +1054,17 @@ function pre_process_by_skus($type, $comp_id, $items)
 
                             if ($wp_product) {
 
-                        		$wp_product_old_sku = $wp_product['_sku'];
+                        		$wp_product_old_sku = $wp_product['_sku'] ?? '';
 
                         		$counter = 0;
                         		sl_update_post_meta($wp_product['ID'], '_sku', $sl_item_sku);
-                        		$wp_post = $wp_posts[$wp_product_old_sku];
-                                $wp_post['sku'] = $sl_item_sku;
-                        		unset($wp_posts[$wp_product_old_sku]);
-                        		$wp_posts[$sl_item_sku] = $wp_post;
+                        		// Guard: the product may have no SKU or the old SKU may not be in $wp_posts.
+                        		if ($wp_product_old_sku !== '' && isset($wp_posts[$wp_product_old_sku])) {
+                        		    $wp_post = $wp_posts[$wp_product_old_sku];
+                        		    $wp_post['sku'] = $sl_item_sku;
+                        		    unset($wp_posts[$wp_product_old_sku]);
+                        		    $wp_posts[$sl_item_sku] = $wp_post;
+                        		}
                         	
                         	}
 
@@ -1124,6 +1142,7 @@ function find_all_saleslayer_products(string $sl_id, string $comp_id): array
         'post_type'      => 'product',
         'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
         'posts_per_page' => -1,
+        'lang'           => '', // all languages (Polylang would apply the admin language filter)
         'meta_query'     => [
             'relation' => 'AND',
             ['key' => '_saleslayerid',     'value' => $sl_id,   'compare' => '='],
@@ -1162,6 +1181,7 @@ function find_all_saleslayer_terms(string $taxonomy, string $sl_id, string $comp
         'hide_empty' => false,
         'taxonomy'   => $taxonomy,
         'number'     => 0,
+        'lang'       => '', // all languages
         'meta_query' => [
             'relation' => 'AND',
             ['key' => 'saleslayerid',     'value' => $sl_id,   'compare' => '='],
@@ -1198,6 +1218,7 @@ function find_all_saleslayer_formats(string $comp_id, string $sl_format_id): arr
         'post_type'      => 'product_variation',
         'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
         'posts_per_page' => -1,
+        'lang'           => '', // all languages (Polylang would apply the admin language filter)
         'meta_query'     => [
             'relation' => 'AND',
             ['key' => '_saleslayercompid',   'value' => $comp_id,      'compare' => '='],
@@ -1218,10 +1239,28 @@ function find_all_saleslayer_formats(string $comp_id, string $sl_format_id): arr
     return $result;
 }
 
+/**
+ * Last database error of sl_connection_query() ('' when the last call had none).
+ *
+ * sl_connection_query() keeps returning false both for "no rows/nothing affected" and for
+ * errors (existing callers rely on it); use this to tell them apart.
+ *
+ * @return string
+ */
+function sl_connection_last_error()
+{
+    global $sl_connection_last_error;
+
+    return (string) ($sl_connection_last_error ?? '');
+}
+
 function sl_connection_query($type, $query, array $params = array())
 {
 
-    global $wpdb;
+    global $wpdb, $sl_connection_last_error;
+
+    $sl_connection_last_error = '';
+    $resultado = false;
 
     try {
         // Prepare SQL when parameters are provided
@@ -1239,6 +1278,12 @@ function sl_connection_query($type, $query, array $params = array())
 
             // For delete operations, 0 affected rows still means success
             if ($type === 'delete' && $resultado === 0) { $resultado = true; }
+        }
+
+        // wpdb does not throw: real database errors are only reported in last_error.
+        if ($wpdb->last_error !== '') {
+            $sl_connection_last_error = $wpdb->last_error;
+            sl_debug('## Error. SL SQL type: ' . $type . ' - database error: ' . $wpdb->last_error . ' - query: ' . $query);
         }
     } catch (\Exception $e) {
         if (!empty($params)) {

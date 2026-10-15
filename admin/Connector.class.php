@@ -319,6 +319,12 @@ class Connector
         $needs_upgrade = ($ver === false || version_compare((string) $ver, (string) SLYR_WC_version, '<'));
         $upgrade_ok = true;
 
+        // Cheap guard for the common case (runs on every request, front-end included):
+        // same version and the tables were already verified for it, so skip the SHOW TABLES checks.
+        if (!$needs_upgrade && get_site_option('slyr_wc_tables_ok') === (string) SLYR_WC_version) {
+            return;
+        }
+
         if ($needs_upgrade) {
             // v2.5.4: Rename old unprefixed tables to prefixed names
             // before any CREATE logic runs on the new names
@@ -337,22 +343,32 @@ class Connector
         $multiconn = Multiconn::get_instance();
         $multiconn->check_table();
 
-        if ($needs_upgrade) {
+        $tables_ok = true;
 
-            foreach (array(
-                SLYR_WC_connector_table,
-                SLYR_WC_syncdata_table,
-                SLYR_WC_syncdata_flag_table,
-                SLYR_WC_multiconn_table,
-            ) as $table_name) {
-                if (!$this->table_exists($table_name)) {
-                    $this->log_db_error("Creating table {$table_name}");
-                    $upgrade_ok = false;
-                }
+        foreach (array(
+            SLYR_WC_connector_table,
+            SLYR_WC_syncdata_table,
+            SLYR_WC_syncdata_flag_table,
+            SLYR_WC_multiconn_table,
+        ) as $table_name) {
+            if (!$this->table_exists($table_name)) {
+                $this->log_db_error("Creating table {$table_name}");
+                $tables_ok = false;
             }
+        }
+
+        $upgrade_ok = $upgrade_ok && $tables_ok;
+
+        if ($tables_ok && !$needs_upgrade) {
+            // Remember the verification so the next requests skip these checks.
+            update_site_option('slyr_wc_tables_ok', (string) SLYR_WC_version);
+        }
+
+        if ($needs_upgrade) {
 
             if ($upgrade_ok) {
                 update_site_option('SLYR_WC_version', SLYR_WC_version);
+                update_site_option('slyr_wc_tables_ok', (string) SLYR_WC_version);
             } else {
                 error_log(
                     '[Sales Layer WooCommerce] Upgrade from ' . ($ver === false ? 'none' : $ver) .
@@ -367,7 +383,8 @@ class Connector
     /**
      * Get connector row(s).
      * @param string|null $connector_id Connector id to get data; when null returns all
-     * @return object|array Single row (object) or a list of rows (array)
+     * @return object|array|null Single row (object), a list of rows (array) when no id is given,
+     *                           or null when a given id does not exist
      */
     public function get_connector(?string $connector_id = null)
     {
@@ -381,6 +398,11 @@ class Connector
 
             return $this->db->get_row($stmt);
             
+        }
+
+        // An id was requested but it does not exist: never fall back to the full list.
+        if (!is_null($connector_id)) {
+            return null;
         }
 
         return $this->db->get_results('SELECT * FROM ' . SLYR_WC_connector_table . ' ORDER BY cnf_id');
@@ -470,6 +492,10 @@ class Connector
     {
 
         $connector = $this->get_connector($connector_id);
+
+        if (!is_object($connector)) {
+            return;
+        }
 
         if (!empty($data)) {
 

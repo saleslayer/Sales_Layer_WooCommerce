@@ -1,24 +1,58 @@
 # Changelog
 
-## [2.6.2] - 2026-10-05
+## [2.6.2] - 2026-10-15
+
+### Security
+
+- All admin AJAX actions (tools, connector and general parameter updates, synchronization, connector deletion, status polling) require the `manage_options` capability and a nonce; field updates use POST and only accept known fields and valid values.
+- The connector secret key is read from the database when synchronizing and is no longer printed in the page HTML.
+- Synchronization result messages are escaped; connector actions use `data-connector-id` attributes instead of inline JavaScript with the connector code.
+- Synchronization analytics are sent with TLS certificate verification, no redirects and bounded timeouts (30 s connection, 60 s total).
 
 ### Changed
 
 - Plugin tables are created with the server default storage engine and the WordPress charset/collation instead of forcing `ENGINE=MyISAM` / `utf8`.
 - Connector table upgrade is non-destructive: missing columns are added with `ALTER TABLE` instead of dropping, recreating and re-inserting the table.
-- The stored plugin version is only updated once every plugin table exists, so a failed upgrade is retried on the next request; database errors during the upgrade are written to the PHP error log.
+- The stored plugin version is only updated once every plugin table exists, so a failed upgrade is retried on the next request; database errors during the upgrade are written to the PHP error log. Table checks are skipped once verified for the current version.
+- Cron events are scheduled on `init` (main site only in Multisite, never during uninstall); cron callbacks no longer use `sleep()` or `wp_die()`, and auto-sync, legacy items migration and media meta processing use locks to avoid concurrent runs.
+- The synchronization queue lock is acquired atomically; a stale process is no longer killed, its lock is taken over.
+- The plugin no longer changes `display_errors`, `error_reporting` or `FS_METHOD` for the whole site.
+- Uninstalling removes the plugin network options, transients and cron events on every site; plugin tables (and connectors) are kept on purpose.
+- Admin assets use WordPress' own jQuery and Dashicons; the bundled jQuery 3.5.0, Bootstrap and the Font Awesome CDN are no longer loaded, and plugin scripts are versioned for cache busting.
+- Log files are created with `0666` permissions (instead of `0777`) and write failures are reported without PHP warnings.
+- Legacy items migration processes items in batches.
+- With Polylang, the same language can be synchronized on several Multisite sites: one queue row is created per site and language pair.
+- Polylang detection is evaluated per site, and plugin queries are not filtered by the admin language filter.
 
 ### Fixed
 
 - Connector configuration lost when upgrading from 2.5.x on hosts where MyISAM table creation is disabled (`wp_slyr_wc_api_config` and `wp_slyr_wc_api_multiconn` were not created).
 - Legacy table migration no longer drops an unprefixed table with data when an empty prefixed table already exists.
 - Plugin cron events are removed on deactivation (all sites on network deactivation), avoiding `invalid_schedule` errors in the debug log.
+- Fatal error (`get_blog_details()`) when validating the language configuration on single-site installations.
+- Synchronization of a language variant failed when that category already existed in the same language without Sales Layer data; the existing term is now adopted.
+- Connectors page stayed locked (spinner and disabled controls) when an AJAX request failed or timed out; Tools showed no message on errors and allowed double clicks while a tool was running.
+- Multisite settings were shown on single-site installations (`"0"`/`"1"` flags from `wp_localize_script`); older message timers could remove newer messages; enabling the page controls re-enabled controls outside the plugin.
+- Add connector modal: Enter submits the form and errors are shown inside the modal without losing the typed data; modals and FAQ are keyboard accessible.
+- Logs download returned a JSON file as `sl_logs.zip` on errors; deleting logs reported success when files could not be removed; the PHP zip extension is checked.
+- New version notice ignored release tags prefixed with `v` and non-200 responses; saving an unchanged general parameter showed an error.
+- Infinite loop when a parent category has no Sales Layer ID.
+- Deleted items processed more than once (progress over 100 %).
+- Stock status values such as "Not in stock" or "Sin stock" were set as in stock; disabling stock management without a stock status no longer sets the item out of stock.
+- Failed image downloads removed the current product, variation or category images; image size checks after redirects always forced a new download; media lookup is limited to plugin attachments.
+- Attribute terms were linked to an unrelated post; custom attributes whose name differs from their slug were removed; product synchronization reset the "Used for variations" flag.
+- Multilanguage additional fields were looked up with the full connector language list instead of the row language.
+- Field values of a previous queue row (or connector) could leak into the next one; product shipping class and variation stock / shipping class field mappings were ignored.
+- The synchronization reported success when items could not be stored, and items dropped after the maximum number of attempts left no trace in the logs.
+- Legacy mode published adopted draft products and could match variations of another product.
+- A grouped product never reverted to simple when its linked products were removed.
+- Queue JSON with escaped characters was corrupted when read back.
 - Info icon in the Site & Language Configuration modal displayed as garbled characters: `style_admin.css` now declares `@charset "UTF-8"`.
 - Typos and wording in admin texts, notices, log messages and documentation; remaining Spanish comments and identifiers translated to English.
 
 ### Tested
 
-- Tested on WooCommerce 11.1.2 / WordPress 7.1.2 / PHP 8.5 / Polylang 3.8.10
+- Tested on WooCommerce 11.1.2 / WordPress 7.1.2 / PHP 8.5 / Polylang 3.8.10 (single-site and Multisite)
 
 ## [2.6.1] - 2026-04-17
 

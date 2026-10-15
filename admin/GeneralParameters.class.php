@@ -92,6 +92,10 @@ class GeneralParameters
         if (empty($field_name) || $field_value === ''){
             return 'error_update';
         }
+
+        if (!$this->isValidParameterValue($field_name, $field_value)){
+            return 'error_update';
+        }
         
         $this->options_values[$field_name] = $field_value;
         if (!$this->updateWPOptionsGeneralParameters()){
@@ -100,6 +104,36 @@ class GeneralParameters
 
         return 'success';
 
+    }
+
+    /**
+     * Check that a value is allowed for a known parameter (unknown keys are not restricted here).
+     *
+     * @param string $field_name  Parameter key.
+     * @param mixed  $field_value Parameter value.
+     * @return bool
+     */
+    private function isValidParameterValue($field_name, $field_value)
+    {
+        if (!is_scalar($field_value)) {
+            return false;
+        }
+
+        $field_value = (string) $field_value;
+        $allowed = $this->getAllGeneralParametersValues();
+
+        switch ($field_name) {
+            case 'API_version':
+                return in_array($field_value, $allowed['api_versions'], true);
+            case 'pagination':
+                return in_array($field_value, $allowed['paginations'], true);
+            case 'debug_level':
+                return array_key_exists($field_value, $allowed['debug_level']);
+            case 'all_analytics_data':
+                return array_key_exists($field_value, $allowed['all_analytics_data']);
+        }
+
+        return true;
     }
 
     /**

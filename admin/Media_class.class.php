@@ -528,9 +528,14 @@ class Media_class
         
         $query_thumbnail = new WP_Query( $query_thumbnail_args );
         
-        if (isset($query_thumbnail->posts[0])){
-            
-            return $query_thumbnail->posts[0]->ID;
+        // Only attachments created by the plugin (stored under /importedmedia/) are valid matches.
+        foreach ($query_thumbnail->posts as $thumbnail_post){
+
+            if (isset($thumbnail_post->guid) && strpos($thumbnail_post->guid, '/importedmedia/') !== false){
+
+                return $thumbnail_post->ID;
+
+            }
 
         }
 
@@ -565,8 +570,15 @@ class Media_class
                     $filename_encoded = rawurlencode(rawurldecode($filename_encoded));
                     $image_url_encoded = $image_url_info['dirname'].'/'.$filename_encoded;
 
-                    $headers = get_headers($image_url_encoded, TRUE);
+                    // get_headers() emits PHP warnings when the host is unreachable or TLS fails;
+                    // the failure is handled here (false = size unknown, the caller keeps the current image).
+                    $headers = @get_headers($image_url_encoded, TRUE);
                     // sl_debug('# time_check_size_url: '.(microtime(true) - $time_ini_check_url_size).' seconds.', 'timer');
+
+                    if ($headers === false){
+                        sl_debug("## Error. Remote image with URL ".$url." couldn't be read (unreachable or invalid response).");
+                        return false;
+                    }
 
                 }
 
@@ -577,18 +589,28 @@ class Media_class
 
             }
 
+            $content_length = null;
+
             if (isset($headers['Content-Length'])){
-               
-               $this->stored_url_files_sizes[$url] = $headers['Content-Length'];
-               return $headers['Content-Length'];
-            
+
+                $content_length = $headers['Content-Length'];
+
             } elseif (isset($headers['content-length'])){
-            
-                $this->stored_url_files_sizes[$url] = $headers['content-length'];
-                return $headers['content-length'];
-            
+
+                $content_length = $headers['content-length'];
+
             }
-        
+
+            if ($content_length !== null){
+
+                // After redirects get_headers() returns one value per response: use the last one.
+                if (is_array($content_length)){ $content_length = end($content_length); }
+
+                $this->stored_url_files_sizes[$url] = $content_length;
+                return $content_length;
+
+            }
+
             return false;
 
         }else{
@@ -625,6 +647,16 @@ class Media_class
         $this->sl_time_ini_media_meta_process = microtime(true);
         $this->end_media_meta_process = false;
         $return_message = '';
+
+        // Simple lock (transient with expiry) to avoid concurrent media meta processes.
+        if (get_transient('sl_wc_media_meta_lock')){
+
+            sl_debug('Media meta process already running.', 'mediameta');
+            return 'Media meta process already running.';
+
+        }
+
+        set_transient('sl_wc_media_meta_lock', getmypid(), 10 * MINUTE_IN_SECONDS);
         
         $this->check_pending_meta();
 
@@ -730,6 +762,8 @@ class Media_class
         }
 
         sl_debug('### time_process_pending_meta: '.(microtime(true) - $this->sl_time_ini_media_meta_process).' seconds.', 'mediameta');
+
+        delete_transient('sl_wc_media_meta_lock');
 
         sl_debug("==== Media meta process END ====", 'mediameta');
         

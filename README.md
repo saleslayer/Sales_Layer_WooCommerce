@@ -35,11 +35,31 @@ Please check the [important notes for the installation][sc-important-notes] avai
 
 - PHP cURL extension installed and enabled, in order to call and obtain the information from Sales Layer.
 
+- PHP zip extension, required to download the plugin logs from *Tools > Download SL Logs*.
+
+- Outgoing HTTPS connections with up-to-date root certificates (TLS certificates are verified when sending synchronization analytics).
+
+- The web server user must be able to write in the plugin `logs/` folder.
+
+- Plugin administration requires the `manage_options` capability (administrators).
+
 - Define the fields relationship in the Sales Layer WooCommerce connector:
 	- One size for image fields.
 	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be treated as attributes<br/> (*Admin > Product > Attributes*) and they must be created in WooCommerce beforehand in order to synchronize.
 	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations. Then, attribute values from the product and variants will be combined and assigned to the parent product. Variations must have only one value for each attribute.
 	
+## Multisite and multilanguage
+
+- In WordPress Multisite the plugin must be **network activated**. Each connector can target several sites from *Connectors > Settings*.
+- With Polylang, map in *Connectors > Settings* each site language to a Sales Layer language. The same language can be mapped on several sites: each site receives its own copy of the items in that language.
+- Sites without Polylang receive the items in the connector default language.
+
+## Upgrading
+
+- Back up the database before upgrading and make sure there is no synchronization in progress.
+- Recommended procedure: deactivate and delete the previous version from *Plugins*, then upload and activate the new one. Connectors are kept: the plugin tables are not removed when the plugin is deleted.
+- From 2.6.2, upgrading from 2.5.x renames the legacy tables to the WordPress prefix and only adds missing columns: the connectors table is no longer recreated, and the server default storage engine is used (MyISAM is no longer required).
+
 ## Version Guidance
 
 | Branch         | Status     | WooCommerce version     | PHP compatibility | Changelog                             |
@@ -47,7 +67,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
 | [2.4.x]        | EOL        | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
 | [2.5.x]        | Fixes only | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
-| [2.6.x]        | Stable     | >= 8.0.2, <= 11.1.2     | >= 8.1, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
+| [2.6.x]        | Stable     | >= 8.2.0, <= 11.1.2     | >= 8.0, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
 
 ## Branch 2.6.x Release recommended configuration
 

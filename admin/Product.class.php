@@ -239,11 +239,11 @@ class Product
 
                 if (isset($field_props['has_multilingual']) && $field_props['has_multilingual']) {
 
-                    $product_params['product_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+                    $product_params['product_additional_fields'][$field_name] = $field_name.'_'.$sl_language;
                 
                     if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-                        $product_params['products_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+                        $product_params['products_media_field_names'][$field_name] = $field_name.'_'.$sl_language;
 
                     }
 
@@ -368,7 +368,13 @@ class Product
 
             if (intval($sl_product_parent_id) != 0){
 
+                $visited_sl_parent_ids = array();
+
                 do {
+
+                    // Guard against loops / unchanged ids (e.g. grandparent without saleslayerid)
+                    if (isset($visited_sl_parent_ids[(string)$sl_product_parent_id])){ break; }
+                    $visited_sl_parent_ids[(string)$sl_product_parent_id] = true;
 
                     // In multilang mode, look for the category variant that matches the
                     // same language as this product so the association is correct.
@@ -391,6 +397,11 @@ class Product
 
                                 $sl_product_parent_id = $wp_parent_category_parent['saleslayerid'];
                             
+                            }else{
+
+                                // Parent without Sales Layer id: nothing else to walk up.
+                                $sl_product_parent_id = 0;
+
                             }
 
                         }else{
@@ -927,11 +938,12 @@ class Product
         
                         sl_update_post_meta( $wp_product['ID'], '_stock', '');
 
+                        // No status sent by the PIM: keep the existing one (or instock when there is none).
                         if (!isset($product_data[$this->product_field_stock_status]) || (isset($product_data[$this->product_field_stock_status]) && $product_data[$this->product_field_stock_status] === '')){
         
-                            if (!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $wp_product['_stock_status'] !== 'outofstock')){
+                            if (!isset($wp_product['_stock_status']) || $wp_product['_stock_status'] === ''){
         
-                                sl_update_post_meta( $wp_product['ID'], '_stock_status', 'outofstock');
+                                sl_update_post_meta( $wp_product['ID'], '_stock_status', 'instock');
 
                             }
 
@@ -941,46 +953,9 @@ class Product
 
                     if (isset($product_data[$this->product_field_stock_status])){
 
-                        $sl_product_stock_status = $product_data[$this->product_field_stock_status];
+                        $product_stock_status = $this->map_stock_status($product_data[$this->product_field_stock_status]);
 
-                        if (is_array($sl_product_stock_status)){
-
-                            if (!empty($sl_product_stock_status)){
-                        
-                                $sl_product_stock_status = trim(strtolower(reset($sl_product_stock_status)));
-                            
-                            }else{
-
-                                $sl_product_stock_status = '';
-                            }
-                        
-                            } elseif (!is_array($sl_product_stock_status) && $sl_product_stock_status !== ''){
-
-                            $sl_product_stock_status = trim(strtolower($sl_product_stock_status));
-                        
-                        }
-                        
-                        if ($sl_product_stock_status !== ''){
-
-                            $product_stock_status = 'outofstock';
-
-                            if (preg_match('~(reservado|backorder)~', strtolower($sl_product_stock_status))) {
-                            
-                                $product_stock_status = 'onbackorder';
-                            
-                            }
-
-                            if (preg_match('~(existencias|in)~', strtolower($sl_product_stock_status))) {
-                            
-                                $product_stock_status = 'instock';
-                            
-                            }
-
-                            if (preg_match('~(agotado|out)~', strtolower($sl_product_stock_status))) {
-                                
-                                $product_stock_status = 'outofstock';
-                            
-                            }
+                        if ($product_stock_status !== null){
 
                             if (!isset($wp_product['_stock_status']) || (isset($wp_product['_stock_status']) && $product_stock_status != $wp_product['_stock_status'])){
 
@@ -1159,6 +1134,7 @@ class Product
             if (is_null($this->media_class)) $this->media_class = Media_class::get_instance();
 
             $old_wp_thumbnail_id = $wp_thumbnail_id = $wp_product_thumbnail_name = $wp_product_thumbnail_filesize = $wp_gallery_ids = '';
+            $media_failure = false;
             
             $sl_product_images = $product_data[$this->product_field_image];
             
@@ -1227,7 +1203,7 @@ class Product
 
                             $image_url = $sl_product_image[$img_format];
                             $filesize_image = $this->media_class->read_image_file_size($image_url);
-                            if (!$filesize_image){ continue; }
+                            if (!$filesize_image){ $media_failure = true; continue; }
                             
                             $parse_url_image_basename = $this->media_class->get_image_url_filename($image_url);
                             
@@ -1243,7 +1219,8 @@ class Product
                                     }else{
                             
                                         if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
-                                            $wp_thumbnail_id = '';
+                                            $media_failure = true;
+                                            $wp_thumbnail_id = $old_wp_thumbnail_id;
                                         }
 
                                     }
@@ -1265,7 +1242,8 @@ class Product
                                         if (!$wp_product_thumbnail_filesize || ($wp_product_thumbnail_filesize !== false && $wp_product_thumbnail_filesize !== $filesize_image)){
                             
                                             if (!$this->media_class->update_media($image_url, $wp_thumbnail_id, true)){
-                                                $wp_thumbnail_id = '';
+                                                $media_failure = true;
+                                                $wp_thumbnail_id = $old_wp_thumbnail_id;
                                             }
                             
                                         }
@@ -1274,7 +1252,13 @@ class Product
 
                                 }
 
-                                if ($wp_thumbnail_id === false){ $wp_thumbnail_id = ''; }
+                                if ($wp_thumbnail_id === false || $wp_thumbnail_id === ''){
+
+                                    // Download failed: keep the previous thumbnail (never save false).
+                                    $media_failure = true;
+                                    $wp_thumbnail_id = $old_wp_thumbnail_id;
+
+                                }
                                 // sl_debug('# time_process_main_image: '.(microtime(true) - $time_ini_process_main_image).' seconds.', 'timer');
 
                             }else{
@@ -1293,7 +1277,7 @@ class Product
                                             if (!$wp_product_image_data['filesize_image'] || ($wp_product_image_data['filesize_image'] !== false && $wp_product_image_data['filesize_image'] !== $filesize_image)){
 
                                                 $result_update = $this->media_class->update_media($image_url, $image_id);
-                                                if (!$result_update){ continue; }
+                                                if (!$result_update){ $media_failure = true; }
 
                                             }
 
@@ -1320,7 +1304,8 @@ class Product
                                 
                                         if (!$wp_product_thumbnail_filesize || ($wp_product_thumbnail_filesize !== false && $wp_product_thumbnail_filesize !== $filesize_image)){
 
-                                            $thumb_id = $this->media_class->update_media($image_url, $thumb_id);
+                                            // On failure keep the existing attachment id.
+                                            if (!$this->media_class->update_media($image_url, $thumb_id)){ $media_failure = true; }
 
                                         }
 
@@ -1330,6 +1315,10 @@ class Product
 
                                         $new_product_image_gallery_ids[] = $thumb_id;
                                     
+                                    }else{
+
+                                        $media_failure = true;
+
                                     }
 
                                 }
@@ -1343,6 +1332,13 @@ class Product
                     }
 
                     // sl_debug('# time_image_size '.$img_format.': '.(microtime(true) - $time_ini_image_size).' seconds.', 'timer');
+                }
+
+                if ($media_failure && !empty($wp_product_image_gallery_ids)){
+
+                    // Keep the previous gallery images when the new set could not be fully obtained.
+                    $new_product_image_gallery_ids = array_values(array_unique(array_merge($wp_product_image_gallery_ids, $new_product_image_gallery_ids)));
+
                 }
 
                 if (!empty($new_product_image_gallery_ids)){
@@ -1372,7 +1368,7 @@ class Product
 
             if (!in_array($old_wp_thumbnail_id, array('', 0, null, false)) && $old_wp_thumbnail_id != $wp_thumbnail_id){ $this->media_class->delete_media($old_wp_thumbnail_id); }
 
-            if (!empty($wp_product_image_gallery_ids)){
+            if (!$media_failure && !empty($wp_product_image_gallery_ids)){
                 // $time_ini_delete_images = microtime(true);
 
                 $excess_product_image_gallery_ids = array_diff($wp_product_image_gallery_ids, $new_product_image_gallery_ids);
@@ -1471,11 +1467,12 @@ class Product
 
                 if ($linked_type == '_children'){
 
-                	if (!empty($linked_product_ids) && $wp_product_type !== 'grouped'){
+                	// A variable product is never converted into grouped.
+                	if (!empty($linked_product_ids) && !in_array($wp_product_type, array('grouped', 'variable'), true)){
                 
                 		sl_wp_set_object_terms( $wp_product_id, 'grouped', 'product_type' );
 
-                    } elseif (empty($linked_product_data) && $wp_product_type == 'grouped'){
+                    } elseif (empty($linked_product_ids) && $wp_product_type == 'grouped'){
                 
                 		sl_wp_set_object_terms( $wp_product_id, 'simple', 'product_type' );
 
@@ -1510,11 +1507,11 @@ class Product
         $wp_product_attributes = get_post_meta( $product_id, '_product_attributes' );
         
         $wp_product_attributes_count = 0;
+        $wp_product_attributes_used = array();
         if (!empty($wp_product_attributes)){
 
             $wp_product_attributes = $wp_product_attributes[0];
             $wp_product_attributes_count = count($wp_product_attributes);
-            $wp_product_attributes_used = array();
 
         }
 
@@ -1595,7 +1592,8 @@ class Product
 
                             if (!$found){
 
-                                sl_wp_set_object_terms( wc_attribute_taxonomy_id_by_name($attribute_taxonomy_name), $attribute_value, $attribute_taxonomy_name , false);
+                                // Only make sure the term exists (it is attached to the product below).
+                                wp_insert_term($attribute_value, $attribute_taxonomy_name, array('slug' => $attribute_value_sanitized));
                                 
                             }
 
@@ -1625,7 +1623,8 @@ class Product
                     
                         }
 
-                        if (empty($wp_product_attributes) || !isset($wp_product_attributes[$field_name_sanitized])){
+                        // Existing attributes are left untouched (keeps their is_variation flag).
+                        if (empty($wp_product_attributes) || !isset($wp_product_attributes[$attribute_taxonomy_name])){
                             
                             $wp_product_attributes[$attribute_taxonomy_name] = array(
                                     'name' 			=> $attribute_taxonomy_name,
@@ -1704,7 +1703,8 @@ class Product
 
             foreach ($wp_product_attributes as $keyPA => $wp_product_attribute){
 
-                if (!in_array($wp_product_attribute['name'], $wp_product_attributes_used) && $wp_product_attribute['is_variation'] != 1){
+                // Compare like with like: the used list holds array keys (slugs / taxonomy names).
+                if (!in_array($keyPA, $wp_product_attributes_used) && !in_array($wp_product_attribute['name'], $wp_product_attributes_used) && empty($wp_product_attribute['is_variation'])){
                     
                     unset($wp_product_attributes[$keyPA]);
                     if (substr($keyPA, 0, 3) == 'pa_'){
@@ -1859,7 +1859,7 @@ class Product
                     sl_update_post_meta($wp_product['ID'], '_saleslayerid', $product_id);
                     sl_update_post_meta($wp_product['ID'], '_saleslayercompid', $comp_id);
 
-                    sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'publish'), true);
+                    // The post status of the adopted item is kept (the PIM status is applied on update).
                 
                     return true;
 
@@ -1946,7 +1946,7 @@ class Product
                     sl_update_post_meta($wp_product['ID'], '_saleslayerid', $product_id);
                     sl_update_post_meta($wp_product['ID'], '_saleslayercompid', $comp_id);
                 
-                    sl_wp_update_post(array('ID' => $wp_product['ID'], 'post_status' => 'publish'), true);
+                    // The post status of the adopted item is kept (the PIM status is applied on update).
 
                     return true;
 
@@ -1999,6 +1999,32 @@ class Product
         }
 
         return 'item_deleted';
+
+    }
+
+    /**
+     * Map a Sales Layer stock status value to a WooCommerce stock status.
+     * Whole words / exact values only; out of stock patterns are checked first.
+     * @param  mixed $raw_status 	status sent by the PIM
+     * @return string|null 			instock, outofstock, onbackorder or null when empty
+     */
+    private function map_stock_status($raw_status)
+    {
+
+        if (is_array($raw_status)){ $raw_status = !empty($raw_status) ? reset($raw_status) : ''; }
+
+        $raw_status = trim(strtolower((string)$raw_status));
+
+        if ($raw_status === ''){ return null; }
+
+        if (preg_match('~\b(outofstock|out|agotado|sin\s+stock|sin\s+existencias|not\s+in\s+stock|no\s+stock)\b~', $raw_status)){ return 'outofstock'; }
+
+        if (preg_match('~(onbackorder|backorder|back\s+order|reservado)~', $raw_status)){ return 'onbackorder'; }
+
+        if (preg_match('~^(instock|in[\s_-]+stock|en\s+existencias|existencias|in)$~', $raw_status)){ return 'instock'; }
+
+        // Unknown value: keep the previous default (not purchasable).
+        return 'outofstock';
 
     }
 

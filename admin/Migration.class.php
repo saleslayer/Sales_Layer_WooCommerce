@@ -17,6 +17,24 @@ if (!defined('ABSPATH')) {
 
 class Migration
 {
+    /** Items processed per query, to limit memory usage. */
+    private const BATCH_SIZE = 200;
+
+    /** @var MultilangHelper|null Single helper instance reused for every item. */
+    private $helper = null;
+
+    /**
+     * Get the (single) MultilangHelper instance, or null when it is not available.
+     */
+    private function get_helper(): ?MultilangHelper
+    {
+        if ($this->helper === null && class_exists('MultilangHelper')) {
+            $this->helper = new MultilangHelper();
+        }
+
+        return $this->helper;
+    }
+
     /**
      * Execute migration of all legacy products, categories, and variations.
      *
@@ -98,37 +116,47 @@ class Migration
      */
     private function migrate_products(string $default_lang, bool $multilang_active): int
     {
-        $products = get_posts([
-            'post_type'        => 'product',
-            'post_status'      => ['publish', 'pending', 'draft', 'private', 'trash'],
-            'posts_per_page'   => -1,
-            // 'lang' => '' disables Polylang's automatic language filter so that posts
-            // without a language assigned (i.e. the legacy items we need to migrate) are included.
-            'lang'             => '',
-            'suppress_filters' => false,
-            'meta_query'       => [
-                'relation' => 'AND',
-                ['key' => '_saleslayerid', 'compare' => 'EXISTS'],
-                ['key' => '_slyr_wc_lang', 'compare' => 'NOT EXISTS'],
-            ],
-        ]);
-
         $count = 0;
-        foreach ($products as $product) {
-            update_post_meta($product->ID, '_slyr_wc_lang', $default_lang);
-            $count++;
+        $seen = [];
 
-            // Link all variants as Polylang translation group if multilang is active
-            if ($multilang_active) {
-                $sl_id = get_post_meta($product->ID, '_saleslayerid', true);
-                $comp_id = get_post_meta($product->ID, '_saleslayercompid', true);
+        // Items already migrated drop out of the NOT EXISTS query, so page 1 is always the next batch.
+        // $seen avoids looping forever if an item cannot be updated.
+        do {
+            $product_ids = get_posts([
+                'post_type'        => 'product',
+                'post_status'      => ['publish', 'pending', 'draft', 'private', 'trash'],
+                'posts_per_page'   => self::BATCH_SIZE,
+                'fields'           => 'ids',
+                // 'lang' => '' disables Polylang's automatic language filter so that posts
+                // without a language assigned (i.e. the legacy items we need to migrate) are included.
+                'lang'             => '',
+                'suppress_filters' => false,
+                'meta_query'       => [
+                    'relation' => 'AND',
+                    ['key' => '_saleslayerid', 'compare' => 'EXISTS'],
+                    ['key' => '_slyr_wc_lang', 'compare' => 'NOT EXISTS'],
+                ],
+            ]);
 
-                if ($sl_id && $comp_id && class_exists('MultilangHelper')) {
-                    $helper = new MultilangHelper();
-                    $helper->link_all_post_translations($sl_id, $comp_id);
+            $product_ids = array_diff($product_ids, $seen);
+
+            foreach ($product_ids as $product_id) {
+                $seen[] = $product_id;
+                update_post_meta($product_id, '_slyr_wc_lang', $default_lang);
+                $count++;
+
+                // Link all variants as Polylang translation group if multilang is active
+                if ($multilang_active) {
+                    $sl_id = get_post_meta($product_id, '_saleslayerid', true);
+                    $comp_id = get_post_meta($product_id, '_saleslayercompid', true);
+
+                    $helper = ($sl_id && $comp_id) ? $this->get_helper() : null;
+                    if ($helper) {
+                        $helper->link_all_post_translations($sl_id, $comp_id);
+                    }
                 }
             }
-        }
+        } while (!empty($product_ids));
 
         if ($count > 0) {
             sl_debug("Migrated $count products to multilang architecture");
@@ -146,40 +174,49 @@ class Migration
      */
     private function migrate_categories(string $default_lang, bool $multilang_active): int
     {
-        $categories = get_terms([
-            'hide_empty' => false,
-            'taxonomy'   => 'product_cat',
-            'number'     => 0,
-            // 'lang' => '' disables Polylang's automatic language filter so that terms
-            // without a language assigned (i.e. the legacy items we need to migrate) are included.
-            'lang'       => '',
-            'meta_query' => [
-                'relation' => 'AND',
-                ['key' => 'saleslayerid', 'compare' => 'EXISTS'],
-                ['key' => 'slyr_wc_lang', 'compare' => 'NOT EXISTS'],
-            ],
-        ]);
-
-        if (is_wp_error($categories)) {
-            return 0;
-        }
-
         $count = 0;
-        foreach ($categories as $category) {
-            update_term_meta($category->term_id, 'slyr_wc_lang', $default_lang);
-            $count++;
+        $seen = [];
 
-            // Link all variants as Polylang translation group if multilang is active
-            if ($multilang_active) {
-                $sl_id = get_term_meta($category->term_id, 'saleslayerid', true);
-                $comp_id = get_term_meta($category->term_id, 'saleslayercompid', true);
+        // Same batching approach as migrate_products().
+        do {
+            $category_ids = get_terms([
+                'hide_empty' => false,
+                'taxonomy'   => 'product_cat',
+                'number'     => self::BATCH_SIZE,
+                'fields'     => 'ids',
+                // 'lang' => '' disables Polylang's automatic language filter so that terms
+                // without a language assigned (i.e. the legacy items we need to migrate) are included.
+                'lang'       => '',
+                'meta_query' => [
+                    'relation' => 'AND',
+                    ['key' => 'saleslayerid', 'compare' => 'EXISTS'],
+                    ['key' => 'slyr_wc_lang', 'compare' => 'NOT EXISTS'],
+                ],
+            ]);
 
-                if ($sl_id && $comp_id && class_exists('MultilangHelper')) {
-                    $helper = new MultilangHelper();
-                    $helper->link_all_term_translations('product_cat', $sl_id, $comp_id);
+            if (is_wp_error($category_ids)) {
+                break;
+            }
+
+            $category_ids = array_diff($category_ids, $seen);
+
+            foreach ($category_ids as $category_id) {
+                $seen[] = $category_id;
+                update_term_meta($category_id, 'slyr_wc_lang', $default_lang);
+                $count++;
+
+                // Link all variants as Polylang translation group if multilang is active
+                if ($multilang_active) {
+                    $sl_id = get_term_meta($category_id, 'saleslayerid', true);
+                    $comp_id = get_term_meta($category_id, 'saleslayercompid', true);
+
+                    $helper = ($sl_id && $comp_id) ? $this->get_helper() : null;
+                    if ($helper) {
+                        $helper->link_all_term_translations('product_cat', $sl_id, $comp_id);
+                    }
                 }
             }
-        }
+        } while (!empty($category_ids));
 
         if ($count > 0) {
             sl_debug("Migrated $count categories to multilang architecture");
@@ -199,44 +236,54 @@ class Migration
      */
     private function migrate_variations(string $default_lang, bool $multilang_active): int
     {
-        $variations = get_posts([
-            'post_type'      => 'product_variation',
-            'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
-            'posts_per_page' => -1,
-            'meta_query'     => [
-                'relation' => 'AND',
-                ['key' => '_saleslayerid', 'compare' => 'EXISTS'],
-                ['key' => '_slyr_wc_lang', 'compare' => 'NOT EXISTS'],
-            ],
-        ]);
-
         $count = 0;
-        foreach ($variations as $variation) {
-            $parent_id = $variation->post_parent;
-            $var_lang = $default_lang;
+        $seen = [];
 
-            // Try to get language from parent product
-            if ($parent_id > 0) {
-                $parent_lang = get_post_meta($parent_id, '_slyr_wc_lang', true);
-                if ($parent_lang) {
-                    $var_lang = $parent_lang;
+        // Same batching approach as migrate_products().
+        do {
+            $variation_ids = get_posts([
+                'post_type'      => 'product_variation',
+                'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
+                'posts_per_page' => self::BATCH_SIZE,
+                'fields'         => 'ids',
+                'lang'           => '',
+                'meta_query'     => [
+                    'relation' => 'AND',
+                    ['key' => '_saleslayerid', 'compare' => 'EXISTS'],
+                    ['key' => '_slyr_wc_lang', 'compare' => 'NOT EXISTS'],
+                ],
+            ]);
+
+            $variation_ids = array_diff($variation_ids, $seen);
+
+            foreach ($variation_ids as $variation_id) {
+                $seen[] = $variation_id;
+                $parent_id = (int) wp_get_post_parent_id($variation_id);
+                $var_lang = $default_lang;
+
+                // Try to get language from parent product
+                if ($parent_id > 0) {
+                    $parent_lang = get_post_meta($parent_id, '_slyr_wc_lang', true);
+                    if ($parent_lang) {
+                        $var_lang = $parent_lang;
+                    }
+                }
+
+                update_post_meta($variation_id, '_slyr_wc_lang', $var_lang);
+                $count++;
+
+                // Link all variants as Polylang translation group if multilang is active
+                if ($multilang_active) {
+                    $sl_id = get_post_meta($variation_id, '_saleslayerid', true);
+                    $comp_id = get_post_meta($variation_id, '_saleslayercompid', true);
+
+                    $helper = ($sl_id && $comp_id) ? $this->get_helper() : null;
+                    if ($helper) {
+                        $helper->link_all_post_translations($sl_id, $comp_id, ['product_variation']);
+                    }
                 }
             }
-
-            update_post_meta($variation->ID, '_slyr_wc_lang', $var_lang);
-            $count++;
-
-            // Link all variants as Polylang translation group if multilang is active
-            if ($multilang_active) {
-                $sl_id = get_post_meta($variation->ID, '_saleslayerid', true);
-                $comp_id = get_post_meta($variation->ID, '_saleslayercompid', true);
-
-                if ($sl_id && $comp_id && class_exists('MultilangHelper')) {
-                    $helper = new MultilangHelper();
-                    $helper->link_all_post_translations($sl_id, $comp_id, ['product_variation']);
-                }
-            }
-        }
+        } while (!empty($variation_ids));
 
         if ($count > 0) {
             sl_debug("Migrated $count variations to multilang architecture");

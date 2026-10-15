@@ -339,11 +339,18 @@ class Category
                                         $wp_category['term_id'],
                                         true
                                     );
+
+                                    // Download failed: keep the previous thumbnail, never save false.
+                                    if (!$new_wp_thumbnail_id) {
+                                        continue;
+                                    }
+
                                     sl_update_woocommerce_term_meta(
                                         $wp_category['term_id'],
                                         'thumbnail_id',
                                         $new_wp_thumbnail_id
                                     );
+                                    $thumb_id = $new_wp_thumbnail_id;
                                 } else {
                                     $wp_category_image_url = wp_get_attachment_url($thumb_id);
                                     $wp_category_image_size = $this->media_class->read_image_file_size($wp_category_image_url);
@@ -361,7 +368,10 @@ class Category
                                     sl_update_woocommerce_term_meta($wp_category['term_id'], 'thumbnail_id', $thumb_id);
                                 }
 
-                                if (!in_array($wp_thumbnail_id, array('', 0, null, false))) {
+                                if (
+                                    !in_array($wp_thumbnail_id, array('', 0, null, false))
+                                    && $wp_thumbnail_id != $thumb_id
+                                ) {
                                     $this->media_class->delete_media($wp_thumbnail_id);
                                 }
                             }
@@ -464,6 +474,18 @@ class Category
             );
         }
 
+        // Still term_exists in multilang mode: the language variant may already exist without
+        // Sales Layer data (e.g. created by hand or by Polylang). Adopt it instead of failing on
+        // every attempt, but only if it is clearly the same category: same parent, same language
+        // and not linked to another Sales Layer item.
+        if (is_wp_error($category) && $lang !== '' && $category->get_error_code() === 'term_exists') {
+            $existing_id = (int) $category->get_error_data('term_exists');
+            if ($existing_id && $this->can_adopt_category($existing_id, $sl_category_id, $category_parent_id, $lang)) {
+                sl_debug('Existing category adopted (term_id: ' . $existing_id . ', SL ID: ' . $sl_category_id . ', lang: ' . $lang . ').');
+                $category = array('term_id' => $existing_id);
+            }
+        }
+
         if (!is_wp_error($category)) {
             if (is_object($category)) {
                 $category_id = isset($category->term_id) ? $category->term_id : 0;
@@ -491,6 +513,36 @@ class Category
         }
 
         return false;
+    }
+
+    /**
+     * Check whether an existing term can be adopted as the language variant of a Sales Layer category.
+     *
+     * @param int    $term_id            Existing term id (returned by term_exists)
+     * @param string $sl_category_id     Sales Layer category id
+     * @param int    $category_parent_id Expected WP parent term id
+     * @param string $lang               WP language code of the variant
+     * @return bool
+     */
+    private function can_adopt_category($term_id, $sl_category_id, $category_parent_id, string $lang): bool
+    {
+        $term = get_term($term_id, 'product_cat');
+        if (!$term || is_wp_error($term) || (int) $term->parent !== (int) $category_parent_id) {
+            return false;
+        }
+
+        // Not linked to another Sales Layer item.
+        $sl_id = get_term_meta($term_id, 'saleslayerid', true);
+        if ($sl_id !== '' && (string) $sl_id !== (string) $sl_category_id) {
+            return false;
+        }
+
+        // Same language: Polylang language when available, otherwise the plugin language meta.
+        $term_lang = function_exists('pll_get_term_language')
+            ? (string) pll_get_term_language($term_id)
+            : (string) get_term_meta($term_id, 'slyr_wc_lang', true);
+
+        return $term_lang === $lang;
     }
 
     /**

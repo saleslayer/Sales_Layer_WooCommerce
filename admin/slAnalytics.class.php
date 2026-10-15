@@ -100,12 +100,15 @@ class slAnalytics
 
         $ch = curl_init($this->SL_API_URL);
 
+        // Analytics must never block the synchronization: bounded timeouts, no redirects
+        // and any failure is only logged. Generous values for now; can be reduced later.
         curl_setopt_array($ch, [
-            CURLOPT_CONNECTTIMEOUT => 1800,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_TIMEOUT => 60,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => ['encryptedPackage' => $encryptedPackage],
         ]);
@@ -119,6 +122,7 @@ class slAnalytics
         }
 
         // Obtain the answer HTTP status code
+        // No curl_close(): it has no effect since PHP 8.0 and is deprecated in PHP 8.5.
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($http_code >= 400) {

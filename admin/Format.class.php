@@ -188,13 +188,13 @@ class Format
 
                 if ($field_props['has_multilingual']) {
         
-                    $format_params['format_additional_fields'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
-                    $this->format_additional_fields[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+                    $format_params['format_additional_fields'][$field_name] = $field_name.'_'.$sl_language;
+                    $this->format_additional_fields[$field_name] = $field_name.'_'.$sl_language;
                     
                     if (strtolower($field_props['type']) == 'image' || strtolower($field_props['type']) == 'file'){
 
-                        $format_params['product_formats_media_field_names'][$field_name] = $field_name.'_'.$connector->conn_data['languages'];
-                        $this->media_field_names[$field_name] = $field_name.'_'.$connector->conn_data['languages'];
+                        $format_params['product_formats_media_field_names'][$field_name] = $field_name.'_'.$sl_language;
+                        $this->media_field_names[$field_name] = $field_name.'_'.$sl_language;
 
                     }
 
@@ -577,7 +577,7 @@ class Format
             // Attribute-based fallback only makes sense in legacy mode.
             // In multilang mode it would match the wrong language variant.
             if ($lang === '') {
-                $wp_format = $this->find_format_by_attributes($sl_parent_product_id, $this->comp_id, $sl_format_id, $sl_format_attributes);
+                $wp_format = $this->find_format_by_attributes($sl_parent_product_id, $this->comp_id, $sl_format_id, $sl_format_attributes, $wp_parent_product['ID']);
             }
 
             if (!$wp_format){
@@ -1079,11 +1079,12 @@ class Format
         
                         sl_update_post_meta( $wp_format['ID'], '_stock', '');
 
+                        // No status sent by the PIM: keep the existing one (or instock when there is none).
                         if (!isset($format_data[$this->format_field_stock_status]) || (isset($format_data[$this->format_field_stock_status]) && $format_data[$this->format_field_stock_status] === '')){
         
-                            if (!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $wp_format['_stock_status'] !== 'outofstock')){
+                            if (!isset($wp_format['_stock_status']) || $wp_format['_stock_status'] === ''){
         
-                                sl_update_post_meta( $wp_format['ID'], '_stock_status', 'outofstock');
+                                sl_update_post_meta( $wp_format['ID'], '_stock_status', 'instock');
 
                             }
 
@@ -1093,40 +1094,10 @@ class Format
 
                     if (isset($format_data[$this->format_field_stock_status])){
 
-                        $sl_format_stock_status = $format_data[$this->format_field_stock_status];
-                        
-                        if (is_array($sl_format_stock_status) && !empty($sl_format_stock_status)){
-                        
-                            $sl_format_stock_status = trim(strtolower(reset($sl_format_stock_status)));
-                        
-                            } elseif (!is_array($sl_format_stock_status) && $sl_format_stock_status !== ''){
+                        $format_stock_status = $this->map_stock_status($format_data[$this->format_field_stock_status]);
 
-                            $sl_format_stock_status = trim(strtolower($sl_format_stock_status));
-                        
-                        }
-                        
-                        if ($sl_format_stock_status !== ''){
+                        if ($format_stock_status !== null){
 
-                            $format_stock_status = 'outofstock';
-
-                            if (preg_match('~(reservado|backorder)~', strtolower($sl_format_stock_status))) {
-                            
-                                $format_stock_status = 'onbackorder';
-                            
-                            }
-
-                            if (preg_match('~(existencias|in)~', strtolower($sl_format_stock_status))) {
-                            
-                                $format_stock_status = 'instock';
-                            
-                            }
-
-                            if (preg_match('~(agotado|out)~', strtolower($sl_format_stock_status))) {
-                                
-                                $format_stock_status = 'outofstock';
-                            
-                            }
-                            
                             if (!isset($wp_format['_stock_status']) || (isset($wp_format['_stock_status']) && $format_stock_status != $wp_format['_stock_status'])){
 
                                 sl_update_post_meta( $wp_format['ID'], '_stock_status', $format_stock_status);
@@ -1258,7 +1229,12 @@ class Format
                                 if ($thumb_id === 0){
                                 
                                     $new_wp_thumbnail_id = $this->media_class->fetch_media($image_url, $wp_format['ID'], true);
+
+                                    // Download failed: keep the previous thumbnail, never save false.
+                                    if (!$new_wp_thumbnail_id){ continue; }
+
                                     sl_update_post_meta($wp_format['ID'], '_thumbnail_id', $new_wp_thumbnail_id);
+                                    $thumb_id = $new_wp_thumbnail_id;
 
                                 }else{
 
@@ -1279,7 +1255,7 @@ class Format
 
                                 }
 
-                                if (!in_array($wp_thumbnail_id, array('', 0, null, false))){ $this->media_class->delete_media($wp_thumbnail_id); }
+                                if (!in_array($wp_thumbnail_id, array('', 0, null, false)) && $wp_thumbnail_id != $thumb_id){ $this->media_class->delete_media($wp_thumbnail_id); }
 
                             }
 
@@ -1405,9 +1381,10 @@ class Format
      * @param string $comp_id 					Sales Layer company id
      * @param string $format_id 				Sales Layer format id
      * @param array  $format_attributes 		format attributes to match
+     * @param int    $wp_parent_id 				WP parent product id (restricts the search to its variations)
      * @return boolean 							result of finding
      */
-    public function find_format_by_attributes($product_id, $comp_id, $format_id, $format_attributes)
+    public function find_format_by_attributes($product_id, $comp_id, $format_id, $format_attributes, $wp_parent_id = 0)
     {
 
         $meta_query = array();
@@ -1417,13 +1394,15 @@ class Format
             
         }
         
-        $posts = get_posts(
-            array(
-                'post_type' => 'product_variation',
-                'meta_query' => $meta_query,
-                'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
-        	)
+        $find_args = array(
+            'post_type' => 'product_variation',
+            'meta_query' => $meta_query,
+            'post_status' => array('publish', 'pending', 'draft', 'private', 'trash')
         );
+
+        if ($wp_parent_id){ $find_args['post_parent'] = intval($wp_parent_id); }
+
+        $posts = get_posts($find_args);
 
         if( is_wp_error( $posts ) ) {
 
@@ -1443,7 +1422,7 @@ class Format
                 sl_update_post_meta($wp_format['ID'], '_saleslayercompid', $comp_id);
                 sl_update_post_meta($wp_format['ID'], '_saleslayerformatid', $format_id);
 
-                sl_wp_update_post(array('ID' => $wp_format['ID'], 'post_status' => 'publish'), true);
+                // The post status of the adopted item is kept (the PIM status is applied on update).
 
                 return true;
 
@@ -1593,7 +1572,8 @@ class Format
 
                         if (!$found){
 
-                            sl_wp_set_object_terms( wc_attribute_taxonomy_id_by_name($attribute_taxonomy_name), $attribute_value, $attribute_taxonomy_name , false);
+                            // Only make sure the term exists (it is attached to the parent product below).
+                            wp_insert_term($attribute_value, $attribute_taxonomy_name, array('slug' => $attribute_value_sanitized));
                         
                         }
 
@@ -1623,7 +1603,7 @@ class Format
 
                     }
 
-                    if (empty($wp_product_attributes) || !isset($wp_product_attributes[$attribute_name])){
+                    if (empty($wp_product_attributes) || !isset($wp_product_attributes[$attribute_taxonomy_name])){
                 
                         $wp_product_attributes[$attribute_taxonomy_name] = array(
                                 'name' 			=> $attribute_taxonomy_name,
@@ -1754,6 +1734,32 @@ class Format
         }
 
         return 'item_deleted';
+
+    }
+
+    /**
+     * Map a Sales Layer stock status value to a WooCommerce stock status.
+     * Whole words / exact values only; out of stock patterns are checked first.
+     * @param  mixed $raw_status 	status sent by the PIM
+     * @return string|null 			instock, outofstock, onbackorder or null when empty
+     */
+    private function map_stock_status($raw_status)
+    {
+
+        if (is_array($raw_status)){ $raw_status = !empty($raw_status) ? reset($raw_status) : ''; }
+
+        $raw_status = trim(strtolower((string)$raw_status));
+
+        if ($raw_status === ''){ return null; }
+
+        if (preg_match('~\b(outofstock|out|agotado|sin\s+stock|sin\s+existencias|not\s+in\s+stock|no\s+stock)\b~', $raw_status)){ return 'outofstock'; }
+
+        if (preg_match('~(onbackorder|backorder|back\s+order|reservado)~', $raw_status)){ return 'onbackorder'; }
+
+        if (preg_match('~^(instock|in[\s_-]+stock|en\s+existencias|existencias|in)$~', $raw_status)){ return 'instock'; }
+
+        // Unknown value: keep the previous default (not purchasable).
+        return 'outofstock';
 
     }
 

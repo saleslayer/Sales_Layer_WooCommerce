@@ -60,10 +60,6 @@ function sl_debug($msg, string $type = '')
 
     if ($debug_level > 0){
 
-        WP_Filesystem();
-
-        global $wp_filesystem;
-
         $error_write = false;
         if (strpos($msg, '## Error.') !== false){
             $error_write = true;
@@ -101,14 +97,13 @@ function sl_debug($msg, string $type = '')
 
         $time_end_process = round(microtime(true) - SLYR_TIME_INI_PROCESS);
 
-        file_put_contents($file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg".PHP_EOL, FILE_APPEND);
+        $line = "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg".PHP_EOL;
 
-        if ($new_file){  
-            if (!is_null($wp_filesystem)){
-                $wp_filesystem->chmod($file);
-            }else{
-                chmod($file, 0777);
-            }
+        // Plain file functions: WP_Filesystem() could ask for credentials depending on the host.
+        $written = @file_put_contents($file, $line, FILE_APPEND);
+
+        if ($new_file && $written !== false){
+            @chmod($file, 0666);
         }
 
         if ($error_write){
@@ -117,14 +112,10 @@ function sl_debug($msg, string $type = '')
             
             if (!file_exists($error_file)){ $new_error_file = true; }
 
-            file_put_contents($error_file, "pid:{$pid} - mem:{$mem} - time:{$time_end_process} - $msg".PHP_EOL, FILE_APPEND);
-            
-            if ($new_error_file){
-                if (!is_null($wp_filesystem)){
-                    $wp_filesystem->chmod($error_file);
-                }else{
-                    chmod($error_file, 0777);
-                }
+            $written_error = @file_put_contents($error_file, $line, FILE_APPEND);
+
+            if ($new_error_file && $written_error !== false){
+                @chmod($error_file, 0666);
             }
 
         }
@@ -209,6 +200,7 @@ function slyr_wc_activate()
     }
 
     sl_wc_check_version();
+    slyr_wc_schedule_events();
     flush_rewrite_rules();
 
 }
@@ -235,6 +227,70 @@ function slyr_wc_deactivate($network_wide = false)
     }
 
     flush_rewrite_rules();
+}
+
+/**
+ * Schedule the plugin cron events (guarded, so it is safe to call on every request).
+ *
+ * Not scheduled while uninstalling and, in Multisite, only on the main site: the plugin
+ * tables are global, so one set of events is enough for the whole network.
+ *
+ * @return void
+ */
+function slyr_wc_schedule_events()
+{
+    if (defined('WP_UNINSTALL_PLUGIN')) {
+        return;
+    }
+
+    if (is_multisite() && !is_main_site()) {
+        return;
+    }
+
+    $events = array(
+        'sl_wc_media_meta_schedule'    => SLYR_WC_media_meta_minutes_interval,
+        'sl_wc_auto_sync_schedule'     => SLYR_WC_auto_sync_minutes_interval,
+        'sl_wc_syncdata_schedule'      => SLYR_WC_syncdata_minutes_interval,
+        'sl_wc_check_version_schedule' => SLYR_WC_check_version_days_start,
+    );
+
+    foreach ($events as $hook => $recurrence) {
+        if (!wp_next_scheduled($hook)) {
+            wp_schedule_event(time(), $recurrence, $hook);
+        }
+    }
+}
+add_action('init', 'slyr_wc_schedule_events', 20);
+
+/**
+ * Try to take a named lock. Atomic thanks to add_site_option() (it fails if the option exists).
+ * A lock older than $ttl seconds is considered stale and is taken over.
+ *
+ * @param string $name Lock name
+ * @param int    $ttl  Seconds after which the lock is considered expired
+ * @return bool True if the lock was acquired
+ */
+function slyr_wc_acquire_lock($name, $ttl = 3600)
+{
+    $option = 'slyr_wc_lock_' . $name;
+
+    if (add_site_option($option, time())) {
+        return true;
+    }
+
+    $locked_at = (int) get_site_option($option, 0);
+    if ($locked_at > 0 && (time() - $locked_at) < $ttl) {
+        return false;
+    }
+
+    // Stale lock: remove it and try again (add fails if another process got it first).
+    delete_site_option($option);
+    return (bool) add_site_option($option, time());
+}
+
+function slyr_wc_release_lock($name)
+{
+    delete_site_option('slyr_wc_lock_' . $name);
 }
 
 function slyr_wc_clear_scheduled_hooks()
@@ -626,20 +682,58 @@ function slyr_wc_plugin_uninstall()
 
     global $wpdb;
 
-    // Delete any options starting with slyr
+    // Network (site) options and locks.
+    delete_site_option('SLYR_WC_version');
+    delete_site_option('SLYR_WC_latest_version');
+    delete_site_option(SLYR_WC_general_params);
+
+    if (is_multisite() && !empty($wpdb->sitemeta)) {
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->sitemeta} WHERE meta_key LIKE %s",
+            $wpdb->esc_like('slyr_wc') . '%'
+        ));
+    }
+
+    // Per-site options, plugin transients and cron events (every site in Multisite).
+    if (is_multisite()) {
+        foreach (get_sites(array('fields' => 'ids', 'number' => 0)) as $blog_id) {
+            switch_to_blog($blog_id);
+            slyr_wc_uninstall_current_blog();
+            restore_current_blog();
+        }
+    } else {
+        slyr_wc_uninstall_current_blog();
+    }
+
+    // The plugin tables are NOT dropped on purpose: connectors survive a reinstall.
+    // Note that they keep the connectors' conn_secret.
+}
+
+/**
+ * Remove the options, transients and cron events of the current blog.
+ *
+ * @return void
+ */
+function slyr_wc_uninstall_current_blog()
+{
+    global $wpdb;
+
     $options_table = $wpdb->options;
-    $like_prefix = $wpdb->esc_like('slyr_wc') . '%';
+    $patterns = array(
+        $wpdb->esc_like('slyr_wc') . '%',
+        $wpdb->esc_like('_transient_slyr_wc') . '%',
+        $wpdb->esc_like('_transient_timeout_slyr_wc') . '%',
+        $wpdb->esc_like('_transient_sl_wc_') . '%',
+        $wpdb->esc_like('_transient_timeout_sl_wc_') . '%',
+    );
+
     $sql = $wpdb->prepare(
-        "DELETE FROM {$options_table} WHERE option_name LIKE %s OR option_name = %s",
-        $like_prefix,
-        SLYR_WC_general_params
+        "DELETE FROM {$options_table} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s OR option_name = %s",
+        array_merge($patterns, array(SLYR_WC_general_params))
     );
     $wpdb->query($sql);
 
-    // Delete all saleslayer tables
-    // $deleteTables = array('slyr_catalogue', 'slyr_locations', 'slyr_products', 'slyr_product_formats', 'slyr___api_config', 'slyr_filter');
-
-    // foreach ($deleteTables as $table) { $wpdb->query("DROP TABLE IF EXISTS $table"); }
+    slyr_wc_clear_scheduled_hooks();
 }
 
 register_uninstall_hook(__FILE__, 'slyr_wc_plugin_uninstall');
@@ -767,11 +861,7 @@ function sl_wc_process_pending_meta()
     include_once(SLYR_WC__PLUGIN_DIR.'admin/Media_class.class.php');
 
     $media_class = new Media_class();
-    $return_message = $media_class->process_pending_meta();
-
-    echo json_encode(array('error' => 0, 'message' => '<div class="dialog dialog-warning">'.$return_message.'</div>'));
-
-    wp_die();
+    $media_class->process_pending_meta();
 
 }
 
@@ -785,10 +875,6 @@ function media_meta_add_cron_schedule($schedules)
     return $schedules;
 }
 add_filter( 'cron_schedules', 'media_meta_add_cron_schedule' );
- 
-if (!wp_next_scheduled( 'sl_wc_media_meta_schedule' ) ) {
-    wp_schedule_event( time(), SLYR_WC_media_meta_minutes_interval, 'sl_wc_media_meta_schedule' );
-}
 add_action('sl_wc_media_meta_schedule', 'sl_wc_process_pending_meta');
 
 function check_plugin_requirements()
@@ -1201,8 +1287,19 @@ function sl_wc_execute_tool()
             break;
         case 'migrate_legacy_items':
             include_once(SLYR_WC__PLUGIN_DIR.'admin/Migration.class.php');
-            $migration = new Migration();
-            $counts = $migration->migrate_legacy_items();
+            // Lock so two clicks (or two admins) cannot run the migration concurrently.
+            if (!slyr_wc_acquire_lock('migration', HOUR_IN_SECONDS)) {
+                $response['message_type'] = 'error';
+                $response['message'] = 'A migration is already running. Please wait until it finishes and try again.';
+                break;
+            }
+
+            try {
+                $migration = new Migration();
+                $counts = $migration->migrate_legacy_items();
+            } finally {
+                slyr_wc_release_lock('migration');
+            }
 
             $response['message_type'] = 'success';
             $response['message'] = sprintf(
@@ -1230,11 +1327,17 @@ function sl_wc_execute_tool()
 function sl_wc_auto_sync_connectors()
 {
 
+    // Lock so two autosync runs (overlapping cron requests) cannot run at the same time.
+    // The lock expires by itself in case the process dies without releasing it.
+    if (!slyr_wc_acquire_lock('autosync', 2 * HOUR_IN_SECONDS)){
+        sl_debug("AUTOSync skipped: another autosync process is running.", 'autosync');
+        return;
+    }
+
     sl_debug("==== AUTOSync INIT ".date('Y-m-d H:i:s')." ====", 'autosync');
 
     $sl_time_ini_auto_sync_process = microtime(true);
-    
-    $return_message = [];
+
 
     try {
 
@@ -1268,12 +1371,9 @@ function sl_wc_auto_sync_connectors()
             } else {
                 $time_ini_cron_sync = microtime(true);
 
-                $time_random = rand(20,50);
-                sleep($time_random);
-                $return_message['message'] = synchronize_connector($conn_code, $conn_secret);
+                synchronize_connector($conn_code, $conn_secret);
 
-                sl_debug("#### time_random: ".$time_random.' seconds.', 'autosync');
-                sl_debug("#### time_cron_sync: ".(microtime(true) - $time_ini_cron_sync - $time_random).' seconds.', 'autosync');
+                sl_debug("#### time_cron_sync: ".(microtime(true) - $time_ini_cron_sync).' seconds.', 'autosync');
             }
 
         }else{
@@ -1281,7 +1381,7 @@ function sl_wc_auto_sync_connectors()
             sl_debug("Currently there aren't connectors to synchronize or there aren't any configured connectors with auto-sync.", 'autosync');
 
         }
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
 
         sl_debug('## Error. Auto-sync process: '.$e->getMessage(), 'autosync');
 
@@ -1291,13 +1391,7 @@ function sl_wc_auto_sync_connectors()
 
     sl_debug("==== AUTOSync END ====", 'autosync');
 
-    if (!empty($return_message)){
-
-        echo json_encode($return_message);
-
-    }
-
-    wp_die();
+    slyr_wc_release_lock('autosync');
 
 }
 
@@ -1311,10 +1405,6 @@ function auto_sync_add_cron_schedule($schedules)
     return $schedules;
 }
 add_filter( 'cron_schedules', 'auto_sync_add_cron_schedule' );
- 
-if (!wp_next_scheduled( 'sl_wc_auto_sync_schedule' ) ) {
-    wp_schedule_event( time(), SLYR_WC_auto_sync_minutes_interval, 'sl_wc_auto_sync_schedule' );
-}
 add_action('sl_wc_auto_sync_schedule', 'sl_wc_auto_sync_connectors');
 
 /**
@@ -1329,8 +1419,6 @@ function sl_wc_syncdata_connectors()
     $sync_class = new Synchronize();
     $sync_class->sync_data_connectors();
 
-    wp_die();
-
 }
 
 function syncdata_add_cron_schedule($schedules)
@@ -1343,10 +1431,6 @@ function syncdata_add_cron_schedule($schedules)
     return $schedules;
 }
 add_filter( 'cron_schedules', 'syncdata_add_cron_schedule' );
-
-if (!wp_next_scheduled( 'sl_wc_syncdata_schedule')) {
-    wp_schedule_event( time(), SLYR_WC_syncdata_minutes_interval, 'sl_wc_syncdata_schedule' );
-}
 add_action('sl_wc_syncdata_schedule', 'sl_wc_syncdata_connectors');
 
 add_action('wp_ajax_sl_wc_check_process_status', 'sl_wc_check_process_status');
@@ -1363,7 +1447,7 @@ function sl_wc_check_process_status()
     
     if (!empty($counters_info_data) && isset($counters_info_data[0])){
 
-        $counters_info = json_decode(stripslashes($counters_info_data[0]['item_data']), true);
+        $counters_info = json_decode($counters_info_data[0]['item_data'], true);
 
         $processing_messages = array();
 
@@ -1385,7 +1469,7 @@ function sl_wc_check_process_status()
 
         }
 
-        $sync_params = json_decode(stripslashes($counters_info_data[0]['sync_params']), true);
+        $sync_params = json_decode($counters_info_data[0]['sync_params'], true);
         
         $processing_messages['header'] = 'Synchronizing connector: '.$sync_params['conn_params']['connector_id'];
         $process_status['status'] = 'not_finished';
@@ -1402,10 +1486,7 @@ function sl_wc_check_process_status()
     wp_die();
 
 }
- 
-if (!wp_next_scheduled( 'sl_wc_check_version_schedule' ) ) {
-    wp_schedule_event( time(), SLYR_WC_check_version_days_start, 'sl_wc_check_version_schedule' );
-}
+
 add_action('sl_wc_check_version_schedule', 'sl_wc_check_version');
 
 /**
@@ -1526,7 +1607,7 @@ function slyr_ajax_save_multisite_config()
         return;
     }
 
-    $connectorId = isset($_POST['connector_id']) ? sanitize_text_field($_POST['connector_id']) : '';
+    $connectorId = isset($_POST['connector_id']) ? sanitize_text_field(wp_unslash($_POST['connector_id'])) : '';
     if (empty($connectorId)) {
         wp_send_json_error(['message' => 'Missing connector_id']);
         return;
@@ -1547,7 +1628,7 @@ function slyr_ajax_save_multisite_config()
     }
 
     // Sanitize targets — only store active ones (presence in array = active)
-    $rawTargets = isset($_POST['targets']) ? json_decode(stripslashes($_POST['targets']), true) : [];
+    $rawTargets = isset($_POST['targets']) ? json_decode(wp_unslash($_POST['targets']), true) : [];
     $activeTargets = [];
 
     if (is_array($rawTargets)) {
@@ -1574,7 +1655,7 @@ function slyr_ajax_save_multisite_config()
     $connExtra['multisite_targets'] = $activeTargets;
 
     // Process site_mappings (language configuration per site)
-    $rawSiteMappings = isset($_POST['site_mappings']) ? json_decode(stripslashes($_POST['site_mappings']), true) : [];
+    $rawSiteMappings = isset($_POST['site_mappings']) ? json_decode(wp_unslash($_POST['site_mappings']), true) : [];
     $sanitizedSiteMappings = [];
 
     if (is_array($rawSiteMappings)) {
@@ -1645,7 +1726,7 @@ function slyr_ajax_get_multisite_config()
     $debug = [];
     $debug[] = '=== slyr_ajax_get_multisite_config CALLED ===';
 
-    $connectorId = isset($_GET['connector_id']) ? sanitize_text_field($_GET['connector_id']) : '';
+    $connectorId = isset($_GET['connector_id']) ? sanitize_text_field(wp_unslash($_GET['connector_id'])) : '';
     if (empty($connectorId)) {
         wp_send_json_error(['message' => 'Missing connector_id']);
         return;

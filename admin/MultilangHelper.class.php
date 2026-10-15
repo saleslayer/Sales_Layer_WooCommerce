@@ -271,6 +271,7 @@ class MultilangHelper
             'post_type'      => 'product',
             'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
             'posts_per_page' => 1,
+            'lang'           => '', // all languages (Polylang would apply the admin language filter)
             'meta_query'     => [
                 'relation' => 'AND',
                 ['key' => '_saleslayerid',     'value' => $sl_id,   'compare' => '='],
@@ -306,6 +307,7 @@ class MultilangHelper
             'post_type'      => 'product_variation',
             'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
             'posts_per_page' => 1,
+            'lang'           => '', // all languages (Polylang would apply the admin language filter)
             'meta_query'     => [
                 'relation' => 'AND',
                 ['key' => '_saleslayerformatid', 'value' => $sl_format_id, 'compare' => '='],
@@ -376,6 +378,7 @@ class MultilangHelper
             'hide_empty' => false,
             'taxonomy'   => $taxonomy,
             'number'     => 1,
+            'lang'       => '', // all languages
             'meta_query' => [
                 'relation' => 'AND',
                 ['key' => 'saleslayerid',    'value' => $sl_id,   'compare' => '='],
@@ -492,6 +495,7 @@ class MultilangHelper
             'post_type'      => $post_types,
             'post_status'    => ['publish', 'pending', 'draft', 'private', 'trash'],
             'posts_per_page' => -1,
+            'lang'           => '', // all languages (Polylang would apply the admin language filter)
             'meta_query'     => [
                 'relation' => 'AND',
                 ['key' => '_saleslayerid',     'value' => $sl_id,   'compare' => '='],
@@ -533,6 +537,7 @@ class MultilangHelper
             'hide_empty' => false,
             'taxonomy'   => $taxonomy,
             'number'     => 0,
+            'lang'       => '', // all languages
             'meta_query' => [
                 'relation' => 'AND',
                 ['key' => 'saleslayerid',    'value' => $sl_id,   'compare' => '='],
@@ -565,6 +570,12 @@ class MultilangHelper
 function slyr_detect_active_multilang_plugin()
 {
     if (function_exists('pll_languages_list')) {
+        // function_exists() only tells that Polylang is loaded in the REQUEST's blog. After
+        // switch_to_blog() make sure it is also active in the blog we are working on.
+        if (is_multisite() && ms_is_switched() && !slyr_blog_has_polylang_active()) {
+            return false;
+        }
+
         return 'polylang';
     }
     
@@ -572,5 +583,27 @@ function slyr_detect_active_multilang_plugin()
     //     return 'wpml';
     // }
     
+    return false;
+}
+
+/**
+ * Check whether Polylang is active (site or network level) in the current blog.
+ *
+ * @return bool
+ */
+function slyr_blog_has_polylang_active()
+{
+    $plugins = array_merge(
+        (array) get_option('active_plugins', []),
+        array_keys((array) get_site_option('active_sitewide_plugins', []))
+    );
+
+    foreach ($plugins as $plugin) {
+        // polylang/polylang.php or polylang-pro/polylang.php
+        if (basename((string) $plugin) === 'polylang.php') {
+            return true;
+        }
+    }
+
     return false;
 }

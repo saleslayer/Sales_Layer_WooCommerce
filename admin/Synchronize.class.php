@@ -174,7 +174,7 @@ class Synchronize
                     'product_images_sizes',
                     'product_additional_fields',
                     'image_extensions',
-                    'product_shipping_class',
+                    'product_field_shipping_class',
                     'product_field_related_references',
                     'product_field_crosssell_references',
                     'product_field_upsell_references',
@@ -186,8 +186,8 @@ class Synchronize
                     'format_field_regular_price',
                     'format_field_sale_price',
                     'format_field_stock',
-                    'format_manage_stock',
-                    'format_stock_status',
+                    'format_field_manage_stock',
+                    'format_field_stock_status',
                     'format_field_weight',
                     'format_field_length',
                     'format_field_width',
@@ -200,7 +200,7 @@ class Synchronize
                     'format_additional_fields',
                     'parent_product_attributes',
                     'image_extensions',
-                    'format_shipping_class'
+                    'format_field_shipping_class'
                 );
             $this->initialized_vars = true;
 
@@ -251,11 +251,17 @@ class Synchronize
                 
                 if ($current_flag['syncdata_pid'] == 0){
                 
+                    // Atomic lock: only one process can change the pid from 0 to its own.
                     $sl_query_flag_to_update = " UPDATE ".SLYR_WC_syncdata_flag_table.
-                                            " SET syncdata_pid = ".$this->syncdata_pid.", syncdata_last_date = '".$date_now."'".
-                                            " WHERE id = ".$current_flag['id'];
+                                            " SET syncdata_pid = ".intval($this->syncdata_pid).", syncdata_last_date = '".$date_now."'".
+                                            " WHERE id = ".intval($current_flag['id'])." AND syncdata_pid = 0";
                 
-                    sl_connection_query('update', $sl_query_flag_to_update);
+                    if (!sl_connection_query('update', $sl_query_flag_to_update)){
+
+                        sl_debug('Data is already being processed.', 'syncdata');
+                        $this->end_process = $this->processing_data = true;
+
+                    }
 
                 }else{
 
@@ -277,25 +283,27 @@ class Synchronize
 
                         $flag_pid_is_alive = $this->has_pid_alive($current_flag['syncdata_pid']);
                         
-                        if ($flag_pid_is_alive > 1){
-                        
-                            try{
+                        if ($flag_pid_is_alive && intval($current_flag['syncdata_pid']) !== intval($this->syncdata_pid)){
 
-                                sl_debug('Killing pid: '.$current_flag['syncdata_pid'], 'syncdata');
-                                shell_exec("kill -9 ".$current_flag['syncdata_pid']);
-                        
-                            }catch(\Exception $e){
-                        
-                        sl_debug('## Error. Exception killing pid '.$current_flag['syncdata_pid'].': '.print_r($e->getMessage(), true), 'syncdata');
-                        
-                            }
+                            // The stale pid is not killed: after 10 minutes it may have been reused by another
+                            // process (e.g. a web server worker). The lock is taken over below, as in 2.6.1.
+                            sl_debug('Pid '.$current_flag['syncdata_pid'].' still alive but its flag is older than 10 minutes; taking over the lock.', 'syncdata');
+
                         }
                         
+                        // Atomic takeover: only succeeds if nobody else changed the flag meanwhile.
                         $sl_query_flag_to_update = " UPDATE ".SLYR_WC_syncdata_flag_table.
-                                                " SET syncdata_pid = ".$this->syncdata_pid.", syncdata_last_date = '".$date_now."'".
-                                                " WHERE id = ".$current_flag['id'];
+                                                " SET syncdata_pid = ".intval($this->syncdata_pid).", syncdata_last_date = '".$date_now."'".
+                                                " WHERE id = ".intval($current_flag['id']).
+                                                " AND syncdata_pid = ".intval($current_flag['syncdata_pid']).
+                                                " AND syncdata_last_date = '".esc_sql($current_flag['syncdata_last_date'])."'";
 
-                        sl_connection_query('update', $sl_query_flag_to_update);
+                        if (!sl_connection_query('update', $sl_query_flag_to_update)){
+
+                            sl_debug('Data is already being processed.', 'syncdata');
+                            $this->end_process = $this->processing_data = true;
+
+                        }
                        
                     }
 
@@ -348,7 +356,7 @@ class Synchronize
         if (!empty($counters_info) && isset($counters_info[0])){
             
             $this->counters_info['id'] = $counters_info[0]['id'];
-            $this->counters_info['info'] = json_decode(stripslashes($counters_info[0]['item_data']), true);
+            $this->counters_info['info'] = json_decode($counters_info[0]['item_data'], true);
         
         }
 
@@ -458,6 +466,9 @@ class Synchronize
                     
                         $sql_items_to_delete = " SELECT * FROM ".SLYR_WC_syncdata_table." WHERE sync_type = 'delete' AND sync_tries < 3 ORDER BY item_type ASC, sync_tries ASC, id ASC";
 
+                        // Flush items already processed so they are not read (and processed) again.
+                        $this->check_sql_items_delete(true);
+
                         $items_to_delete = sl_connection_query('read', $sql_items_to_delete);
                         
                         if (!empty($items_to_delete)){
@@ -478,9 +489,9 @@ class Synchronize
 
                                     $sync_tries = $item_to_delete['sync_tries'];
 
-                                    $sync_params = json_decode(stripslashes($item_to_delete['sync_params']), true);
+                                    $sync_params = json_decode($item_to_delete['sync_params'], true);
 
-                                    $item_data = json_decode(stripslashes($item_to_delete['item_data']), true);
+                                    $item_data = json_decode($item_to_delete['item_data'], true);
 
                                     $sl_id = $item_data['sl_id'];
 
@@ -620,6 +631,12 @@ class Synchronize
 
                             }
 
+                            if ($this->end_process){
+
+                                break;
+
+                            }
+
                         }else{
 
                         	break;
@@ -682,6 +699,30 @@ class Synchronize
         // during this sync cycle. Batch deletion at the end is more efficient
         // than deleting each item individually when it reaches the limit.
         try {
+
+            // Leave a trace of the items dropped after exhausting their attempts.
+            $items_exhausted = sl_connection_query('read', " SELECT id, sync_type, item_type, item_data FROM " . SLYR_WC_syncdata_table . " WHERE sync_tries >= 3 AND sync_type IN ('update','delete')");
+
+            if (!empty($items_exhausted)){
+
+                foreach ($items_exhausted as $item_exhausted) {
+
+                    $exhausted_data = json_decode($item_exhausted['item_data'], true);
+                    $exhausted_sl_id = '';
+
+                    if (is_array($exhausted_data)){
+
+                        if (isset($exhausted_data['sl_id'])){ $exhausted_sl_id = $exhausted_data['sl_id']; }
+                        elseif (isset($exhausted_data['format_data']['ID'])){ $exhausted_sl_id = $exhausted_data['format_data']['ID']; }
+                        elseif (isset($exhausted_data['ID'])){ $exhausted_sl_id = $exhausted_data['ID']; }
+
+                    }
+
+                    sl_debug('## Error. Item dropped after max tries - sync type: ' . $item_exhausted['sync_type'] . ' - item type: ' . $item_exhausted['item_type'] . ' - SL id: ' . (is_scalar($exhausted_sl_id) ? $exhausted_sl_id : 'unknown'), 'syncdata');
+
+                }
+
+            }
 
             $sql_delete = " DELETE FROM " . SLYR_WC_syncdata_table . " WHERE sync_tries >= 3";
             sl_connection_query('delete', $sql_delete);
@@ -770,6 +811,24 @@ class Synchronize
     }
 
     /**
+     * Reset object properties to their class defaults (only properties declared in the class).
+     *
+     * @param object $object Object to reset
+     * @param array  $fields Property names to reset
+     * @return void
+     */
+    private function reset_class_fields($object, array $fields)
+    {
+        $defaults = (new \ReflectionClass($object))->getDefaultProperties();
+
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $defaults)) {
+                $object->set_class_field_value($field, $defaults[$field]);
+            }
+        }
+    }
+
+    /**
      * Execute the sync operation for a single item type.
      *
      * Contains the original switch logic extracted from update_item()
@@ -815,6 +874,9 @@ class Synchronize
                 $this->cat_class->set_class_field_value('sync_blog_id',   $blogId);
                 $this->cat_class->set_class_field_value('sync_lang_code', $lang);
 
+                // Singleton state: reset per-row fields so nothing leaks from a previous connector.
+                $this->reset_class_fields($this->cat_class, $this->category_fields);
+
                 foreach ($this->category_fields as $category_field) {
                     if (isset($syncParams['category_fields'][$category_field])) {
                         $this->cat_class->set_class_field_value($category_field, $syncParams['category_fields'][$category_field]);
@@ -833,6 +895,9 @@ class Synchronize
                 $this->prod_class->comp_id = $syncParams['conn_params']['comp_id'];
                 $this->prod_class->set_class_field_value('sync_blog_id',   $blogId);
                 $this->prod_class->set_class_field_value('sync_lang_code', $lang);
+
+                // Singleton state: reset per-row fields so nothing leaks from a previous connector.
+                $this->reset_class_fields($this->prod_class, array_merge($this->product_fields, array('media_field_names')));
 
                 foreach ($this->product_fields as $product_field) {
                     if (isset($syncParams['product_fields'][$product_field])) {
@@ -864,6 +929,9 @@ class Synchronize
                 $this->form_class->comp_id = $syncParams['conn_params']['comp_id'];
                 $this->form_class->set_class_field_value('sync_blog_id',   $blogId);
                 $this->form_class->set_class_field_value('sync_lang_code', $lang);
+
+                // Singleton state: reset per-row fields so nothing leaks from a previous connector.
+                $this->reset_class_fields($this->form_class, array_merge($this->product_format_fields, array('media_field_names')));
 
                 foreach ($this->product_format_fields as $product_format_field) {
                     if (isset($syncParams['format_fields'][$product_format_field])) {
@@ -1332,20 +1400,23 @@ class Synchronize
         // Structure: ['en' => 'en', 'es' => 'es'] (WP lang code => SL lang code).
         // Empty when no multilang plugin is active or no mappings are configured —
         // in that case the existing single-language queuing path is used unchanged.
+        // Keyed by "blog_id|wp_lang": one entry (and one queue row per item) for every site and
+        // language pair, so the same language can be synchronized on several sites of the network
+        // (e.g. 'es' on blog 1 and on blog 2). Value: SL language code.
         $multilangLanguages = [];
-        // Maps each WP language code to the blog_id that has it configured.
-        // Required to assign lang_code to the correct target in a multi-site setup.
+        // Same keys: the blog_id that receives the row. Required to assign lang_code to the correct target.
         $langBlogMap = [];
+        // Same keys: the WP language code (lang_code) of the row.
+        $langWpCode = [];
         if (function_exists('slyr_detect_active_multilang_plugin') && slyr_detect_active_multilang_plugin()) {
             $connExtra    = json_decode($connectorArray['conn_extra'] ?? '{}', true);
             $siteMappings = $connExtra['multilang_config']['site_mappings'] ?? [];
             foreach ($siteMappings as $mapping) {
                 foreach (($mapping['languages'] ?? []) as $wpLang => $slLang) {
-                    // Collect unique WP→SL pairs; first occurrence per WP lang code wins.
-                    if (!isset($multilangLanguages[$wpLang])) {
-                        $multilangLanguages[$wpLang] = (string) $slLang;
-                        $langBlogMap[$wpLang]        = (int) $mapping['blog_id'];
-                    }
+                    $langKey = (int) $mapping['blog_id'] . '|' . $wpLang;
+                    $multilangLanguages[$langKey] = (string) $slLang;
+                    $langBlogMap[$langKey]        = (int) $mapping['blog_id'];
+                    $langWpCode[$langKey]         = (string) $wpLang;
                 }
             }
         }
@@ -1408,10 +1479,10 @@ class Synchronize
                         $productParamsByLang       = [];
                         $productFormatParamsByLang = [];
 
-                        foreach ($multilangLanguages as $wpLang => $slLang) {
-                            $categoryParamsByLang[$wpLang]      = array_merge($this->cat_class->getCategoryParamsToStore($slLang), $sync_params);
-                            $productParamsByLang[$wpLang]        = array_merge($this->prod_class->getProductParamsToStore($slLang), $sync_params);
-                            $productFormatParamsByLang[$wpLang]  = array_merge($this->form_class->getProductFormatParamsToStore($slLang), $sync_params);
+                        foreach ($multilangLanguages as $langKey => $slLang) {
+                            $categoryParamsByLang[$langKey]      = array_merge($this->cat_class->getCategoryParamsToStore($slLang), $sync_params);
+                            $productParamsByLang[$langKey]        = array_merge($this->prod_class->getProductParamsToStore($slLang), $sync_params);
+                            $productFormatParamsByLang[$langKey]  = array_merge($this->form_class->getProductFormatParamsToStore($slLang), $sync_params);
                         }
 
                         // Build base params for targets without a language mapping (e.g. site 4 with no Polylang).
@@ -1543,27 +1614,32 @@ class Synchronize
                                         foreach ($category_data_to_store as $category_to_sync) {
 
                                             if (!empty($multilangLanguages)) {
-                                                // Multilang: one row per language.
+                                                // Multilang: one row per (site, language) pair.
                                                 // lang_code in sync_params.targets[0] is the single source
                                                 // of truth — no _sl_language injected into item_data.
-                                                foreach ($multilangLanguages as $wpLang => $slLang) {
+                                                foreach ($multilangLanguages as $langKey => $slLang) {
+                                                    $wpLang = $langWpCode[$langKey];
                                                     $langItemData = $category_to_sync;
                                                     if (isset($langItemData['data'])) {
                                                         $langItemData['data'] = $this->filter_lang_fields($langItemData['data'], $slLang);
                                                     }
-                                                    $langSyncParams = $categoryParamsByLang[$wpLang];
-                                                    // Keep only the target for the blog that has this language configured.
-                                                    // Each language row is self-contained: the AF row handles blog_id 1,
-                                                    // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                    $langSyncParams = $categoryParamsByLang[$langKey];
+                                                    // Keep only the target of this (blog, language) pair: one site and one language per row
+                                                    // (the same language gets one row per site where it is mapped).
                                                     $langSyncParams['targets'] = array_values(array_filter(
                                                         $langSyncParams['targets'],
-                                                        function ($target) use ($wpLang, $langBlogMap) {
-                                                            return isset($langBlogMap[$wpLang])
-                                                                && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                        function ($target) use ($langKey, $langBlogMap) {
+                                                            return isset($langBlogMap[$langKey])
+                                                                && (int) $target['blog_id'] === $langBlogMap[$langKey];
                                                         }
                                                     ));
                                                     if (isset($langSyncParams['targets'][0])) {
                                                         $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                    }
+                                                    // A language row without targets would be synced to the current blog without language: skip it.
+                                                    if (empty($langSyncParams['targets'])) {
+                                                        sl_debug('Skipping '.$item_type.' row for language '.$wpLang.' on blog_id '.$langBlogMap[$langKey].': the site is not an active target.', 'syncdata');
+                                                        continue;
                                                     }
                                                     $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
                                                     $this->insert_syncdata_sql();
@@ -1622,25 +1698,30 @@ class Synchronize
                                     foreach ($product_data_to_store['product_data'] as $product_to_sync) {
 
                                         if (!empty($multilangLanguages)) {
-                                            // Multilang: one row per language.
-                                            foreach ($multilangLanguages as $wpLang => $slLang) {
+                                            // Multilang: one row per (site, language) pair.
+                                            foreach ($multilangLanguages as $langKey => $slLang) {
+                                                $wpLang = $langWpCode[$langKey];
                                                 $langItemData = $product_to_sync;
                                                 if (isset($langItemData['data'])) {
                                                     $langItemData['data'] = $this->filter_lang_fields($langItemData['data'], $slLang);
                                                 }
-                                                $langSyncParams = $productParamsByLang[$wpLang];
-                                                // Keep only the target for the blog that has this language configured.
-                                                // Each language row is self-contained: the AF row handles blog_id 1,
-                                                // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                $langSyncParams = $productParamsByLang[$langKey];
+                                                // Keep only the target of this (blog, language) pair: one site and one language per row
+                                                // (the same language gets one row per site where it is mapped).
                                                 $langSyncParams['targets'] = array_values(array_filter(
                                                     $langSyncParams['targets'],
-                                                    function ($target) use ($wpLang, $langBlogMap) {
-                                                        return isset($langBlogMap[$wpLang])
-                                                            && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                    function ($target) use ($langKey, $langBlogMap) {
+                                                        return isset($langBlogMap[$langKey])
+                                                            && (int) $target['blog_id'] === $langBlogMap[$langKey];
                                                     }
                                                 ));
                                                 if (isset($langSyncParams['targets'][0])) {
                                                     $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                }
+                                                // A language row without targets would be synced to the current blog without language: skip it.
+                                                if (empty($langSyncParams['targets'])) {
+                                                    sl_debug('Skipping '.$item_type.' row for language '.$wpLang.' on blog_id '.$langBlogMap[$langKey].': the site is not an active target.', 'syncdata');
+                                                    continue;
                                                 }
                                                 $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
                                                 $this->insert_syncdata_sql();
@@ -1728,26 +1809,31 @@ class Synchronize
                                     foreach ($product_formats_to_sync as $product_format_to_sync) {
 
                                         if (!empty($multilangLanguages)) {
-                                            // Multilang: one row per language.
+                                            // Multilang: one row per (site, language) pair.
                                             // Formats nest their payload under format_data.data.
-                                            foreach ($multilangLanguages as $wpLang => $slLang) {
+                                            foreach ($multilangLanguages as $langKey => $slLang) {
+                                                $wpLang = $langWpCode[$langKey];
                                                 $langItemData = $product_format_to_sync;
                                                 if (isset($langItemData['format_data']['data'])) {
                                                     $langItemData['format_data']['data'] = $this->filter_lang_fields($langItemData['format_data']['data'], $slLang);
                                                 }
-                                                $langSyncParams = $productFormatParamsByLang[$wpLang];
-                                                // Keep only the target for the blog that has this language configured.
-                                                // Each language row is self-contained: the AF row handles blog_id 1,
-                                                // the DE row handles only blog_id 2 — no overlap, no empty targets.
+                                                $langSyncParams = $productFormatParamsByLang[$langKey];
+                                                // Keep only the target of this (blog, language) pair: one site and one language per row
+                                                // (the same language gets one row per site where it is mapped).
                                                 $langSyncParams['targets'] = array_values(array_filter(
                                                     $langSyncParams['targets'],
-                                                    function ($target) use ($wpLang, $langBlogMap) {
-                                                        return isset($langBlogMap[$wpLang])
-                                                            && (int) $target['blog_id'] === $langBlogMap[$wpLang];
+                                                    function ($target) use ($langKey, $langBlogMap) {
+                                                        return isset($langBlogMap[$langKey])
+                                                            && (int) $target['blog_id'] === $langBlogMap[$langKey];
                                                     }
                                                 ));
                                                 if (isset($langSyncParams['targets'][0])) {
                                                     $langSyncParams['targets'][0]['lang_code'] = $wpLang;
+                                                }
+                                                // A language row without targets would be synced to the current blog without language: skip it.
+                                                if (empty($langSyncParams['targets'])) {
+                                                    sl_debug('Skipping '.$item_type.' row for language '.$wpLang.' on blog_id '.$langBlogMap[$langKey].': the site is not an active target.', 'syncdata');
+                                                    continue;
                                                 }
                                                 $this->sql_to_insert[] = "('".$sync_type."', '".$item_type."', '".addslashes(json_encode($langItemData))."', '".addslashes(json_encode($langSyncParams))."')";
                                                 $this->insert_syncdata_sql();
@@ -1828,6 +1914,7 @@ class Synchronize
         $sync_indexes = ['_to_delete', '_to_sync', '_not_synced'];
 
         $counters_info = [];
+        $not_synced_total = 0;
         
         foreach ($table_indexes as $table_index){
         
@@ -1860,6 +1947,7 @@ class Synchronize
                     if (isset($arrayReturn[$table_index.$sync_index]) && !empty($arrayReturn[$table_index.$sync_index])){
                         
                         $synchronization_messages['warning'][] = 'Total '.$table_index_name.' not stored for synchronization due to errors: '.count($arrayReturn[$table_index.$sync_index]);
+                        $not_synced_total += count($arrayReturn[$table_index.$sync_index]);
                         
                         foreach ($arrayReturn[$table_index.$sync_index] as $not_synced_message) {
                             
@@ -1887,7 +1975,16 @@ class Synchronize
 
             $this->sql_to_insert[] = "('info', 'counters', '".addslashes(json_encode($counters_info))."', '".addslashes(json_encode($sync_params))."')";
             $this->insert_syncdata_sql(true);
-            $synchronization_messages['success'][] = "Connector ID: ".$connector_id." - Synchronization executed successfully!";
+
+            if ($not_synced_total > 0){
+
+                $synchronization_messages['warning'][] = "Connector ID: ".$connector_id." - Synchronization executed with ".$not_synced_total." item(s) not synchronized due to errors!";
+
+            }else{
+
+                $synchronization_messages['success'][] = "Connector ID: ".$connector_id." - Synchronization executed successfully!";
+
+            }
 
         }else{
 
@@ -1903,10 +2000,21 @@ class Synchronize
             $new_file = false;
             if (!file_exists($error_file)){ $new_file = true; }
 
-            file_put_contents($error_file, $error_data, FILE_APPEND);
-            if ($new_file){ chmod($error_file, 0777); }
+            // The failure is reported below (log + warning to the user), so the PHP warning is silenced.
+            $bytes_written = @file_put_contents($error_file, $error_data, FILE_APPEND);
 
-            $synchronization_messages['warning'][] = 'Errors can be found in '.basename($error_file);
+            if ($bytes_written === false){
+
+                sl_debug('## Error. Writing error log file: '.basename($error_file));
+                $synchronization_messages['warning'][] = 'The errors log file could not be written.';
+
+            }else{
+
+                if ($new_file){ @chmod($error_file, 0666); }
+
+                $synchronization_messages['warning'][] = 'Errors can be found in '.basename($error_file);
+
+            }
             
         }
     
