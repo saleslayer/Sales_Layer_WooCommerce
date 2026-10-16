@@ -1,0 +1,4 @@
+# Plugin logs (generated at runtime; names include the site's secret suffix).
+# logs/index.php and logs/.htaccess are versioned so the folder ships protected.
+logs/*.dat
+logs/*.zip
