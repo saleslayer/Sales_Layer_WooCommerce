@@ -603,12 +603,64 @@ function sl_wp_update_post(array $postarr = array(), bool $wp_error = false)
  */
 function sl_wp_set_object_terms($object_id, $terms, $taxonomy, bool $append = false)
 {
-    
+
     $resultado = wp_set_object_terms($object_id, $terms, $taxonomy, $append);
 
     if (is_wp_error($resultado)) {
 
         sl_debug('## Error. sl_wp_set_object_terms: '.$resultado->get_error_message());
+
+    }
+
+}
+
+/**
+ * Refresh WooCommerce's product data after the plugin wrote price/stock meta directly.
+ * Simple products and variations get their wc_product_meta_lookup row rebuilt (price and stock
+ * filters, price sorting). Variable products are synced with their visible variations, as
+ * WooCommerce does when saving them: _price takes the variation prices (the parent regular and
+ * sale prices are removed), the stock status is synced and the lookup row is rebuilt.
+ * @param  int $product_id WP product or variation ID
+ * @return void
+ */
+function sl_refresh_product_lookup($product_id)
+{
+
+    $product_id = (int) $product_id;
+    if ($product_id <= 0 || !class_exists('WC_Product_Data_Store_CPT')) { return; }
+
+    try {
+
+        // The product type is cached per request; the plugin may have just changed it (simple -> variable).
+        WC_Cache_Helper::invalidate_cache_group('product_'.$product_id);
+
+        if (WC_Product_Factory::get_product_type($product_id) === 'variable') {
+
+            WC_Product_Variable::sync($product_id);
+            return;
+
+        }
+
+        $data_store = new WC_Product_Data_Store_CPT();
+
+        if (method_exists($data_store, 'refresh_product_lookup_table')) {
+
+            // WooCommerce >= 10.8
+            $data_store->refresh_product_lookup_table($product_id);
+
+        } else {
+
+            // WooCommerce < 10.8: same protected method (available since 3.6) that WooCommerce calls on save.
+            $update_lookup = \Closure::bind(function ($id) {
+                $this->update_lookup_table($id, 'wc_product_meta_lookup');
+            }, $data_store, WC_Product_Data_Store_CPT::class);
+            $update_lookup($product_id);
+
+        }
+
+    } catch (\Throwable $e) {
+
+        sl_debug('## Error. Refreshing product lookup data for WP ID '.$product_id.': '.$e->getMessage());
 
     }
 

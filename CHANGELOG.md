@@ -26,6 +26,7 @@
 - Admin assets use WordPress' own jQuery and Dashicons; the bundled jQuery 3.5.0, Bootstrap and the Font Awesome CDN are no longer loaded, and plugin scripts are versioned for cache busting.
 - Log files are created with `0666` permissions (instead of `0777`) and write failures are reported without PHP warnings.
 - Legacy items migration processes items in batches.
+- After saving a product or variation, its WooCommerce lookup data (`wc_product_meta_lookup`) is refreshed, and variable products are synced with their visible variations as WooCommerce does when saving them: the parent price is taken from the variations and its own regular and sale prices are removed. Deleting a variation re-syncs its parent. A variable product left without visible variations is not converted to simple: changing its type (which deletes the variations) is left to the store administrator, so sales data is not lost after an accidental deletion.
 - Media files are downloaded with the WordPress HTTP API (60 s timeout) to a temporary file and only replace the current file once validated. Images whose file name has spaces or special characters are downloaded once more after upgrading, with the sanitized name.
 - Auto-sync records every attempt per connector, so a connector whose synchronization fails waits for its interval like the rest; due times are calculated in UTC.
 - A queue row is only removed when every target site was synchronized; otherwise it is retried (skipping the sites already done) and dropped after 3 attempts with a log entry. PHP errors in a row are caught, so they no longer stop the queue.
@@ -59,6 +60,7 @@
 - A connector whose synchronization always failed blocked auto-sync for the other connectors; auto-sync due times depended on the MySQL session time zone.
 - Sales Layer API errors were reported as "No information to synchronize!" and still updated the connector sync dates; an error on an intermediate page lost the remaining pages.
 - Failed remote image reads (non-2xx response or no size) were not logged.
+- Synchronized products were missing from (or outdated in) WooCommerce price and stock filters, price sorting and product blocks, because prices and stock were written as meta without updating the product lookup table; variable products kept the Sales Layer product price as their price instead of their variations' prices.
 - Legacy mode published adopted draft products and could match variations of another product.
 - A grouped product never reverted to simple when its linked products were removed.
 - Queue JSON with escaped characters was corrupted when read back.
@@ -67,7 +69,7 @@
 
 ### Tested
 
-- Tested on WooCommerce 11.1.2 / WordPress 7.1.2 / PHP 8.5 / Polylang 3.8.10 (single-site and Multisite)
+- Tested on WooCommerce 11.2.1 / WordPress 7.1.3 / PHP 8.5 / Polylang 3.8.10 (single-site and Multisite)
 
 ## [2.6.1] - 2026-04-17
 

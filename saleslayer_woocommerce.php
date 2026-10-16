@@ -11,10 +11,10 @@ License URI:    https://www.gnu.org/licenses/gpl-2.0.txt
 Text Domain:    saleslayer_woocommerce
 Requires PHP:   8.0
 Requires at least: 6.4
-Tested up to:   7.1.2
+Tested up to:   7.1.3
 Requires Plugins: woocommerce
 WC requires at least: 8.2.0
-WC tested up to: 11.1.2
+WC tested up to: 11.2.1
 */
 
 defined( 'ABSPATH' ) or die( 'Direct access is not allowed.' );

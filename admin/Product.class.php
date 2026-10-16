@@ -1418,6 +1418,11 @@ class Product
             $multilangHelper->link_all_post_translations($sl_product_id, $this->comp_id);
         }
 
+        // Price and stock were written as meta: update WooCommerce's lookup data (and variation prices of a variable product).
+        $time_ini_product_lookup = microtime(true);
+        sl_refresh_product_lookup($wp_product['ID']);
+        sl_debug('## time_product_lookup: '.(microtime(true) - $time_ini_product_lookup).' seconds.', 'timer');
+
         if ($this->debug_level) sl_debug("Product updated!");
 
         return 'item_updated';

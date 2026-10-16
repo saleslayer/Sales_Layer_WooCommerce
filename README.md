@@ -47,6 +47,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 	- One size for image fields.
 	- Most WooCommerce fields are already defined in each section, extra fields for products or variants will be treated as attributes<br/> (*Admin > Product > Attributes*) and they must be created in WooCommerce beforehand in order to synchronize.
 	- When synchronizing a product with variants, WooCommerce attributes that are synchronized will be marked as Used for variations. Then, attribute values from the product and variants will be combined and assigned to the parent product. Variations must have only one value for each attribute.
+	- Product prices apply to simple products. A product with variants takes its price from its variations, as in WooCommerce. If every variant of a product is removed, the product keeps its variable type (without price) so that the variations and their sales data are not deleted; change it to simple product in WooCommerce if needed.
 	
 ## Multisite and multilanguage
 
@@ -67,7 +68,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 | [2.3.x]        | EOL        | >= 4.1.0, <= 5.4.4      | 7.3               | [Changelog 2.3.x][changelog-2.3.x]    |
 | [2.4.x]        | EOL        | >= 5.5.0, <= 7.6.1      | >= 7.3, <= 8.1    | [Changelog 2.4.x][changelog-2.4.x]    |
 | [2.5.x]        | Fixes only | >= 8.0.2, <= 10.4.3     | >= 8.1, <= 8.5    | [Changelog 2.5.x][changelog-2.5.x]    |
-| [2.6.x]        | Stable     | >= 8.2.0, <= 11.1.2     | >= 8.0, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
+| [2.6.x]        | Stable     | >= 8.2.0, <= 11.2.1     | >= 8.0, <= 8.5    | [Changelog 2.6.x][changelog-2.6.x]    |
 
 ## Branch 2.6.x Release recommended configuration
 
@@ -75,7 +76,7 @@ Please check the [important notes for the installation][sc-important-notes] avai
 |----------------|---------------------|-------------------|----------------|------------|
 | [2.6.0][2.6.0] | WooCommerce 10.4.3  | WordPress 6.9     | PHP 8.5        | Apache 2.4 |
 | [2.6.1][2.6.1] | WooCommerce 10.6.1  | WordPress 6.9.4   | PHP 8.5        | Apache 2.4 |
-| [2.6.2][2.6.2] | WooCommerce 11.1.2  | WordPress 7.1.2   | PHP 8.5        | Apache 2.4 |
+| [2.6.2][2.6.2] | WooCommerce 11.2.1  | WordPress 7.1.3   | PHP 8.5        | Apache 2.4 |
 
 
 ## Branch 2.5.x Release recommended configuration

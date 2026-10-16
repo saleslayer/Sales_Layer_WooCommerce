@@ -1283,6 +1283,12 @@ class Format
             $multilangHelper->link_all_post_translations($sl_format_id, $this->comp_id, ['product_variation']);
         }
 
+        // Price and stock were written as meta: update the variation lookup data, then sync the parent with its variations.
+        $time_ini_format_lookup = microtime(true);
+        sl_refresh_product_lookup($wp_format['ID']);
+        sl_refresh_product_lookup($wp_parent_product['ID']);
+        sl_debug('## time_format_lookup: '.(microtime(true) - $time_ini_format_lookup).' seconds.', 'timer');
+
         return 'item_updated';
 
     }
@@ -1731,6 +1737,9 @@ class Format
             sl_delete_post_meta($wp_format['ID'], '_slyr_wc_lang');
 
             sl_wp_update_post(array('ID' => $wp_format['ID'], 'post_status' => 'private'), true);
+
+            // The variation is no longer visible: recalculate the parent prices without it.
+            sl_refresh_product_lookup(wp_get_post_parent_id($wp_format['ID']));
 
         }
 
