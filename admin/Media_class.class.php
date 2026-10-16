@@ -1,6 +1,5 @@
 <?php
 
-require_once(ABSPATH . 'wp-load.php');
 require_once(ABSPATH . 'wp-admin/includes/image.php');
 require_once(ABSPATH . 'wp-admin/includes/file.php');
 include_once(SLYR_WC__PLUGIN_DIR.'admin/general_functions.php');

@@ -60,6 +60,7 @@
 - A connector whose synchronization always failed blocked auto-sync for the other connectors; auto-sync due times depended on the MySQL session time zone.
 - Sales Layer API errors were reported as "No information to synchronize!" and still updated the connector sync dates; an error on an intermediate page lost the remaining pages.
 - Failed remote image reads (non-2xx response or no size) were not logged.
+- Running the synchronization with WP-CLI (e.g. `wp cron event run`) reloaded `wp-config.php` and raised "Constant … already defined" warnings (an error from PHP 9).
 - Synchronized products were missing from (or outdated in) WooCommerce price and stock filters, price sorting and product blocks, because prices and stock were written as meta without updating the product lookup table; variable products kept the Sales Layer product price as their price instead of their variations' prices.
 - Legacy mode published adopted draft products and could match variations of another product.
 - A grouped product never reverted to simple when its linked products were removed.
