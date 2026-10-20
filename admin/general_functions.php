@@ -636,7 +636,11 @@ function sl_refresh_product_lookup($product_id)
 
         if (WC_Product_Factory::get_product_type($product_id) === 'variable') {
 
-            WC_Product_Variable::sync($product_id);
+            // Build the object directly: wc_get_product() may return an instance cached earlier in this
+            // request with the old type (product instance caching, WooCommerce >= 10.5), and sync() would
+            // then do nothing. Children are read again without the cached transient.
+            wc_delete_product_transients($product_id);
+            WC_Product_Variable::sync(new WC_Product_Variable($product_id));
             return;
 
         }
